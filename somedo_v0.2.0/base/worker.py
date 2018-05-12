@@ -44,8 +44,8 @@ class Worker:
 		'Execute jobs'
 		message = 'Errors occurred:\n'
 		chrome = Chrome(config['Chrome'], headless=headless)
-		print('-----------DEBUG----------jobs:',jobs)
-		print('stop:', stop)
+		print('-----------DEBUG----------jobs:',jobs)	################################# DEBUG #####################
+
 		for i in jobs:
 #			try:
 			exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]), stop=stop)' % i[0])

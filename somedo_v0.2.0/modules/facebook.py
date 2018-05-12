@@ -21,7 +21,7 @@ class Facebook:
 
 	ACCOUNT = ['id', 'name', 'path', 'link']
 
-	def __init__(self, target, options, login, chrome, storage, stop=False):
+	def __init__(self, target, options, login, chrome, storage, stop=None):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
 		self.chrome = chrome

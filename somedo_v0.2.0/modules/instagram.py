@@ -9,18 +9,17 @@ class Instagram:
 		'Instagram',
 		[],
 		[
-			[['Landing', True]]
+#			[['Main', True]]
 		]
 	]
 
-	def __init__(self, target, login, chrome, storage, stop=False):
+	def __init__(self, target, options, login, chrome, storage, stop=None):
 		'Generate object for Instagram'
 		self.storage = storage
 		self.chrome = chrome
 		self.stop = stop
 		for i in self.extract_targets(target):
-			if 'Landing' in options:
-				self.get_landing(i)
+			self.get_main(i)
 
 	def extract_targets(self, target):
 		'Extract usernames from urls'
@@ -33,12 +32,14 @@ class Instagram:
 				l.append(i)
 		return l
 
-	def get_landing(self, user):
+	def get_main(self, user):
 		'Get landing page of Instagramm account'
 		self.chrome.navigate('https://www.instagram.com/%s' % user)
 		name = self.extract_name()	# get displayed name out of side header
 		self.write_account(user, name)	# save user name, name and link
-		self.chrome.expand_page(path_no_ext = self.storage.path('landing', user))	# scroll through page and take screenshots
+		self.chrome.rm_outer_html('ClassName', '_tpnch _caluf')
+		self.chrome.rm_outer_html('ClassName', '_cqw45 _2pnef')
+		self.chrome.expand_page(path_no_ext = self.storage.path('main', user))	# scroll through page and take screenshots
 
 	def extract_name(self):
 		'Get information about given user out of targeted page'

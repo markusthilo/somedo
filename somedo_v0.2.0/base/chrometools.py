@@ -11,9 +11,9 @@ from base64 import b64decode
 class Chrome:
 	'Tools around the Chromedriver'
 
-	WINDOW_WIDTH = 640
+	WINDOW_WIDTH = 720
 	WINDOW_HEIGHT = 1040	# it seems, right now it is the limit for headless chrome
-	SCROLL_HEIGHT = 960
+	SCROLL = 0.80	# ratio to scroll in relation to window height
 	MAX_HEIGHT = 9999 * WINDOW_HEIGHT	# at 10000 screenshots you would run aut of counter if nothing else bad happened so far
 
 	def __init__(self, path=None, port=9222, headless=False, stop=None):
@@ -23,14 +23,13 @@ class Chrome:
 			path = cp.path
 		chrome_cmd = [	# chrome with parameters
 			path,
+			'--window-size=%d,%d' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT),	# try to set windows dimensions - might not work right now
 			'--remote-debugging-port=%d' % port,
 			'--incognito',
 			'--disable-gpu'	# might be needed for windows
 		]
 		if headless:	# start invisble/headless if desired
 			chrome_cmd.append('--headless')
-		else:	# this still don't work on headless chrome
-			chrome_cmd.append('--window-size="%d,%d"' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
 		self.stop = stop	# to abort if user hits the stop button
 		self.chrome_proc = subprocess.Popen(chrome_cmd)	# start chrome browser
 		wait_seconds = 10.0
@@ -43,15 +42,16 @@ class Chrome:
 #				self.send_cmd('Network.enable')
 #				self.runtime_eval('window.innerWidth = %d; window.innerHeight = %d' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
 #				self.runtime_eval('window.resizeTo(%d, %d)' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
-				if headless:		# found this on the net but it seems to do nothing
-					self.send_cmd('''
-						Page.setDeviceMetricsOverride({
-							'width': %d,
-							'height':%d,
-							'deviceScaleFactor': 1,
-							'mobile': false
-						});
-					''' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+#				if headless:		# found this on the net but it seems to do nothing
+#					self.send_cmd('''
+#						Page.setDeviceMetricsOverride({
+#							'width': %d,
+#							'height':%d,
+#							'deviceScaleFactor': 1,
+#							'mobile': false
+#						});
+#						''' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+				self.x = 0
 				return
 			except requests.exceptions.ConnectionError:
 				time.sleep(0.25)
@@ -89,11 +89,11 @@ class Chrome:
 
 	def click_elements(self, element_type, selector):
 		'Click all elements by given type and selector'
-		return self.runtime_eval('''
+		return int(self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			for (var i=0;i<elements.length; i++) { elements[i].click() }
 			JSON.stringify(elements.length);
-		''' % (element_type, selector))
+		''' % (element_type, selector)))
 
 	def click_element(self, element_type, selector, n):
 		'Click one elements by given type, selector and number'
@@ -139,19 +139,19 @@ class Chrome:
 
 	def rm_outer_html(self, element_type, selector):
 		'Remove outerHTML of all elements by given type and selector'
-		return self.runtime_eval('''
+		return int(self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			for (var i=0;i<elements.length; i++) { elements[i].outerHTML = "" }
 			JSON.stringify(elements.length);
-		''' % (element_type, selector))
+		''' % (element_type, selector)))
 
 	def rm_inner_html(self, element_type, selector):
 		'Remove innerHTML of all elements by given type and selector'
-		return self.runtime_eval('''
+		return int(self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			for (var i=0;i<elements.length; i++) { elements[i].innerHTML = "" }
 			JSON.stringify(elements.length);
-		''' % (element_type, selector))
+		''' % (element_type, selector)))
 
 	def set_outer_html(self, element_type, selector, n, html):
 		'Set outerHTML of element n'
@@ -169,24 +169,55 @@ class Chrome:
 		'Set innerHTML of element selected by ID'
 		self.runtime_eval('document.getElementById("%s").innerHTML = "%s"' % (selector, html))
 
-	def get_height(self):
-		'Get page height'
-		return self.runtime_eval('JSON.stringify(document.body.scrollHeight)')
+	def get_window_height(self):
+		'Get visible height of the window'	
+		return int(self.runtime_eval('JSON.stringify(window.innerHeight)'))
 
-	def get_position(self):
-		'Get scroll position'
-		return self.runtime_eval('JSON.stringify(document.body.scrollTop)')
+	def get_window_width(self):
+		'Get visible height of the window'	
+		return int(self.runtime_eval('JSON.stringify(window.innerWidth)'))
+
+	def get_page_height(self):
+		'Get page height'
+		return int(self.runtime_eval('JSON.stringify(document.body.scrollHeight)'))
+
+	def get_page_width(self):
+		'Get page width'
+		return int(self.runtime_eval('JSON.stringify(document.body.scrollWidth)'))
+
+	def get_x_position(self):
+		'Get x scroll position'
+		return int(self.runtime_eval('JSON.stringify(document.body.scrollLeft)'))
+
+	def get_y_position(self):
+		'Get y scroll position'
+		return int(self.runtime_eval('JSON.stringify(document.body.scrollTop)'))
 
 	def set_position(self, y):
-		'Scroll to given position'
-		self.runtime_eval('window.scrollTo(0, %s);' % y )
+		'Scroll to given position - x has to be stored in object'
+		self.runtime_eval('window.scrollTo(%d, %d);' % (self.x, y))
+
+	def set_x_left(self):
+		'Horizontally focus to left of page an go to top'
+		self.x = 0
+		self.set_position(0)
+
+	def set_x_right(self):
+		'Horizontally focus to right of page an go to top'
+		self.x = self.get_page_width() - self.get_window_width()
+		self.set_position(0)
+
+	def set_x_center(self):
+		'Horizontally focus to center of page an go to top'
+		self.x = self.get_page_width() - int( self.get_window_width() / 2 )
+		self.set_position(0)
 
 	def wait_expand_end(self):
 		'Wait for page not expanding anymore'
-		old_height = self.get_height()
+		old_height = self.get_page_height()
 		while True:
 			time.sleep(0.1)
-			new_height = self.get_height()
+			new_height = self.get_page_height()
 			if new_height == old_height:
 				return new_height
 			old_height = new_height
@@ -203,7 +234,7 @@ class Chrome:
 		'Take screenshots of the entire page by scrolling through'
 		self.wait_expand_end()	# do not start while page is still expanding
 		cnt = 1	# counter to number shots
-		for y in range(0, self.get_height(), self.SCROLL_HEIGHT):
+		for y in range(0, self.get_height(), int(self.get_window_height() * self.SCROLL)):
 			self.set_position(y) 	# scroll down
 			self.visible_page_png('%s_%04d.png' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1	# increase counter
@@ -214,7 +245,8 @@ class Chrome:
 		cnt = 1	# counter to number shots
 		self.set_position(0)
 		y = 0	# vertical position
-		old_height = self.get_height()	# to check if page is still expanding
+		scroll_height = int(self.get_window_height() * self.SCROLL)
+		old_height = self.get_page_height()	# to check if page is still expanding
 		while True:
 			if click_elements_by != []:
 				self.click_page(click_elements_by, y)
@@ -222,10 +254,10 @@ class Chrome:
 			if path_no_ext != '':
 				self.visible_page_png('%s_%04d' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1
-			y += self.SCROLL_HEIGHT
+			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
-			if new_height <= old_height and new_height <= y + self.SCROLL_HEIGHT:	# check for end of page
+			if new_height <= old_height and new_height <= y + scroll_height:	# check for end of page
 				return	# exit if page did not change
 			old_height = new_height
 			if self.stop_check(terminator=terminator):	# chech for criteria to abort
@@ -241,16 +273,15 @@ class Chrome:
 			time.sleep(0.1)	# give the page a brief short moment to react
 			self.wait_expand_end()	# do not continue while page is still expanding
 		self.set_position(y)	# go back to y because clicking might have changed the position in the page
-		time.sleep(0.2)
+		time.sleep(0.2)	# always wait a bit
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		try:	# right now pagetopdf does not work on my stable debian chrome
+		try:	# right now page.printtopdf does not work on my stable chrome under debian
 			with open('%s.pdf' % path_no_ext, 'wb') as f:
 				f.write(b64decode(self.send_cmd('Page.printToPDF')))
 		except:
-			pass
-#			raise Exception('Unable to save page as PDF')
+			raise Exception('Unable to save page as PDF')
 
 	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'
