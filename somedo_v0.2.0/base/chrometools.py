@@ -11,14 +11,14 @@ from base64 import b64decode
 class Chrome:
 	'Tools around the Chromedriver'
 
-	WINDOW_WIDTH = 720
+	WINDOW_WIDTH = 720	# choosen that screenshots fit nice on a4 or letter size
 	WINDOW_HEIGHT = 1040	# it seems, right now it is the limit for headless chrome
-	SCROLL = 0.80	# ratio to scroll in relation to window height
+	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
 	MAX_HEIGHT = 9999 * WINDOW_HEIGHT	# at 10000 screenshots you would run aut of counter if nothing else bad happened so far
 
 	def __init__(self, path=None, port=9222, headless=False, stop=None):
 		'Open Chrome session'
-		if path == None:
+		if path == None or not os.path.isfile(path):
 			cp = ChromePath()	# find chrome browser
 			path = cp.path
 		chrome_cmd = [	# chrome with parameters
@@ -185,6 +185,10 @@ class Chrome:
 		'Get page width'
 		return int(self.runtime_eval('JSON.stringify(document.body.scrollWidth)'))
 
+	def get_scroll_height(self):
+		'Calculate scroll height based on the window height'
+		return int(self.get_window_height() * self.SCROLL_RATIO)
+
 	def get_x_position(self):
 		'Get x scroll position'
 		return int(self.runtime_eval('JSON.stringify(document.body.scrollLeft)'))
@@ -214,10 +218,16 @@ class Chrome:
 
 	def wait_expand_end(self):
 		'Wait for page not expanding anymore'
-		old_height = self.get_page_height()
+		try:
+			old_height = self.get_page_height()
+		except TypeError:
+			old_heihgt = self.WINDOW_HEIGHT
 		while True:
 			time.sleep(0.1)
-			new_height = self.get_page_height()
+			try:
+				new_height = self.get_page_height()
+			except TypeError:
+				continue
 			if new_height == old_height:
 				return new_height
 			old_height = new_height
@@ -234,18 +244,18 @@ class Chrome:
 		'Take screenshots of the entire page by scrolling through'
 		self.wait_expand_end()	# do not start while page is still expanding
 		cnt = 1	# counter to number shots
-		for y in range(0, self.get_height(), int(self.get_window_height() * self.SCROLL)):
+		for y in range(0, self.get_height(), self.get_scroll_height()):
 			self.set_position(y) 	# scroll down
 			self.visible_page_png('%s_%04d.png' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1	# increase counter
 
 	def expand_page(self, click_elements_by=[], path_no_ext='', terminator=None):
-		'Expand page by clicking and scrolling. If path is given, screenshots are taken on the way.'
+		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.wait_expand_end()	# do not start while page is still expanding
 		cnt = 1	# counter to number shots
 		self.set_position(0)
 		y = 0	# vertical position
-		scroll_height = int(self.get_window_height() * self.SCROLL)
+		scroll_height = self.get_scroll_height()
 		old_height = self.get_page_height()	# to check if page is still expanding
 		while True:
 			if click_elements_by != []:
@@ -270,18 +280,19 @@ class Chrome:
 		for i in range(5):	# try several times to click on all elements
 			for j in click_elements_by:	# go throught dictionary containing pairs of element type and selector
 				self.click_elements(j[0], j[1])
-			time.sleep(0.1)	# give the page a brief short moment to react
 			self.wait_expand_end()	# do not continue while page is still expanding
 		self.set_position(y)	# go back to y because clicking might have changed the position in the page
-		time.sleep(0.2)	# always wait a bit
+		time.sleep(0.1)	# always wait a bit
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
 		try:	# right now page.printtopdf does not work on my stable chrome under debian
-			with open('%s.pdf' % path_no_ext, 'wb') as f:
-				f.write(b64decode(self.send_cmd('Page.printToPDF')))
+			print(self.send_cmd('Page.printToPDF'))	############################################ D E B U G !
+#			with open('%s.pdf' % path_no_ext, 'wb') as f:
+#				f.write(b64decode(self.send_cmd('Page.printToPDF')))
 		except:
-			raise Exception('Unable to save page as PDF')
+			pass
+#			raise Exception('Unable to save page as PDF')
 
 	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'

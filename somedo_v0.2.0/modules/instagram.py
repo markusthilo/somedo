@@ -37,8 +37,7 @@ class Instagram:
 		self.chrome.navigate('https://www.instagram.com/%s' % user)
 		name = self.extract_name()	# get displayed name out of side header
 		self.write_account(user, name)	# save user name, name and link
-		self.chrome.rm_outer_html('ClassName', '_tpnch _caluf')
-		self.chrome.rm_outer_html('ClassName', '_cqw45 _2pnef')
+		self.chrome.set_x_center()
 		self.chrome.expand_page(path_no_ext = self.storage.path('main', user))	# scroll through page and take screenshots
 
 	def extract_name(self):

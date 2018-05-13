@@ -198,6 +198,7 @@ class Facebook:
 				html = self.chrome.get_outer_html_by_id('entity_sidebar')
 			except:
 				account['link'] = 'undetected'
+				account['path'] = user
 				if account['id'] == '':
 					account['id'] == 'undetected for %s' % user
 				return account
@@ -216,20 +217,25 @@ class Facebook:
 				fid = ''
 		if fid != '':
 			account['id'] = fid
-		try:
-			m = re.search('href="https://www\.facebook\.com/[^"]+">[^<]+<', html)
-			path = m.group()[31:].split('"')[0].rstrip('/')	# cut out path
-		except:
-			pass
-		else:
-			if path != '':
-				account['path'] = path
+		if account['path'] == '':
+			try:
+				m = re.search('href="https://www\.facebook\.com/[^"]+">[^<]+<', html)
+				path = m.group()[31:].split('"')[0].rstrip('/')	# cut out path
+			except:
+				path = ''
+			else:
+				if path == '':
+					account['path'] = account['id']
+				else:
+					account['path'] = path
 		try:
 			name = m.group().split('>')[1].split('<')[0].rstrip(' ')	# cut out diplayed name
 		except:
-			pass
+			name = ''
 		else:
-			if name != '':
+			if name == '':
+				account['name'] = 'undetected'
+			else:
 				account['name'] = name
 		return account	# return dictionary
 
@@ -238,6 +244,7 @@ class Facebook:
 		self.chrome.set_outer_html_by_id('pagelet_bluebar', '')
 		self.chrome.set_outer_html_by_id('pagelet_sidebar', '')
 		self.chrome.set_outer_html_by_id('pagelet_dock', '')
+		self.chrome.set_outer_html_by_id('pagelet_escape_hatch', '')	# remove "Do you know ...?"
 
 	def get_utc(self, date_str):
 		'Convert date given as string (e.g. "2018-02-01") to utc as seconds since 01.01.1970'
@@ -265,9 +272,9 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to landing page of the given faebook account
 		if get_account:
 			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-		self.write_account(account)	# save id, name etc. as csv and json
+			self.write_account(account)	# save id, name etc. as csv and json
 		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.visible_page_png(self.storage.path('landing', account['id']))	# save the visible part of the page as png
+		self.chrome.visible_page_png(self.storage.path('landing', account['path']))	# save the visible part of the page as png
 		self.chrome.page_pdf(path)
 
 	def get_timeline(self, user, expand=False, translate=False, visitors=False, get_account=True):
@@ -275,10 +282,10 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
 		if get_account:
 			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-		self.write_account(account)	# save id, name etc. as csv and json
+			self.write_account(account)	# save id, name etc. as csv and json
 		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.set_outer_html_by_id('pagelet_escape_hatch', '')	# remove "Do you know ...?"
 		self.chrome.set_outer_html_by_id('timeline_sticky_header_container', '')	# some other redundant bar
+		self.chrome.set_x_right()	# the timeline is on the right
 		clicks = []
 		if expand:	# clicks to expand page
 			clicks.extend([
@@ -290,7 +297,36 @@ class Facebook:
 			clicks.extend([
 				['ClassName', 'UFITranslateLink']
 			])
-		path = self.storage.path('timeline', account['id'])
+		path = self.storage.path('timeline', account['path'])
+		self.chrome.expand_page(
+			click_elements_by = clicks,
+			path_no_ext = path,
+			terminator=self.terminator
+		)
+		self.chrome.page_pdf(path)
+		if visitors:
+			self.get_visitors(account)
+
+	def get_posts(self, user, expand=False, translate=False, visitors=False, get_account=True):
+		'Get posts on a bussines page'
+		self.driver.get('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
+		if get_account:
+			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
+			self.write_account(account)	# save id, name etc. as csv and json
+		self.rm_pagelets()	# remove bluebar etc.
+		self.chrome.set_x_right()	# the posts are on the right
+		clicks = []
+		if expand:	# clicks to expand page
+			clicks.extend([
+				['ClassName', 'see_more_link'],
+				['ClassName', 'UFIPagerLink'],
+				['ClassName', 'UFICommentLink']
+			])
+		if translate:	# show translations if is in options
+			clicks.extend([
+				['ClassName', 'UFITranslateLink']
+			])
+		path = self.storage.path('timeline', account['path'])
 		self.chrome.expand_page(
 			click_elements_by = clicks,
 			path_no_ext = path,
@@ -310,82 +346,75 @@ class Facebook:
 			if u != None and not u['id'] in visitor_ids:	# uniq
 				visitors.append(u)
 				visitor_ids.add(u['id'])
+		self.chrome.set_x_left()
 		for i in re.findall('href="/ufi/reaction/[^"]+"', timeline):	# look for links to reactions
 			if self.chrome.stop_check():
 				return
-			self.chrome_navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
-			self.driver.expand_page()	# scroll through page
-			reactions = self.chrome.get_outer_html('ClassName', 'uiList _4kg')	# extract reactions as list
-			if len(reactions) > 0:
-				for j in re.findall('<a [^<]+</a>', reactions):	# get links
-					u = self.get_user(j)	# extract information from link
-					if u != None and not u['id'] in visitor_ids:	# uniq
-						visitors.append(u)
-						visitor_ids.add(u['id'])
-		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', account['id'])
-		self.storage.write_json(visitors, 'visitors.json', account['id'])
+			self.chrome.navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
+			self.chrome.expand_page(terminator=self.terminator)	# scroll through page
+			reactions = self.chrome.get_outer_html_by_id('js_0')	# extract reactions as list
+			try:
+				if len(reactions) > 0:
+					for j in re.findall('<a [^<]+</a>', reactions):	# get links
+						u = self.get_user(j)	# extract information from link
+						if u != None and not u['id'] in visitor_ids:	# uniq
+							visitors.append(u)
+							visitor_ids.add(u['id'])
+			except:
+				pass
+		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', account['path'])
+		self.storage.write_json(visitors, 'visitors.json', account['path'])
 
-	def get_posts(self, user, expand=False, translate=False, visitors=False):
-		'Get posts on a bussines page'
-		self.driver.get('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
-		account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-		self.write_account(account)	# save id, name etc. as csv and json
-		selectors = []	# selectors for selenium to interact with facebook page
-		if expand:
-			selectors.extend([
-				['class', 'see_more_link'],
-				['class', 'UFIPagerLink'],
-				['class', 'UFICommentLink']
-			])
-		if translate:	# show translations if is in options
-			selectors.append(['class', 'UFITranslateLink'])
-		if expand or translate:
-			self.driver.expand_page(selectors)
-			self.driver.save_entire_png(self.storage.path('posts', account['id']))
-		else:
-			self.driver.scroll_save_png(self.storage.path('posts', account['id']))
-		if visitors:
-			self.get_visitors(account)
-
-	def get_about(self, user):
+	def get_about(self, user, get_account=True):
 		'Get About'
 		self.driver.get('https://www.facebook.com/%s/about' % user)	# go to about
-		account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-		self.write_account(account)
-		self.driver.scroll_save_png(self.storage.path('about', account['id']))
+		if get_account:
+			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
+			self.write_account(account)	# save id, name etc. as csv and json
+		self.rm_pagelets()	# remove bluebar etc.
+		self.chrome.set_x_right()	# the info is on the right
+		path = self.storage.path('about', account['path'])
+		self.chrome.expand_page(path_no_ext = path, terminator=self.terminator)
+		self.chrome.page_pdf(path)
 
-	def get_photos(self, user):
-		'Get photos of given user (id or path) and take screenshots'
+	def get_photos(self, user, get_account=True):
+		'Get Photos'
 		self.driver.get('https://www.facebook.com/%s/photos_albums' % user)
-		account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-		self.write_account(account)	# save id, name etc. as csv and json
+		if get_account:
+			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
+			self.write_account(account)	# save id, name etc. as csv and json
+		self.rm_pagelets()	# remove bluebar etc.
+		self.chrome.set_x_right()	# the info is on the right
 		album_cnt = 1	# to number screenshots
 		try:
-			albums = self.driver.find_element('id', 'pagelet_timeline_medley_photos')
+			albums = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_photos')
 		except:	# /pg/-account
 			self.driver.get('https://www.facebook.com/pg/%s/photos' % user)
+			self.chrome.set_x_right()	# the info is on the right
 			try:
-				albums = self.driver.find_id('id', 'content_container')
+				albums = self.chrome.get_outer_html_by_id('content_container')
 			except:
-				self.driver.scroll_save_png(self.storage.path('photos', account['id']))
+				self.chrome.expand_page(path_no_ext = self.storage.path('photos', account['path']), terminator=self.terminator)
 				return
-		self.driver.scroll_save_png(self.storage.path('albums', account['id']))	
+		self.chrome.expand_page(path_no_ext = self.storage.path('photos', account['path']), terminator=self.terminator)
 		try:
-			for i in re.findall('"https://www\.facebook\.com/media/set/\?[^"]*"', albums.get_attribute("outerHTML")):
-				self.driver.get(i.strip('"'))
-				self.driver.scroll_save_png(self.storage.path('album_%04d_page_' % album_cnt, account['id']))
+			for i in re.findall('"https://www\.facebook\.com/media/set/\?[^"]*"', albums):
+				self.chrome.navigate(i.strip('"'))
+				self.chrome.set_x_right()	# the info is on the right
+				self.chrome.expand_page(path_no_ext = self.storage.path('album_%04d_page_' % album_cnt, account['path']), terminator=self.terminator)
 				album_cnt += 1
 				photo_cnt = 1	# to number screenshots
-				photos = self.driver.find_element('id', 'pagelet_timeline_medley_photos')
 				try:
-					for j in re.findall('"https://www\.facebook\.com/photo\.php?[^"]*"', photos.get_attribute("outerHTML")):
-						self.driver.get(j.strip('"'))
-						self.driver.save_visible_png(self.storage.path('album_%04d_photo_%04d' % (album_cnt, photo_cnt), account['id']))	# save page as png
+					photos = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_photos')
+					for j in re.findall('"https://www\.facebook\.com/photo\.php?[^"]*"', photos):
+						self.chrome.navigate(j.strip('"'))
+						self.chrome.set_x_right()	# the info is on the right
+						self.chrome.visible_page_png(self.storage.path('album_%04d_photo_%04d' % (album_cnt, photo_cnt), account['path']))	# save page as png
 						photo_cnt += 1
-						self.driver.go_back()
+						self.chrome.go_back()
 				except:
 					pass
-				self.driver.go_back()
+				self.chrome.go_back()
 		except:
 			pass
 
@@ -406,8 +435,8 @@ class Facebook:
 			u = self.get_user(i)	# get link
 			if u != None:	
 				flist.append(u)	# append to friend list if info was extracted
-		self.storage.write_2d([ [ i[j] for j in i] for i in flist ], 'friends.csv', account['id'])
-		self.storage.write_json(flist, 'friends.json', account['id'])
+		self.storage.write_2d([ [ i[j] for j in i] for i in flist ], 'friends.csv', account['path'])
+		self.storage.write_json(flist, 'friends.json', account['path'])
 		return (account, flist)	# return account and friends as list
 
 	def get_network(self, targets, depth):
@@ -439,5 +468,5 @@ class Facebook:
 
 	def write_account(self, account):
 		'Write account information as CSV and JSON file'
-		self.storage.write_1d([ account[i] for i in self.ACCOUNT], 'account.csv', account['id'])
-		self.storage.write_json(account, 'account.json', account['id'])
+		self.storage.write_1d([ account[i] for i in self.ACCOUNT], 'account.csv', account['path'])
+		self.storage.write_json(account, 'account.json', account['path'])
