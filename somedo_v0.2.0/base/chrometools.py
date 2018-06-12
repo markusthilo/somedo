@@ -11,19 +11,18 @@ from base64 import b64decode
 class Chrome:
 	'Tools around the Chromedriver'
 
-	WINDOW_WIDTH = 720	# choosen that screenshots fit nice on a4 or letter size
-	WINDOW_HEIGHT = 1040	# it seems, right now it is the limit for headless chrome
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
-	MAX_HEIGHT = 9999 * WINDOW_HEIGHT	# at 10000 screenshots you would run aut of counter if nothing else bad happened so far
 
-	def __init__(self, path=None, port=9222, headless=False, stop=None):
+	def __init__(self, path=None, port=9222, headless=False, stop=None, window_width=960, window_height=1040):
 		'Open Chrome session'
 		if path == None or not os.path.isfile(path):
 			cp = ChromePath()	# find chrome browser
 			path = cp.path
+		self.window_width = window_width
+		self.window_height = window_height
 		chrome_cmd = [	# chrome with parameters
 			path,
-			'--window-size=%d,%d' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT),	# try to set windows dimensions - might not work right now
+			'--window-size=%d,%d' % (self.window_width, self.window_height),	# try to set windows dimensions - might not work right now
 			'--remote-debugging-port=%d' % port,
 			'--incognito',
 			'--disable-gpu'	# might be needed for windows
@@ -40,8 +39,8 @@ class Chrome:
 				self.request_id = 0
 #				self.send_cmd('DOM.enable')	# enable to interact with page
 #				self.send_cmd('Network.enable')
-#				self.runtime_eval('window.innerWidth = %d; window.innerHeight = %d' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
-#				self.runtime_eval('window.resizeTo(%d, %d)' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+#				self.runtime_eval('window.innerWidth = %d; window.innerHeight = %d' % (self.window_width, self.window_height))
+#				self.runtime_eval('window.resizeTo(%d, %d)' % (self.window_width, self.window_height))
 #				if headless:		# found this on the net but it seems to do nothing
 #					self.send_cmd('''
 #						Page.setDeviceMetricsOverride({
@@ -50,7 +49,7 @@ class Chrome:
 #							'deviceScaleFactor': 1,
 #							'mobile': false
 #						});
-#						''' % (self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+#						''' % (self.window_width, self.window_height))
 				self.x = 0
 				return
 			except requests.exceptions.ConnectionError:
@@ -221,12 +220,13 @@ class Chrome:
 		try:
 			old_height = self.get_page_height()
 		except TypeError:
-			old_heihgt = self.WINDOW_HEIGHT
+			old_heihgt = self.window_height
 		while True:
 			time.sleep(0.1)
 			try:
 				new_height = self.get_page_height()
 			except TypeError:
+				new_heihgt = old_height
 				continue
 			if new_height == old_height:
 				return new_height
@@ -248,6 +248,8 @@ class Chrome:
 			self.set_position(y) 	# scroll down
 			self.visible_page_png('%s_%04d.png' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1	# increase counter
+			if cnt == 10000:	# 9999 screenshots max
+				return
 
 	def expand_page(self, click_elements_by=[], path_no_ext='', terminator=None):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
@@ -264,6 +266,8 @@ class Chrome:
 			if path_no_ext != '':
 				self.visible_page_png('%s_%04d' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1
+			if cnt == 10000:	# 9999 screenshots max
+				return
 			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
@@ -286,19 +290,18 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		try:	# right now page.printtopdf does not work on my stable chrome under debian
-			print(self.send_cmd('Page.printToPDF'))	############################################ D E B U G !
+#		try:	# right now page.printtopdf does not work on my stable chrome under debian
+#			print(self.send_cmd('Page.printToPDF'))	############################################ D E B U G !
 #			with open('%s.pdf' % path_no_ext, 'wb') as f:
 #				f.write(b64decode(self.send_cmd('Page.printToPDF')))
-		except:
-			pass
+#		except:
+		pass	################################################################################ PrintToPDF is not implemented right now
 #			raise Exception('Unable to save page as PDF')
 
 	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'
-		if terminator != None:
-			if terminator():
-				return True
+		if terminator != None and terminator():
+			return True
 		if self.stop == None:
 			return False
 		try:
