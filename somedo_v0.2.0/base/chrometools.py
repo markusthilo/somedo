@@ -220,7 +220,7 @@ class Chrome:
 		try:
 			old_height = self.get_page_height()
 		except TypeError:
-			old_heihgt = self.window_height
+			old_height = self.window_height
 		while True:
 			time.sleep(0.1)
 			try:

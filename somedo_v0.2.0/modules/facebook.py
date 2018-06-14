@@ -38,10 +38,10 @@ class Facebook:
 			raise Exception('Could not login to Facebook.')
 		time.sleep(2)
 		if 'Network' in options:
-			try:
-				self.get_network(targets, options['Network']['Depth'])
-			except:
-				errors += ' Network,'
+#			try:
+			self.get_network(targets, options['Network']['Depth'])
+#			except:
+#				errors += ' Network,'
 		for i in targets:
 			get_account = True	# to check if info from cover had already been extracted
 			if self.chrome.stop_check():
@@ -55,41 +55,41 @@ class Facebook:
 			if self.chrome.stop_check():
 				break
 			if 'Timeline' in options:
-				try:
-					self.stop_utc = self.get_utc(options['Timeline']['Until'])
-					self.get_timeline(
-						i,
-						expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
-						translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
-						visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
-						get_account = get_account
-					)
-					get_account = False
-				except:
-					errors += ' %s/Timeline,' % i
+#				try:
+				self.stop_utc = self.get_utc(options['Timeline']['Until'])
+				self.get_timeline(
+					i,
+					expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
+					translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
+					visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
+					get_account = get_account
+				)
+				get_account = False
+#				except:
+#					errors += ' %s/Timeline,' % i
 			if self.chrome.stop_check():
 				break
 			if 'Posts' in options:
-				try:
-					self.stop_utc = self.get_utc(options['Posts']['Until'])
-					self.get_posts(
-						i,
-						expand = 'Expand' in options['Posts'] and options['Posts']['Expand'],
-						translate = 'Translate' in options['Posts'] and options['Posts']['Translate'],
-						visitors = 'Visitors' in options['Posts'] and options['Posts']['Visitors'],
-						get_account = get_account
-					)
-					get_account = False
-				except:
-					errors += ' %s/Posts,' % i
+#				try:
+				self.stop_utc = self.get_utc(options['Posts']['Until'])
+				self.get_posts(
+					i,
+					expand = 'Expand' in options['Posts'] and options['Posts']['Expand'],
+					translate = 'Translate' in options['Posts'] and options['Posts']['Translate'],
+					visitors = 'Visitors' in options['Posts'] and options['Posts']['Visitors'],
+					get_account = get_account
+				)
+				get_account = False
+#				except:
+#					errors += ' %s/Posts,' % i
 			if self.chrome.stop_check():
 				break
 			if 'About' in options:
-				try:
-					self.get_about(i, get_account = get_account)
-					get_account = False
-				except:
-					errors += ' %s/About,' % i
+#				try:
+				self.get_about(i, get_account = get_account)
+				get_account = False
+#				except:
+#					errors += ' %s/About,' % i
 			if self.chrome.stop_check():
 				break
 			if 'Photos' in options:
@@ -101,11 +101,11 @@ class Facebook:
 			if self.chrome.stop_check():
 				break
 			if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
-				try:
-					self.get_friends(i, get_account = get_account)
-					get_account = False
-				except:
-					errors += ' %s/Friends,' % i
+#				try:
+				self.get_friends(i, get_account = get_account)
+				get_account = False
+#				except:
+#					errors += ' %s/Friends,' % i
 		if errors != '':
 			raise Exception('The following Facebook accont(s)/action(s) returned errors: %s' % errors.rstrip(','))
 
@@ -188,27 +188,30 @@ class Facebook:
 	def extract_coverinfo(self, user):
 		'Get information about given user (id or path) out of targeted profile cover'
 		if re.sub('[0-9]+', '', user) == '':
-			account = {'id': user, 'name': 'undetected', 'path': 'undetected', 'link': 'https://www.facebook.com/profile.php?id=%s' % user}
+			account = {'id': user, 'name': 'undetected', 'path': 'profile.php?id=%s' % user, 'link': 'https://www.facebook.com/profile.php?id=%s' % user}
 		else:
 			account = {'id': 'undetected_for_%s' % user, 'name': 'undetected', 'path': user, 'link': 'https://www.facebook.com/%s' % user}
 		html = self.chrome.get_outer_html_by_id('fbProfileCover')	# try to get id, name and path of given user
 		try:
 			account['id'] = re.findall(' data-referrerid="[0-9]+"', html)[0][18:-1]
 		except:	
-			html = self.chrome.get_outer_html_by_id('entity_sidebar')	# try for /pg/-account
-			print(html)
-			try:
-				account['id'] = re.findall(' href="/[0-9]+/photos/', html)[0][8:-8]
-			except:
-				return account	# in case ther is still nothing to get an id
+#			html = self.chrome.get_outer_html_by_id('entity_sidebar')	# try for /pg/-account
+#			print(html)
+#			try:
+#				account['id'] = re.findall(' href="/[0-9]+/photos/', html)[0][8:-8]
+#			except:
+#				return account	# in case ther is still nothing to get an id
 			html = self.chrome.get_outer_html_by_id('entity_sidebar')
-		if account['path'] == 'undetected':
+
+		print(html)
+			
+		if account['path'] == '':
 			try:
 				account['path'] = re.findall(' href="https://www\.facebook\.com/[^"]+">', html)[0][32:-2]	# cut out path
 			except:
-				pass
+				account['path'] = 'profile.php?id=%s' % account['id']
 		try:
-			account['name'] = re.findall(' href="https://www\.facebook\.com/[^"]+">[^<]+</a>', html)[0].split('>')[1][:-3]	# cut out diplayed name
+			account['name'] = re.findall(' href="https://www\.facebook\.com/[^"]+">[^<]+<', html)[0].split('>')[1][:-1]	# cut out diplayed name
 		except:
 			pass
 		return account	# return dictionary
@@ -284,11 +287,12 @@ class Facebook:
 
 	def get_posts(self, user, expand=False, translate=False, visitors=False, get_account=True):
 		'Get posts on a bussines page'
-		self.driver.get('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
+		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
 		if get_account:
 			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
 			self.write_account(account)	# save id, name etc. as csv and json
 		self.rm_pagelets()	# remove bluebar etc.
+		self.chrome.set_outer_html_by_id('timeline_sticky_header_container', '')	# some other redundant bar
 		self.chrome.set_x_right()	# the posts are on the right
 		clicks = []
 		if expand:	# clicks to expand page
@@ -315,22 +319,22 @@ class Facebook:
 		'Get all visitors who left comments or likes etc. in timeline - timeline has to be open end expand'
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
-		timeline = self.chrome.get_outer_html_by_id('recent_capsule_container')	# get timeline
-		for i in re.findall('<a [^<]+</a>', timeline):	# look for links
+		html = self.chrome.get_outer_html_by_id('recent_capsule_container')	# get timeline
+		for i in re.findall('<a [^<]+</a>', html):	# look for links
 			u = self.get_user(i)	# extract information from link
 			if u != None and not u['id'] in visitor_ids:	# uniq
 				visitors.append(u)
 				visitor_ids.add(u['id'])
 		self.chrome.set_x_left()
-		for i in re.findall('href="/ufi/reaction/[^"]+"', timeline):	# look for links to reactions
+		for i in re.findall('href="/ufi/reaction/[^"]+"', html):	# look for links to reactions
 			if self.chrome.stop_check():
 				return
 			self.chrome.navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
 			self.chrome.expand_page(terminator=self.terminator)	# scroll through page
-			reactions = self.chrome.get_outer_html_by_id('js_0')	# extract reactions as list
+			html = self.chrome.get_outer_html_by_id('js_0')	# extract reactions as list
 			try:
-				if len(reactions) > 0:
-					for j in re.findall('<a [^<]+</a>', reactions):	# get links
+				if len(html) > 0:
+					for j in re.findall('<a [^<]+</a>', html):	# get links
 						u = self.get_user(j)	# extract information from link
 						if u != None and not u['id'] in visitor_ids:	# uniq
 							visitors.append(u)
@@ -374,6 +378,7 @@ class Facebook:
 		for i in hrefs:
 			self.chrome.navigate(i[6:])
 			self.chrome.set_x_right()	# the info is on the right
+			time.sleep(0.2)
 			self.chrome.visible_page_png(self.storage.path('photo_%04d' % cnt, account['path']))	# save page as png
 			cnt += 1
 			if cnt == 9999:
@@ -384,14 +389,13 @@ class Facebook:
 		'Get friends list from given user (id or path)'
 		flist = []	# list to store friends
 		self.chrome.navigate('https://www.facebook.com/%s/friends' % user)
-		if getaccount:
+		if get_account:
 			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-		self.write_account(account)	# save id, name etc. as csv and json
-		self.driver.scroll_save_png(self.storage.path('friends', account['id']))	
-		try:	# try to get friends
-			friends = self.driver.find_element('id', 'pagelet_timeline_medley_friends')
-			html = friends.get_attribute("outerHTML")
-		except:
+			self.write_account(account)	# save id, name etc. as csv and json
+		self.rm_pagelets()	# remove bluebar etc.
+		self.chrome.expand_page(path_no_ext = self.storage.path('friendss', account['path']))	
+		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_friends')	# try to get friends
+		if html == None:
 			return (account, flist)	# return empty list if no visible friends
 		for i in re.findall('<a href=\"[^?]*\?[^"]+\" [^<]*<\/a>', html):	# regex vs facebook
 			u = self.get_user(i)	# get link
@@ -413,7 +417,7 @@ class Facebook:
 					if not k in network:
 						(account, flist) = self.get_friends(k)	# get friend list
 						network.update({account['id']: [l['id'] for l in flist]})
-						if self.driver.stop_check():
+						if self.chrome.stop_check():
 							self.write_network(network)
 							return
 		self.write_network(network)
