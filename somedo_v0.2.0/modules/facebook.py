@@ -202,10 +202,7 @@ class Facebook:
 #			except:
 #				return account	# in case ther is still nothing to get an id
 			html = self.chrome.get_outer_html_by_id('entity_sidebar')
-
-		print(html)
-			
-		if account['path'] == '':
+		if account['path'][:15] == 'profile.php?id=':
 			try:
 				account['path'] = re.findall(' href="https://www\.facebook\.com/[^"]+">', html)[0][32:-2]	# cut out path
 			except:

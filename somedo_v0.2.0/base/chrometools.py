@@ -217,12 +217,13 @@ class Chrome:
 
 	def wait_expand_end(self):
 		'Wait for page not expanding anymore'
+		time.sleep(0.2)
 		try:
 			old_height = self.get_page_height()
 		except TypeError:
 			old_height = self.window_height
 		while True:
-			time.sleep(0.1)
+			time.sleep(0.2)
 			try:
 				new_height = self.get_page_height()
 			except TypeError:
