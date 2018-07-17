@@ -233,13 +233,22 @@ class Chrome:
 				return new_height
 			old_height = new_height
 
-	def visible_page_png(self, path_no_ext):
+	def visible_page_png(self, path_no_ext, cnt = 0):
 		'Take screenshot of the visible area of the web page'
+		if path_no_ext == '' or cnt > 9999:	# no screenshot on empty path or if counter is above 9999
+			return 0
+		if cnt == 0:	# generate file path without or with counter
+			path = '%s.png' % path_no_ext
+		else:
+			path = '%s_%04d.png' % (path_no_ext, cnt)
 		try:
-			with open('%s.png' % path_no_ext, 'wb') as f:
+			with open(path, 'wb') as f:
 				f.write(b64decode(self.send_cmd('Page.captureScreenshot', format='png')['result']['data']))
 		except:
 			raise Exception('Unable to save visible part of page as PNG')
+		if cnt == 0:	# do not increase if 0 (= no counter)
+			return 0
+		return cnt + 1
 
 	def entire_page_png(self, path_no_ext):
 		'Take screenshots of the entire page by scrolling through'
@@ -264,18 +273,16 @@ class Chrome:
 			if click_elements_by != []:
 				self.click_page(click_elements_by, y)
 			self.wait_expand_end()	# do not start while page is still expanding
-			if path_no_ext != '':
-				self.visible_page_png('%s_%04d' % (path_no_ext, cnt))	# store screenshot
-			cnt += 1
-			if cnt == 10000:	# 9999 screenshots max
-				return
+			cnt = self.visible_page_png(path_no_ext, cnt = cnt) # store screenshot
 			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
 			if new_height <= old_height and new_height <= y + scroll_height:	# check for end of page
+				self.visible_page_png(path_no_ext, cnt = cnt) # store last screenshot
 				return	# exit if page did not change
 			old_height = new_height
 			if self.stop_check(terminator=terminator):	# chech for criteria to abort
+				self.visible_page_png(path_no_ext, cnt = cnt) # store last screenshot before aborting
 				return
 
 	def click_page(self, click_elements_by, y):
@@ -291,12 +298,12 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-#		try:	# right now page.printtopdf does not work on my stable chrome under debian
-#			print(self.send_cmd('Page.printToPDF'))	############################################ D E B U G !
-#			with open('%s.pdf' % path_no_ext, 'wb') as f:
-#				f.write(b64decode(self.send_cmd('Page.printToPDF')))
+#		pass	################################################################################ PrintToPDF is not implemented right now
+		print (self.send_cmd('Page.printToPDF'))	# ########################################## only with --headless
+#		try:
+#		with open('%s.pdf' % path_no_ext, 'wb') as f:
+#			f.write(b64decode(self.send_cmd('Page.printToPDF')))
 #		except:
-		pass	################################################################################ PrintToPDF is not implemented right now
 #			raise Exception('Unable to save page as PDF')
 
 	def stop_check(self, terminator=None):
@@ -315,10 +322,10 @@ class Chrome:
 		self.chrome_proc.kill()
 
 class ChromePath:
-	'Set the path to the Chromedriver for Selenium'
+	'Set the path to Chrome/Chromium'
 
 	def __init__(self, *args):
-		'Open web session. It is possible to give the path to the Chromedriver.'
+		'Open web session. It is possible to give the path to the Chrome/Chromium.'
 		if len(args) == 1 and isinstance(args[0], str):
 			self.path = args[0]
 		elif len(args) == 0:
