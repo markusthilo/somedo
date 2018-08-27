@@ -13,7 +13,7 @@ class Chrome:
 
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
 
-	def __init__(self, path=None, port=9222, headless=False, stop=None, window_width=960, window_height=1040):
+	def __init__(self, path=None, port=9222, headless=True, stop=None, window_width=960, window_height=1040):
 		'Open Chrome session'
 		if path == None or not os.path.isfile(path):
 			cp = ChromePath()	# find chrome browser
@@ -29,6 +29,7 @@ class Chrome:
 		]
 		if headless:	# start invisble/headless if desired
 			chrome_cmd.append('--headless')
+			self.headless = True
 		self.stop = stop	# to abort if user hits the stop button
 		self.chrome_proc = subprocess.Popen(chrome_cmd)	# start chrome browser
 		wait_seconds = 10.0
@@ -77,7 +78,7 @@ class Chrome:
 	def navigate(self, url):
 		'Go to URL'
 		self.send_cmd('Page.navigate', url=url)
-		time.sleep(1)
+		time.sleep(2)
 		self.wait_expand_end()
 
 	def go_back(self):
@@ -298,13 +299,13 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-#		pass	################################################################################ PrintToPDF is not implemented right now
-		print (self.send_cmd('Page.printToPDF'))	# ########################################## only with --headless
-#		try:
-#		with open('%s.pdf' % path_no_ext, 'wb') as f:
-#			f.write(b64decode(self.send_cmd('Page.printToPDF')))
-#		except:
-#			raise Exception('Unable to save page as PDF')
+		if self.headless:	# only works with --headless according to the google developers
+			return
+		try:
+			with open('%s.pdf' % path_no_ext, 'wb') as f:
+				f.write(b64decode(self.send_cmd('Page.printToPDF')))
+		except:
+			raise Exception('Unable to save page as PDF')
 
 	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'
