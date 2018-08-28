@@ -27,9 +27,9 @@ class Chrome:
 			'--incognito',
 			'--disable-gpu'	# might be needed for windows
 		]
-		if headless:	# start invisble/headless if desired
+		if headless:	# start invisble/headless if desired (default)
 			chrome_cmd.append('--headless')
-			self.headless = True
+		self.headless = headless
 		self.stop = stop	# to abort if user hits the stop button
 		self.chrome_proc = subprocess.Popen(chrome_cmd)	# start chrome browser
 		wait_seconds = 10.0
@@ -299,11 +299,11 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		if self.headless:	# only works with --headless according to the google developers
+		if not self.headless:	# only works with --headless according to the google developers
 			return
 		try:
 			with open('%s.pdf' % path_no_ext, 'wb') as f:
-				f.write(b64decode(self.send_cmd('Page.printToPDF')))
+				f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
 		except:
 			raise Exception('Unable to save page as PDF')
 

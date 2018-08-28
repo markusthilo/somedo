@@ -40,7 +40,7 @@ class Worker:
 		self.logins = { i[0]: i[1] for i in MODULE_DEFINITIONS }
 		self.opts = { i[0]: i[2] for i in MODULE_DEFINITIONS }
 
-	def execute(self, jobs, config, headless=False, stop=None):
+	def execute(self, jobs, config, headless=True, stop=None):
 		'Execute jobs'
 		message = 'Errors occurred:\n'
 		chrome = Chrome(config['Chrome'], headless=headless)

@@ -408,30 +408,49 @@ class Facebook:
 
 	def get_network(self, targets, depth):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
-		network = dict()	# dictionary to store ids: {target-id: {friend-id, ...}, ...}
+		network = dict()	# dictionary to store friendlists
+		old_ids =set()	# set to store accounts (friendlist has been downloaded)
 		for i in targets:	# start with the given target accounts
 			(account, flist) = self.get_friends(i)	# get friend list
-			network.update({account['id']: [j['id'] for j in flist]})
+			network.update({
+				account['id']: {
+					'name':		account['name'],
+					'path':		account['path'],
+					'link':		account['link'],
+					'friends':	flist
+				}
+			})
+			old_ids.add(account['id'])
 		for i in range(depth):	# stay in depth limit
+			new_ids = set() # set to store accounts (friendlist has not been downloaded)
 			for j in network:
-				for k in network[j]:
-					if not k in network:
-						(account, flist) = self.get_friends(k)	# get friend list
-						network.update({account['id']: [l['id'] for l in flist]})
-						if self.chrome.stop_check():
-							self.write_network(network)
-							return
+				network[j]['friends']
+				new_ids.update(set(network[j]['friends']))
+			for j in new_ids - old_ids:
+				(account, flist) = self.get_friends(i)	# get friend list
+				network.update({
+					account['id']: {
+						'name':		account['name'],
+						'path':		account['path'],
+						'link':		account['link'],
+						'friends':	flist
+					}
+				})
+				old_ids.add(account['id'])
+				if self.chrome.stop_check():
+					self.write_network(network)
+					return
 		self.write_network(network)
 
 	def write_network(self, network):
 		'Write network data'
 		self.storage.write_json(network, 'network.json')
-		nodes = []	# list of friend connections: [ {id1, id2}, {id1, id3}, {id2, id4} ]
-		for i in network:
-			for j in network[i]:
-				if {i,j} not in nodes:	# uniq
-					nodes.append({i,j})
-		self.storage.write_2d(nodes, 'network.csv')
+#		nodes = []	# list of friend connections: [ {id1, id2}, {id1, id3}, {id2, id4} ]
+#		for i in network:
+#			for j in network[i]:
+#				if {i,j} not in nodes:	# uniq
+#					nodes.append({i,j})
+#		self.storage.write_2d(nodes, 'network.csv')
 
 	def write_account(self, account):
 		'Write account information as CSV and JSON file'

@@ -29,8 +29,10 @@ class GuiRoot(Tk):
 			pass
 		self.frame_jobs = LabelFrame(self.master, text = 'Jobs')	# in this tk-frame the jobs will be displayed
 		self.frame_jobs.pack(fill = BOTH, expand = True)	# tk-stuff
+		self.__tk_labels__ = [ StringVar() for i in range(10) ]
 		for i in range(10):	# generate job list
-			self.__job_label__(i)
+			Label(self.frame_jobs, textvariable=self.__tk_labels__[i], width=110, relief=GROOVE, anchor=W, padx=2).grid(
+			row=i, column=0, padx=4, pady=4, ipadx=4, ipady=4)
 			Button(self.frame_jobs, text='Up', width=4, command=partial(self.__job_up__, i)).grid(row=i, column=1)
 			Button(self.frame_jobs, text='Down', width=4, command=partial(self.__job_down__, i)).grid(row=i, column=2)
 			Button(self.frame_jobs, text='Check / Remove', width=14, command=partial(self.__job_check__, i)).grid(row=i, column=3)
@@ -119,31 +121,18 @@ class GuiRoot(Tk):
 		self.chrome_value.grid(row=1, column=2, sticky=W, padx=1, pady=1)
 		self.frame_main_buttons = Frame(self.master)
 		self.frame_main_buttons.pack(fill = X, expand = False)
-		
-
-		Button(self.frame_main_buttons, text="Start jobs", width=16, command=self.__start_hidden__).grid(row=0, column=0, padx=3, pady=1)
-		Button(self.frame_main_buttons, text="Start visible", width=16, command=self.__start_visible__).grid(row=0, column=1, padx=3, pady=1)
-		Label(self.frame_main_buttons, text="", width=16).grid(row=0, column=2, padx=3, pady=1)
-		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).grid(row=0, column=3, padx=3, pady=1)
+		Button(self.frame_main_buttons, text="Start jobs", width=16, command=self.__start_hidden__).pack(side=LEFT, padx=3, pady=1)
+		Button(self.frame_main_buttons, text="Start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
+		self.__tk_running__ = StringVar()
+		Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16).pack(side=LEFT, padx=3, pady=1)
+		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
 		try:
 			with open('ABOUT.txt', 'r', encoding='utf-8') as f:
 				self.about_help = f.read()
-				Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).grid(row=0, column=4, padx=3, pady=1)
+				Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
 		except:
 			pass
-		Button(self.frame_main_buttons, text="Quit", width=8, command=master.quit).grid(row=0, column=5, padx=128, pady=1)
-
-
-#		Button(self.frame_main_buttons, text="Start jobs", width=16, command=self.__start_hidden__).pack(side=LEFT, padx=3, pady=1)
-#		Button(self.frame_main_buttons, text="Start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
-#		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
-#		try:
-#			with open('ABOUT.txt', 'r', encoding='utf-8') as f:
-#				self.about_help = f.read()
-#				Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
-#		except:
-#			pass
-#		Button(self.frame_main_buttons, text="Quit", width=6, command=master.quit).pack(side=RIGHT, padx=3, pady=1)
+		Button(self.frame_main_buttons, text="Quit", width=6, command=master.quit).pack(side=RIGHT, padx=3, pady=1)
 
 	def __hide_login__(self, module, item):
 		'Toggle hidden login credentials'
@@ -176,11 +165,9 @@ class GuiRoot(Tk):
 			text = '%02d - %s' % ((row + 1), self.jobs[row][0])
 			for i in self.jobs[row][2]:
 				text += ' %s,' % i
-			text = text.rstrip(',') + ': %s' % self.jobs[row][1]
+			self.__tk_labels__[row].set(text.rstrip(',') + ': %s' % self.jobs[row][1])
 		else:
-			text = ''
-		Label(self.frame_jobs, text=text, width=110, relief=GROOVE, anchor=W, padx=2).grid(
-			row=row, column=0, padx=4, pady=4, ipadx=4, ipady=4)
+			self.__tk_labels__[row].set("")
 
 	def __job_info__(self, row):
 		if row >= len(self.jobs):
@@ -304,7 +291,7 @@ class GuiRoot(Tk):
 					return
 			except:
 				pass
-			Label(self.frame_main_buttons, text="Running...", width=16).grid(row=0, column=2, padx=3, pady=1)
+			self.__tk_running__.set("Running...")
 			self.headless = False	# chrome will be visible
 			self.stop = threading.Event()	# to stop main thread
 			self.thread = threading.Thread(target=self.__thread__)	# define main thread
@@ -320,7 +307,7 @@ class GuiRoot(Tk):
 					return
 			except:
 				pass
-			Label(self.frame_main_buttons, text="Running...", width=16).grid(row=0, column=2, padx=3, pady=1)
+			self.__tk_running__.set("Running...")
 			self.headless = True	# chrome will be started with option --headless
 			self.stop = threading.Event()	# to stop main thread
 			self.thread = threading.Thread(target=self.__thread__)	# define main thread
@@ -338,9 +325,8 @@ class GuiRoot(Tk):
 
 	def __thread__(self):
 		'Execute jobs'
-		print('execute', self.jobs, self.__get_config__())
 		messagebox.showinfo('Done', self.worker.execute(self.jobs, self.__get_config__(), headless=self.headless, stop=self.stop))
-		Label(self.frame_main_buttons, text="", width=16).grid(row=0, column=2, padx=3, pady=1)
+		self.__tk_running__.set("")
 
 if __name__ == '__main__':	# start here if called as program / app
 	rootwindow = Tk()
