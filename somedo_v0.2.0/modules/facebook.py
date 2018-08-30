@@ -399,7 +399,7 @@ class Facebook:
 		if html == None:
 			return (account, flist)	# return empty list if no visible friends
 		for i in re.findall('<a href=\"[^?]*\?[^"]+\" [^<]*<\/a>', html):	# regex vs facebook
-			u = self.get_user(i)	# get link
+			u = self.get_user(i)
 			if u != None:	
 				flist.append(u)	# append to friend list if info was extracted
 		self.storage.write_2d([ [ i[j] for j in i] for i in flist ], 'friends.csv', account['path'])
@@ -421,13 +421,13 @@ class Facebook:
 				}
 			})
 			old_ids.add(account['id'])
+		print(network)
+		print(old_ids)
 		for i in range(depth):	# stay in depth limit
-			new_ids = set() # set to store accounts (friendlist has not been downloaded)
-			for j in network:
-				network[j]['friends']
-				new_ids.update(set(network[j]['friends']))
+			new_ids = { k['id'] for j in network for k in network[j]['friends'] }	# set to store accounts (friendlist has not been downloaded)
+			print(new_ids)
 			for j in new_ids - old_ids:
-				(account, flist) = self.get_friends(i)	# get friend list
+				(account, flist) = self.get_friends(j)	# get friend list
 				network.update({
 					account['id']: {
 						'name':		account['name'],
