@@ -38,19 +38,6 @@ class Chrome:
 				response = requests.get('http://127.0.0.1:%d/json' % port).json()
 				self.conn = create_connection(response[0]['webSocketDebuggerUrl'])
 				self.request_id = 0
-#				self.send_cmd('DOM.enable')	# enable to interact with page
-#				self.send_cmd('Network.enable')
-#				self.runtime_eval('window.innerWidth = %d; window.innerHeight = %d' % (self.window_width, self.window_height))
-#				self.runtime_eval('window.resizeTo(%d, %d)' % (self.window_width, self.window_height))
-#				if headless:		# found this on the net but it seems to do nothing
-#					self.send_cmd('''
-#						Page.setDeviceMetricsOverride({
-#							'width': %d,
-#							'height':%d,
-#							'deviceScaleFactor': 1,
-#							'mobile': false
-#						});
-#						''' % (self.window_width, self.window_height))
 				self.x = 0
 				return
 			except requests.exceptions.ConnectionError:
