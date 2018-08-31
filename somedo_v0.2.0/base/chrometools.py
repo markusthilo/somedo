@@ -338,8 +338,9 @@ class ChromePath:
 				self.path = ''
 				for i in [
 					'google-chrome',
-					'/usr/bin/google-chrome',
 					'/usr/bin/chromium',
+					'/usr/bin/chromium-browser',
+					'/usr/bin/google-chrome'
 				]:
 					if os.path.isfile(i):
 						self.path = i
