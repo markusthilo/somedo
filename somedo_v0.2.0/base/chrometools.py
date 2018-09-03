@@ -249,7 +249,23 @@ class Chrome:
 			if cnt == 10000:	# 9999 screenshots max
 				return
 
-	def expand_page(self, click_elements_by=[], path_no_ext='', terminator=None):
+	def __stop_check__(self, terminator):
+		'Check if User wants to abort running task'
+		if terminator != None and terminator():
+			return True
+		if self.stop == None:
+			return False
+		try:
+			return self.stop.isSet()
+		except:
+			return False
+
+	def __per_page__(self, per_page_action):
+		'Execute this function on every visible page'
+		if per_page_action != None:
+			per_page_action()
+
+	def expand_page(self, click_elements_by=[], path_no_ext='', terminator=None, per_page_action=None):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.wait_expand_end()	# do not start while page is still expanding
 		cnt = 1	# counter to number shots
@@ -258,24 +274,22 @@ class Chrome:
 		scroll_height = self.get_scroll_height()
 		old_height = self.get_page_height()	# to check if page is still expanding
 		while True:
-			if click_elements_by != []:
-				self.click_page(click_elements_by, y)
+			self.click_page(click_elements_by, y)	# expand page by clicking on elments
 			self.wait_expand_end()	# do not start while page is still expanding
 			cnt = self.visible_page_png(path_no_ext, cnt = cnt) # store screenshot
+			self.__per_page__(per_page_action)	# execute per page action
 			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
-			if new_height <= old_height and new_height <= y + scroll_height:	# check for end of page
+			if ( new_height <= old_height and new_height <= y + scroll_height ) or self.__stop_check__(terminator):	# check for end of page or stop criteria
 				self.visible_page_png(path_no_ext, cnt = cnt) # store last screenshot
+				self.__per_page__(per_page_action)	# execute per page action one last time
 				return	# exit if page did not change
 			old_height = new_height
-			if self.stop_check(terminator=terminator):	# chech for criteria to abort
-				self.visible_page_png(path_no_ext, cnt = cnt) # store last screenshot before aborting
-				return
 
 	def click_page(self, click_elements_by, y):
 		'Expand page by clicking on elements stored in a list of lists: e.g. [["ClassName", "UFIPagerLink"], ["ClassName", "UFICommentLInk"]]'
-		if click_elements_by == dict():	# do nothing if no elements to click are given
+		if click_elements_by == None or click_elements_by == dict():	# do nothing if no elements to click are given
 			return
 		for i in range(5):	# try several times to click on all elements
 			for j in click_elements_by:	# go throught dictionary containing pairs of element type and selector
@@ -293,17 +307,6 @@ class Chrome:
 				f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
 		except:
 			raise Exception('Unable to save page as PDF')
-
-	def stop_check(self, terminator=None):
-		'Check if User wants to abort running task'
-		if terminator != None and terminator():
-			return True
-		if self.stop == None:
-			return False
-		try:
-			return self.stop.isSet()
-		except:
-			return False
 
 	def close(self):
 		'Close session/browser'

@@ -232,8 +232,8 @@ class Facebook:
 		if self.stop_utc <= 0:
 			return False
 		try:
-			for i in self.driver.find_elements('tag', 'abbr'):
-				m = re.search('.* data-utime=".* class="timestampContent">.*', i.get_attribute("outerHTML"))
+			for i in self.chrome.get_outer_html('TagName', 'abbr'):
+				m = re.search('.* data-utime=".* class="timestampContent">.*', i)
 				if int(re.sub('.*data-utime="', '', m.group()).split('"')[0]) <= self.stop_utc:
 					return True
 		except:
