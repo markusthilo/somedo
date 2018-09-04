@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import re, time
+import re, time, datetime
 
 class Instagram:
 	'Downloader for Instagram'
@@ -26,46 +26,81 @@ class Instagram:
 				l.append(i)
 		return l
 
-	def extract_name(self):
-		'Get information about given user out of targeted page'
-		try:
-			return re.findall('<h1 class="[^"]+" title="[^"]+"', self.chrome.get_outer_html('TagName', 'header')[0])[0].split('"')[3]
-		except:
-			return 'UNKNOWN'
-
 	def rm_banner(self):
 		'Remove redundant parts of the page'
 		self.chrome.rm_outer_html('TagName', 'nav')
 		self.chrome.rm_outer_html('TagName', 'footer')
 
 	def get_main(self, path):
-		'Scroll through page and get images'
+		'Scroll through main page and get images'
 		self.chrome.navigate('http:www.instagram.com/%s' % path)
-		name = self.extract_name()	# get displayed name out of page header
-		self.write_info(path, name)
+		time.sleep(0.5)
+		try:	# try to get header part of main page
+			html = self.chrome.get_outer_html('TagName', 'header')[0]
+		except:
+			html = ''
+		try:	# try to get displayed name out of page header
+			name = re.findall('<h1 class="[^"]+" title="[^"]+"', html)[0].split('"')[3]
+		except:
+			name = 'UNKNOWN'
+		self.storage.write_str('%s\t%s\thttp://www.instagram.com/%s' % (path, name, path), 'profile.csv', path)	# write information as file
+		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, 'profile.json', path)	# write as json file
+		try:	# try to download profile picture
+			url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[0])[0][6:-1]
+			self.storage.download(url, 'profile' + self.cut_ext(url), path)	# download media file using the right file extension
+		except:
+			pass
 		self.rm_banner()
 		self.chrome.set_x_center()
-		self.links = set()
+		self.links = []
 		self.chrome.expand_page(	# scroll through page and take screenshots
 			path_no_ext = self.storage.path('main', path),
 			per_page_action = self.get_links
 		)
-		cnt = 0	# counter for the images
+		minfo_file = self.storage.open_write(self.storage.path('media.csv', path))	# open media info file
+		cnt = 0	# counter for the images/videos
 		for i in self.links:	# go through links
-			print(i)
+			if self.chrome.stop_check():
+				break
 			self.chrome.navigate('http:www.instagram.com/%s' % i)
 			time.sleep(0.2)
 			self.rm_banner()
 			cnt += 1
-			self.chrome.visible_page_png(self.storage.path('image_%05d' % cnt, path))	# save image/page as png
-			print(self.chrome.get_inner_html('TagName', 'article'))
+			store_path = self.storage.path('%05d_page' % cnt, path)
+			self.chrome.visible_page_png(store_path)	# save page as png
+			self.chrome.page_pdf(store_path)	# save as pdf
+			self.storage.write_text(self.chrome.get_inner_html('TagName', 'article')[0], '%05d_page.txt' % cnt, path)	# write comments
+			try:	# try to get video url
+				url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'video')[-1])[0][6:-1]
+				fname = '%05d_video' % cnt
+			except:
+				try:	# try to get image url
+					url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[-1])[0][6:-1]
+					fname = '%05d_image' % cnt
+				except:
+					continue
+			try:	# try to download media file
+				self.storage.download(url, fname + self.cut_ext(url), path)
+				minfo_file.write('%05d\t%s\t%s\t%s\n' % (	# write counter, media type and url to media info file
+					cnt,
+					datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
+					fname[6:],
+					url
+				))
+			except:
+				pass
+		minfo_file.close()
 
 	def get_links(self):
 		'Extract links from tag "article"'
 		for i in re.findall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
-			self.links.update({i[9:]})
+			if not i[9:] in self.links:
+				self.links.append(i[9:])
 
-	def write_info(self, path, name):
-		'Write account information as CSV and JSON file'
-		self.storage.write_1d([path, name, 'http://www.instagram.com/%s' % path], 'info.csv', path)
-		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, 'info.json', path)
+	def cut_ext(self, url):
+		'Cut file extension out of media URL'
+		try:
+			ext = re.findall('\.[^.]+$', re.sub('\?.*$', '', url))[-1]
+		except:
+			ext = ''
+		return ext

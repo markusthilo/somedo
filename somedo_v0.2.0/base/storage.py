@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import os
-import json
+import os, json, re, urllib.request
 
 class Storage:
 	'Save data into destination directory and subdirectories'
@@ -42,7 +41,7 @@ class Storage:
 		self.__mkdir__( ( self.main_dir + subdir ).rstrip(self.slash) + self.slash)
 
 	def path(self, *args):
-		'Build file path'
+		'Build file path. Arguments: filename (, subdir).'
 		path = self.main_dir	# 1 main directory for 1 session
 		if len(args) == 1:	# handle 1 give list or up to 2 arguments
 			if isinstance(args[0], str):
@@ -62,8 +61,12 @@ class Storage:
 			raise RuntimeError('1 or 2 string arguments (filename or filename, subdir) are needed.')
 		return path
 
+	def open_write(self, fname):
+		'Open file to write'
+		return open(fname, 'w', encoding='utf-8')
+
 	def write_str(self, *args):
-		'Write string or list to file. Arguments: string, filename (, subdir). If no subdirectory is give, write to main directory'
+		'Write string to file. Arguments: string, filename (, subdir). If no subdirectory is give, write to main directory'
 		with open(self.path(args[1:]) , 'w', encoding='utf-8') as f:
 			f.write(str(args[0]))	# write string
 
@@ -88,3 +91,15 @@ class Storage:
 		'Write data to JSON file'
 		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
 			json.dump(args[0], f, ensure_ascii=False)
+
+	def write_text(self, *args):
+		'Convert from html to text and write to file - very basic conversion but should work for the task here'
+		text = re.sub('"[^"]*"', '', args[0])	# convert to text
+		text = re.sub('<[^>]+>', '\n', text)
+		text = re.sub('\n+', '\n', text)
+		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
+			f.write(text)
+
+	def download(self, *args):
+		'Download and writte file'
+		urllib.request.urlretrieve(args[0], self.path(args[1:]))

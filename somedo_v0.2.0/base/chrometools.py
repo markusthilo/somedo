@@ -223,12 +223,12 @@ class Chrome:
 
 	def visible_page_png(self, path_no_ext, cnt = 0):
 		'Take screenshot of the visible area of the web page'
-		if path_no_ext == '' or cnt > 9999:	# no screenshot on empty path or if counter is above 9999
+		if path_no_ext == '' or cnt > 99999:	# no screenshot on empty path or if counter is above 99999
 			return 0
 		if cnt == 0:	# generate file path without or with counter
 			path = '%s.png' % path_no_ext
 		else:
-			path = '%s_%04d.png' % (path_no_ext, cnt)
+			path = '%s_%05d.png' % (path_no_ext, cnt)
 		try:
 			with open(path, 'wb') as f:
 				f.write(b64decode(self.send_cmd('Page.captureScreenshot', format='png')['result']['data']))
@@ -244,12 +244,12 @@ class Chrome:
 		cnt = 1	# counter to number shots
 		for y in range(0, self.get_height(), self.get_scroll_height()):
 			self.set_position(y) 	# scroll down
-			self.visible_page_png('%s_%04d.png' % (path_no_ext, cnt))	# store screenshot
+			self.visible_page_png('%s_%05d.png' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1	# increase counter
-			if cnt == 10000:	# 9999 screenshots max
+			if cnt == 100000:	# 99999 screenshots max
 				return
 
-	def __stop_check__(self, terminator):
+	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'
 		if terminator != None and terminator():
 			return True
@@ -281,7 +281,7 @@ class Chrome:
 			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
-			if ( new_height <= old_height and new_height <= y + scroll_height ) or self.__stop_check__(terminator):	# check for end of page or stop criteria
+			if ( new_height <= old_height and new_height <= y + scroll_height ) or self.stop_check(terminator=terminator):	# check for end of page or stop criteria
 				self.visible_page_png(path_no_ext, cnt = cnt) # store last screenshot
 				self.__per_page__(per_page_action)	# execute per page action one last time
 				return	# exit if page did not change
