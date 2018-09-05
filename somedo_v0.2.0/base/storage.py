@@ -61,17 +61,13 @@ class Storage:
 			raise RuntimeError('1 or 2 string arguments (filename or filename, subdir) are needed.')
 		return path
 
-	def open_write(self, fname):
-		'Open file to write'
-		return open(fname, 'w', encoding='utf-8')
-
 	def write_str(self, *args):
 		'Write string to file. Arguments: string, filename (, subdir). If no subdirectory is give, write to main directory'
 		with open(self.path(args[1:]) , 'w', encoding='utf-8') as f:
 			f.write(str(args[0]))	# write string
 
 	def write_1d(self, *args):
-		'Write (1-dimensional) list to CSV/TSV file (1 line, tab separated).'
+		'Write (1-dimensional) list to CSV/TSV file (1 line, tab separated)'
 		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
 			line = ''
 			for i in args[0]:	# write list as CSV/TSV (tab stop seperated fields)
@@ -79,12 +75,25 @@ class Storage:
 			f.write(line.rstrip('\t') + '\n')
 
 	def write_2d(self, *args):
-		'Write list of lists (2-dimensinal "list") to CSV/TSV file.'
+		'Write list of lists (2-dimensinal list) to CSV/TSV file'
 		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
 			for i in args[0]:
 				line = ''
 				for j in i:
 					line += str(j) + '\t'
+				f.write(line.rstrip('\t') + '\n')
+
+	def write_dicts(self, *args):
+		'Write dictionary or list of dictionaries to CSV/TSV file'
+		with open(self.path(args[2:]), 'w', encoding='utf-8') as f:
+			if isinstance(args[0], dict):
+				ldicts = [args[0]]
+			else:
+				ldicts = args[0]
+			for i in ldicts:
+				line = ''
+				for j in args[1]:
+					line += str(i[j]) + '\t'
 				f.write(line.rstrip('\t') + '\n')
 
 	def write_json(self, *args):

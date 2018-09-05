@@ -52,12 +52,13 @@ class Instagram:
 			pass
 		self.rm_banner()
 		self.chrome.set_x_center()
+		self.chrome.page_pdf(self.storage.path('main', path))
 		self.links = []
 		self.chrome.expand_page(	# scroll through page and take screenshots
 			path_no_ext = self.storage.path('main', path),
 			per_page_action = self.get_links
 		)
-		minfo_file = self.storage.open_write(self.storage.path('media.csv', path))	# open media info file
+		minfo = []	# list for media info
 		cnt = 0	# counter for the images/videos
 		for i in self.links:	# go through links
 			if self.chrome.stop_check():
@@ -80,16 +81,17 @@ class Instagram:
 				except:
 					continue
 			try:	# try to download media file
-				self.storage.download(url, fname + self.cut_ext(url), path)
-				minfo_file.write('%05d\t%s\t%s\t%s\n' % (	# write counter, media type and url to media info file
-					cnt,
-					datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
-					fname[6:],
-					url
-				))
+				fname += self.cut_ext(url)
+				self.storage.download(url, fname, path)
+				minfo.append({	# store counter, media type and url to media info list
+					'file':	fname,
+					'time':	datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
+					'url':	url
+				})
 			except:
 				pass
-		minfo_file.close()
+		self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
+		self.storage.write_json(minfo, 'media.json', path)
 
 	def get_links(self):
 		'Extract links from tag "article"'
