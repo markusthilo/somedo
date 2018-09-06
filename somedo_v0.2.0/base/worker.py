@@ -50,7 +50,7 @@ class Worker:
 			exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]), stop=stop)' % i[0])
 #			except Exception as error:
 #				message += str(error) + '\n'
-		chrome.close()
+#		chrome.close()
 		if message == 'Errors occurred:\n':
 			return 'All done'
 		else:

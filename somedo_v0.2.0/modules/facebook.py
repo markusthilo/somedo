@@ -225,7 +225,7 @@ class Facebook:
 		return account
 
 	def rm_pagelets(self):
-		'Remove bluebar and unwanted pagelets'
+		'Remove bluebar and other unwanted pagelets'
 		self.chrome.rm_outer_html_by_id('pagelet_bluebar')
 		self.chrome.rm_outer_html_by_id('pagelet_sidebar')
 		self.chrome.rm_outer_html_by_id('pagelet_dock')
@@ -235,6 +235,23 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
 		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
 
+	def rm_profile_cover(self):
+		'Remove fbProfileCover'
+		self.chrome.rm_outer_html_by_id('fbProfileCover')
+
+	def rm_left_of_timeline(self):
+		'Remove Intro, Photos, Friends etc. on the left'
+		#self.chrome.rm_outer_html_by_id('u_0_1j')
+		self.chrome.rm_outer_html('ClassName', '_1vc-')
+
+#		self.chrome.rm_outer_html_by_id('timeline_sticky_header_container')	# some other redundant bar
+#		self.chrome.rm_outer_html('ClassName', '_1vc-')
+#		self.chrome.rm_outer_html('ClassName', 'fbTimelineTwoColumn fbTimelineUnit clearfix')
+#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
+#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
+#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
+#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
+
 	def get_utc(self, date_str):
 		'Convert date given as string (e.g. "2018-02-01") to utc as seconds since 01.01.1970'
 		l = date_str.split('-')
@@ -242,6 +259,12 @@ class Facebook:
 			return int(datetime.datetime(int(l[0]),int(l[1]),int(l[2]),0,0).timestamp())
 		except ValueError:
 			return 0
+
+	def click_translations(self):
+		'Find the See Translation buttons and click'
+		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
+		for i in re.findall(' id="[^"]+"><a href="#" role="button">[^<]+</a><span id="translationSpinnerPlaceholder_', html):
+			self.chrome.click_element_by_id(re.sub('".*$', '',i[5:]))
 
 	def terminator(self):
 		'Check date of posts to abort'
@@ -256,7 +279,7 @@ class Facebook:
 			pass
 		return False
 
-	def expand_page(self, path_no_ext='', expand=True, translate=False):
+	def expand_page(self, expand=True, translate=False):
 		'Go through page, expand, translate, take screenshots and generate pdf'
 		clicks = []
 		if expand:	# clicks to expand page
@@ -269,12 +292,13 @@ class Facebook:
 			clicks.extend([
 				['ClassName', 'UFITranslateLink']
 			])
+			action = self.click_translations()
+		else:
+			action = None
 		self.chrome.expand_page(
 			click_elements_by = clicks,
-			path_no_ext = path_no_ext,
-			terminator=self.terminator
-		)
-		self.chrome.page_pdf(path_no_ext)
+			per_page_action = action,
+			terminator=self.terminator)
 
 	def get_landing(self, user, account=None):
 		'Get screenshot from start page (=unscrolled Timeline) about given user (id or path)'
@@ -290,13 +314,13 @@ class Facebook:
 		'Get timeline'
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
 		account = self.get_account(user, account)	# get account infos if not already done
-		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.rm_outer_html_by_id('timeline_sticky_header_container')	# some other redundant bar
-		self.expand_page(	# go through timeline
-			path_no_ext=self.storage.path('timeline', account['path']),
-			expand=expand,
-			translate=translate
-		)
+		path_no_ext=self.storage.path('timeline', account['path'])
+		self.expand_page(expand=expand, translate=translate)# go through timeline
+		self.rm_pagelets()	# remove all around the timeline itself
+		self.rm_profile_cover()
+		self.rm_left_of_timeline()
+		self.chrome.entire_page_png(path_no_ext)
+		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(account)
 		return account

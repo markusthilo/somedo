@@ -54,7 +54,7 @@ class Instagram:
 		self.chrome.set_x_center()
 		self.chrome.page_pdf(self.storage.path('main', path))
 		self.links = []
-		self.chrome.expand_page(	# scroll through page and take screenshots
+		self.chrome.drive_by_png(	# scroll through page and take screenshots
 			path_no_ext = self.storage.path('main', path),
 			per_page_action = self.get_links
 		)

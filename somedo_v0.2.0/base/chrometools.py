@@ -126,19 +126,17 @@ class Chrome:
 
 	def rm_outer_html(self, element_type, selector):
 		'Remove outerHTML of all elements by given type and selector'
-		return int(self.runtime_eval('''
+		self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			for (var i=0;i<elements.length; i++) { elements[i].outerHTML = "" }
-			JSON.stringify(elements.length);
-		''' % (element_type, selector)))
+		''' % (element_type, selector))
 
 	def rm_inner_html(self, element_type, selector):
 		'Remove innerHTML of all elements by given type and selector'
-		return int(self.runtime_eval('''
+		self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			for (var i=0;i<elements.length; i++) { elements[i].innerHTML = "" }
-			JSON.stringify(elements.length);
-		''' % (element_type, selector)))
+		''' % (element_type, selector))
 
 	def rm_outer_html_by_id(self, selector):
 		'Remove outerHTML of element selected by ID'
@@ -165,12 +163,22 @@ class Chrome:
 		self.runtime_eval('document.getElementById("%s").innerHTML = "%s"' % (selector, html))
 
 	def get_window_height(self):
-		'Get visible height of the window'	
-		return int(self.runtime_eval('JSON.stringify(window.innerHeight)'))
+		'Get visible height of the window'
+		for i in range(1000):
+			try:
+				return int(self.runtime_eval('JSON.stringify(window.innerHeight)'))
+			except TypeError:
+				pass
+		raise Exception('Could not get window height.')
 
 	def get_window_width(self):
-		'Get visible height of the window'	
-		return int(self.runtime_eval('JSON.stringify(window.innerWidth)'))
+		'Get visible height of the window'
+		for i in range(1000):
+			try:
+				return int(self.runtime_eval('JSON.stringify(window.innerWidth)'))
+			except TypeError:
+				pass
+		raise Exception('Could not get window width.')
 
 	def get_page_height(self):
 		'Get page height'
@@ -180,23 +188,33 @@ class Chrome:
 			except TypeError:
 				pass
 		raise Exception('Could not get page height.')
-#		return int(self.runtime_eval('JSON.stringify(document.body.scrollHeight)'))
 
 	def get_page_width(self):
 		'Get page width'
-		return int(self.runtime_eval('JSON.stringify(document.body.scrollWidth)'))
-
-	def get_scroll_height(self):
-		'Calculate scroll height based on the window height'
-		return int(self.get_window_height() * self.SCROLL_RATIO)
+		for i in range(1000):
+			try:
+				return int(self.runtime_eval('JSON.stringify(document.body.scrollWidth)'))
+			except TypeError:
+				pass
+		raise Exception('Could not get page width.')
 
 	def get_x_position(self):
 		'Get x scroll position'
-		return int(self.runtime_eval('JSON.stringify(document.body.scrollLeft)'))
+		for i in range(1000):
+			try:
+				return int(self.runtime_eval('JSON.stringify(document.body.scrollLeft)'))
+			except TypeError:
+				pass
+		raise Exception('Could not get x position.')
 
 	def get_y_position(self):
 		'Get y scroll position'
-		return int(self.runtime_eval('JSON.stringify(document.body.scrollTop)'))
+		for i in range(1000):
+			try:
+				return int(self.runtime_eval('JSON.stringify(document.body.scrollTop)'))
+			except TypeError:
+				pass
+		raise Exception('Could not get page y position.')
 
 	def set_position(self, y):
 		'Scroll to given position - x has to be stored in object'
@@ -217,6 +235,38 @@ class Chrome:
 		self.x = self.get_page_width() - int( self.get_window_width() / 2 )
 		self.set_position(0)
 
+	def get_scroll_height(self):
+		'Calculate scroll height based on the window height'
+		return int(self.get_window_height() * self.SCROLL_RATIO)
+
+	def close(self):
+		'Close session/browser'
+		self.chrome_proc.kill()
+
+	def page_pdf(self, path_no_ext):
+		'Save page to pdf'
+		if not self.headless:	# only works with --headless according to the google developers
+			return
+		try:
+			with open('%s.pdf' % path_no_ext, 'wb') as f:
+				f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
+		except:
+			raise Exception('Unable to save page as PDF')
+
+	def stop_check(self, terminator=None):
+		'Check if User wants to abort running task'
+		try:
+			return self.stop.isSet()
+		except:
+			return False
+
+	def __terminator_check__(self):
+		'Check criteria to abort extraction'
+		try:
+			return self.terminator()
+		except:
+			return False
+
 	def wait_expand_end(self):
 		'Wait for page not expanding anymore'
 		time.sleep(0.2)
@@ -226,6 +276,34 @@ class Chrome:
 			new_height = self.get_page_height()
 			if new_height == old_height:
 				return new_height
+			old_height = new_height
+
+	def click_page(self, click_elements_by):
+		'Clicking on elements stored in a list of lists: e.g. [["ClassName", "UFIPagerLink"], ["ClassName", "UFICommentLInk"]]'
+		if click_elements_by != None and click_elements_by != dict():	# do not click if no elements are given
+			for i in range(5):	# try several times to click on all elements
+				for j in click_elements_by:	# go throught dictionary containing pairs of element type and selector
+					self.click_elements(j[0], j[1])
+		return self.wait_expand_end()
+
+	def __per_page__(self, per_page_action):
+		'Execute this function on every visible page'
+		if per_page_action != None:
+			per_page_action()
+
+	def expand_page(self, click_elements_by=[], terminator=None, per_page_action=None):
+		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
+		self.terminator = terminator
+		window_height = self.get_window_height()
+		self.set_position(0)
+		old_height = self.get_page_height()	# to check if page is still expanding
+		while True:
+			self.click_page(click_elements_by)	# expand page by clicking on elments
+			self.__per_page__(per_page_action)	# execute per page action
+			self.set_position(self.wait_expand_end())
+			new_height = self.wait_expand_end()	# get new height of page when expanding is over
+			if new_height <= old_height or self.stop_check() or self.__terminator_check__():	# check for end of page or stop criteria
+				break	# exit if page did not change
 			old_height = new_height
 
 	def visible_page_png(self, path_no_ext, cnt = -1):
@@ -247,89 +325,43 @@ class Chrome:
 		'Take screenshots of the entire page by scrolling through'
 		self.wait_expand_end()	# do not start while page is still expanding
 		cnt = 1	# counter to number shots
-		for y in range(0, self.get_height(), self.get_scroll_height()):
+		for y in range(0, self.get_page_height(), self.get_scroll_height()):
 			self.set_position(y) 	# scroll down
 			self.visible_page_png('%s_%05d.png' % (path_no_ext, cnt))	# store screenshot
 			cnt += 1	# increase counter
 			if cnt == 100000:	# 99999 screenshots max
 				return
 
-	def stop_check(self, terminator=None):
-		'Check if User wants to abort running task'
-		try:
-			return self.stop.isSet()
-		except:
-			return False
-
-	def __terminator_check__(self):
-		'Check criteria to abort extraction'
-		try:
-			return self.terminator()
-		except:
-			return False
-
-	def __per_page__(self, per_page_action):
-		'Execute this function on every visible page'
-		if per_page_action != None:
-			per_page_action()
-
-	def expand_page(self, click_elements_by=[], path_no_ext='', terminator=None, per_page_action=None):
+	def drive_by_png(self, path_no_ext='', click_elements_by=[], terminator=None, per_page_action=None):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.terminator = terminator
 		self.wait_expand_end()	# do not start while page is still expanding
+		scroll_height = self.get_scroll_height()
+		window_height = self.get_window_height()
 		cnt = 1	# counter to number shots
 		y = 0	# vertical position
 		self.set_position(y)
-		scroll_height = self.get_scroll_height()
-		window_height = self.get_window_height()
 		old_height = self.get_page_height()	# to check if page is still expanding
 		while True:
-			self.click_page(click_elements_by, y)	# expand page by clicking on elments
-			self.wait_expand_end()	# do not start while page is still expanding
+			self.click_page(click_elements_by)	# expand page by clicking on elments
 			self.__per_page__(per_page_action)	# execute per page action
+			self.wait_expand_end()
 			self.set_position(y)	# go back to old y in case expanding changed the position
-			self.visible_page_png(path_no_ext, cnt = cnt) # store screenshot
-			cnt += 1
+			if path_no_ext != '':
+				self.visible_page_png(path_no_ext, cnt = cnt) # store screenshot
+				cnt += 1
 			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
-			print('--- cnt, old, new, y, scroll --->', cnt, old_height, new_height, y, scroll_height)
+			print('--- cnt, old, new, y --->', cnt, old_height, new_height, y)
 			if (	# check for end of page or stop criteria
-				( new_height <= old_height and new_height <= y + window_height )
-				#( new_height <= old_height and new_height <= y + scroll_height )
+				( new_height <= old_height and y > new_height-scroll_height )
 				or self.stop_check()
 				or self.__terminator_check__()
 				or cnt > 100000
 			):
-		#		self.visible_page_png(path_no_ext, cnt = cnt) # store last screenshot
-		#		self.__per_page__(per_page_action)	# execute per page action one last time
-				return	# exit if page did not change
+				break
 			old_height = new_height
-
-	def click_page(self, click_elements_by, y):
-		'Expand page by clicking on elements stored in a list of lists: e.g. [["ClassName", "UFIPagerLink"], ["ClassName", "UFICommentLInk"]]'
-		if click_elements_by == None or click_elements_by == dict():	# do nothing if no elements to click are given
-			return
-		for i in range(5):	# try several times to click on all elements
-			for j in click_elements_by:	# go throught dictionary containing pairs of element type and selector
-				self.click_elements(j[0], j[1])
-			self.wait_expand_end()	# do not continue while page is still expanding
-		self.set_position(y)	# go back to y because clicking might have changed the position in the page
-		time.sleep(0.1)	# always wait a bit
-
-	def page_pdf(self, path_no_ext):
-		'Save page to pdf'
-		if not self.headless:	# only works with --headless according to the google developers
-			return
-		try:
-			with open('%s.pdf' % path_no_ext, 'wb') as f:
-				f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
-		except:
-			raise Exception('Unable to save page as PDF')
-
-	def close(self):
-		'Close session/browser'
-		self.chrome_proc.kill()
 
 class ChromePath:
 	'Set the path to Chrome/Chromium'
