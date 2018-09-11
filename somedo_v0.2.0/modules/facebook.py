@@ -263,8 +263,8 @@ class Facebook:
 	def click_translations(self):
 		'Find the See Translation buttons and click'
 		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
-		for i in re.findall(' id="[^"]+"><a href="#" role="button">[^<]+</a><span id="translationSpinnerPlaceholder_', html):
-			self.chrome.click_element_by_id(re.sub('".*$', '',i[5:]))
+		for i in re.findall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
+			self.chrome.click_element_by_id(i[10:-1])
 
 	def terminator(self):
 		'Check date of posts to abort'
@@ -288,7 +288,7 @@ class Facebook:
 				['ClassName', 'UFIPagerLink'],
 				['ClassName', 'UFICommentLink']
 			])
-		if translate:	# show translations if is in options
+		if translate:	# show translations if in options
 			clicks.extend([
 				['ClassName', 'UFITranslateLink']
 			])
