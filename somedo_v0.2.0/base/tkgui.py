@@ -122,7 +122,8 @@ class GuiRoot(Tk):
 		self.frame_main_buttons = Frame(self.master)
 		self.frame_main_buttons.pack(fill = X, expand = False)
 		Button(self.frame_main_buttons, text="Start jobs", width=16, command=self.__start_hidden__).pack(side=LEFT, padx=3, pady=1)
-		Button(self.frame_main_buttons, text="Start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
+		if self.worker.DEBUG:
+			Button(self.frame_main_buttons, text="DEBUG: start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
 		self.__tk_running__ = StringVar()
 		Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16).pack(side=LEFT, padx=3, pady=1)
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)

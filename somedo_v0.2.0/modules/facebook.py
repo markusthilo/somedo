@@ -27,7 +27,6 @@ class Facebook:
 		self.chrome = chrome
 		self.stop = stop
 		targets = self.extract_users(target)
-		errors = ''
 		try:
 			self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
 			time.sleep(2)
@@ -37,10 +36,12 @@ class Facebook:
 		except:
 			raise Exception('Could not login to Facebook.')
 		time.sleep(2)
+		errors = ''
 		if 'Network' in options:
 			try:
 				self.get_network(targets, options['Network']['Depth'])
 			except:
+				self.__raise__()
 				errors += ' Network,'
 		for i in targets:
 			account = None	# reset targeted account
@@ -50,21 +51,23 @@ class Facebook:
 				try:
 					account = self.get_landing(i, account=account)
 				except:
+					self.__raise__()
 					errors += ' %s/Landing,' % i
 			if self.chrome.stop_check():
 				break
 			if 'Timeline' in options:
-#				try:
-				self.stop_utc = self.get_utc(options['Timeline']['Until'])
-				account = self.get_timeline(
-					i,
-					expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
-					translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
-					visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
-					account = account
-				)
-#				except:
-#					errors += ' %s/Timeline,' % i
+				try:
+					self.stop_utc = self.get_utc(options['Timeline']['Until'])
+					account = self.get_timeline(
+						i,
+						expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
+						translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
+						visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
+						account = account
+					)
+				except:
+					self.__raise__()
+					errors += ' %s/Timeline,' % i
 			if self.chrome.stop_check():
 				break
 			if 'Posts' in options:
@@ -78,6 +81,7 @@ class Facebook:
 						account = account
 					)
 				except:
+					self.__raise__()
 					errors += ' %s/Posts,' % i
 			if self.chrome.stop_check():
 				break
@@ -85,27 +89,36 @@ class Facebook:
 				try:
 					account = self.get_about(i, account = account)
 				except:
+					self.__raise__()
 					errors += ' %s/About,' % i
 			if self.chrome.stop_check():
 				break
 			if 'Photos' in options:
-#				try:
-				account = self.get_photos(
-					i,
-					expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
-					translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
-					account = account)
-#				except:
-#					errors += ' %s/Photos,' % i
+				try:
+					account = self.get_photos(
+						i,
+						expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
+						translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
+						account = account
+					)
+				except:
+					self.__raise__()
+					errors += ' %s/Photos,' % i
 			if self.chrome.stop_check():
 				break
 			if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
 				try:
 					account = self.get_friends(i, account = account)
 				except:
+					self.__raise__()
 					errors += ' %s/Friends,' % i
 		if errors != '':
 			raise Exception('The following Facebook accont(s)/action(s) returned errors: %s' % errors.rstrip(','))
+
+	def __raise__(self):
+		'Raise error if not in debug mode'
+		if not self.chrome.debug:
+			raise
 
 	def extract_users(self, target):
 		'Extract facebook id or path from url'
@@ -121,32 +134,32 @@ class Facebook:
 				l.append(i)
 		return l
 
-	def get_fid(self, flink):
+	def get_fid(self, html):
 		'Extract facebook id using regex'
-		m = re.search('\.php\?id=[0-9]+', flink)	# get id
+		m = re.search('\.php\?id=[0-9]+', html)	# get id
 		if m == None:
 			return ''
 		return m.group()[8:]
 
-	def get_name(self, flink):
+	def get_name(self, html):
 		'Extract name of a facebook link using regex'
-		m = re.search('">[^<]+</a>', flink)	# cut out name
+		m = re.search('">[^<]+</a>', html)	# cut out name
 		if m == None:
 			return ''
 		return m.group()[2:-4]
 
-	def get_path(self, flink):
+	def get_path(self, html):
 		'Extract path of a facebook link using regex'
-		m = re.search('href="https://www\.facebook\.com/[^?/"]+.', flink)	# cut out from href
+		m = re.search('href="https://www\.facebook\.com/[^?/"]+.', html)	# cut out from href
 		if m == None:
 			return ''
 		if m.group()[31:] == 'profile.php?':	# regular profile id only
-			m = re.search('href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', flink)	# cut out more to get profile.php?id=100...
+			m = re.search('href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)	# cut out more to get profile.php?id=100...
 			if m == None:	# just in case...
 				return ''
 			return m.group()[31:]
 		if m.group()[31:] == 'pages/':	# facebook pages like places etc.
-			m = re.search('href="https://www\.facebook\.com/pages/[^/]+', flink)	# cut out more to get profile.php?id=100...
+			m = re.search('href="https://www\.facebook\.com/pages/[^/]+', html)	# cut out more to get profile.php?id=100...
 			if m == None:	# just in case...
 				return ''
 			return m.group()[37:]
@@ -154,31 +167,31 @@ class Facebook:
 			return m.group()[31:-1]
 		return ''
 
-	def get_flink(self, flink):
+	def get_flink(self, html):
 		'Extract facebook link using regex'
-		m = re.search('href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', flink)	# get link on url: ...?id=100...
+		m = re.search('href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)	# get link on url: ...?id=100...
 		if m != None:
 			return m.group()[6:]
-		m = re.search('href="https://www\.facebook\.com/pages/[^/"?]+', flink)	# get link on url: .../pages/...
+		m = re.search('href="https://www\.facebook\.com/pages/[^/"?]+', html)	# get link on url: .../pages/...
 		if m != None:
 			return m.group()[6:]
-		m = re.search('href="https://www\.facebook\.com/[^/"?]+', flink)	# get link on url: .../path?...
+		m = re.search('href="https://www\.facebook\.com/[^/"?]+', html)	# get link on url: .../path?...
 		if m != None:
 			return m.group()[6:]
 		return ''
 
-	def get_user(self, flink):
+	def get_user(self, html):
 		'Get complete user information out of link'
-		fid = self.get_fid(flink)	# get id
+		fid = self.get_fid(html)	# get id
 		if fid == '':
 			return None
-		name = self.get_name(flink)	# get name
+		name = self.get_name(html)	# get name
 		if name == '':
 			return None
-		path = self.get_path(flink)	# get path
+		path = self.get_path(html)	# get path
 		if path == '':
 			return None
-		flink = self.get_flink(flink)	# get link
+		html = self.get_flink(html)	# get link
 		if flink == '':
 			return None
 		return {'id': fid, 'name': name, 'path': path, 'link': flink}
@@ -241,16 +254,7 @@ class Facebook:
 
 	def rm_left_of_timeline(self):
 		'Remove Intro, Photos, Friends etc. on the left'
-		#self.chrome.rm_outer_html_by_id('u_0_1j')
 		self.chrome.rm_outer_html('ClassName', '_1vc-')
-
-#		self.chrome.rm_outer_html_by_id('timeline_sticky_header_container')	# some other redundant bar
-#		self.chrome.rm_outer_html('ClassName', '_1vc-')
-#		self.chrome.rm_outer_html('ClassName', 'fbTimelineTwoColumn fbTimelineUnit clearfix')
-#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
-#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
-#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
-#		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
 
 	def get_utc(self, date_str):
 		'Convert date given as string (e.g. "2018-02-01") to utc as seconds since 01.01.1970'
@@ -315,7 +319,7 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
 		account = self.get_account(user, account)	# get account infos if not already done
 		path_no_ext=self.storage.path('timeline', account['path'])
-		self.expand_page(expand=expand, translate=translate)# go through timeline
+		self.expand_page(expand=expand, translate=translate)	# go through timeline
 		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
 		self.rm_left_of_timeline()
@@ -329,13 +333,13 @@ class Facebook:
 		'Get posts on a bussines page'
 		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
 		account = self.get_account(user, account)	# get account infos if not already done
-		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.rm_outer_html_by_id('timeline_sticky_header_container')	# some other redundant bar
-		self.expand_page(	# go through timeline
-			path_no_ext=self.storage.path('posts', account['path']),
-			expand=expand,
-			translate=translate
-		)
+		path_no_ext=self.storage.path('posts', account['path'])
+		self.expand_page(expand=expand, translate=translate)	# go through posts
+		self.rm_pagelets()	# remove all around the timeline itself
+		self.rm_profile_cover()
+		self.rm_left_of_timeline()
+		self.chrome.entire_page_png(path_no_ext)
+		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(account)
 		return account
@@ -345,38 +349,48 @@ class Facebook:
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
 		html = self.chrome.get_outer_html_by_id('recent_capsule_container')	# get timeline
-		for i in re.findall('<a [^<]+</a>', html):	# look for links
-			u = self.get_user(i)	# extract information from link
-			if u != None and not u['id'] in visitor_ids:	# uniq
-				visitors.append(u)
-				visitor_ids.add(u['id'])
-		self.chrome.set_x_left()
-		for i in re.findall('href="/ufi/reaction/[^"]+"', html):	# look for links to reactions
+		for i in re.findall(	# look for comment authors
+			'UFICommentActorName" data-hovercard="/ajax/hovercard/hovercard\.php\?id=[0-9]+[^>]*>[^<]+</a>',
+			html ):
+			try:
+				fid = self.get_fid(i)
+				flink = self.get_flink(i)
+				if flink != '' and not fid in visitor_ids:	# uniq
+					visitors.append({'id': fid, 'name': self.get_name(i), 'path': self.get_path(i), 'link': flink})
+					visitor_ids.add(fid)
+			except:
+				pass
+		for i in re.findall('href="/ufi/reaction/[^"]+"', html):	# go through reactions
 			if self.chrome.stop_check():
 				return
 			self.chrome.navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
 			self.chrome.expand_page(terminator=self.terminator)	# scroll through page
-			html = self.chrome.get_outer_html_by_id('js_0')	# extract reactions as list
-			try:
-				if len(html) > 0:
-					for j in re.findall('<a [^<]+</a>', html):	# get links
-						u = self.get_user(j)	# extract information from link
-						if u != None and not u['id'] in visitor_ids:	# uniq
-							visitors.append(u)
-							visitor_ids.add(u['id'])
-			except:
-				pass
+			self.rm_pagelets()	# remove bluebar etc.
+			html = self.chrome.get_outer_html_by_id('globalContainer')	# get the necessary part of the page
+			for j in re.findall(	# get people who reacted
+				'href="https://www\.facebook\.com/[^"]+;hc_location=profile_browser" data-hovercard="/ajax/hovercard/user\.php\?id=[0-9]+[^>]*>[^<]+</a>',
+				html ):
+				try:
+					fid = self.get_fid(j)
+					flink = self.get_flink(j)
+					if flink != '' and not fid in visitor_ids:	# uniq
+						visitors.append({'id': fid, 'name': self.get_name(j), 'path': self.get_path(j), 'link': flink})
+						visitor_ids.add(fid)
+				except:
+					pass
 		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', account['path'])
 		self.storage.write_json(visitors, 'visitors.json', account['path'])
 
 	def get_about(self, user, account=None):
 		'Get About'
 		self.chrome.navigate('https://www.facebook.com/%s/about' % user)	# go to about
-		account = self.get_account(user, account)	# get account infos if not already done	
+		account = self.get_account(user, account)	# get account infos if not already done
+		path_no_ext=self.storage.path('about', account['path'])
 		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.set_outer_html_by_id('timeline_sticky_header_container', '')	# some other redundant bar
 		path = self.storage.path('about', account['path'])
-		self.expand_page(path_no_ext=self.storage.path('about', account['path']))	# go through about section
+		self.expand_page()
+		self.chrome.entire_page_png(path_no_ext)
+		self.chrome.page_pdf(path_no_ext)
 		return account
 
 	def get_photos(self, user, expand=False, translate=False, account=None):
