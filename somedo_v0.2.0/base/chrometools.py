@@ -307,16 +307,12 @@ class Chrome:
 				break	# exit if page did not change
 			old_height = new_height
 
-	def visible_page_png(self, path_no_ext, cnt = -1):
+	def visible_page_png(self, path_no_ext):
 		'Take screenshot of the visible area of the web page'
-		if path_no_ext == '' or cnt > 99999:	# no screenshot on empty path or if counter is above 99999
+		if path_no_ext == '':	# no screenshot on empty path
 			return
-		if cnt == -1:	# generate file path without or with counter
-			path = '%s.png' % path_no_ext
-		else:
-			path = '%s_%05d.png' % (path_no_ext, cnt)
 		try:
-			with open(path, 'wb') as f:
+			with open('%s.png' % path_no_ext, 'wb') as f:
 				f.write(b64decode(self.send_cmd('Page.captureScreenshot', format='png')['result']['data']))
 		except:
 			raise Exception('Unable to save visible part of page as PNG')
@@ -325,13 +321,19 @@ class Chrome:
 	def entire_page_png(self, path_no_ext):
 		'Take screenshots of the entire page by scrolling through'
 		self.wait_expand_end()	# do not start while page is still expanding
-		cnt = 1	# counter to number shots
-		for y in range(0, self.get_page_height(), self.get_scroll_height()):
-			self.set_position(y) 	# scroll down
-			self.visible_page_png('%s_%05d.png' % (path_no_ext, cnt))	# store screenshot
-			cnt += 1	# increase counter
-			if cnt == 100000:	# 99999 screenshots max
-				return
+		self.set_position(0) 	# go to top of page
+		page_height = self.get_page_height()
+		scroll_height = self.get_scroll_height()
+		if scroll_height >= page_height:	# just one screen
+			self.visible_page_png(path_no_ext)	# store screenshot
+		else:	# multiple screenshots
+			cnt = 1	# counter to number shots
+			for y in range(0, self.get_page_height(), self.get_scroll_height()):
+				self.set_position(y) 	# scroll down
+				self.visible_page_png('%s_%05d' % (path_no_ext, cnt))	# store screenshot
+				cnt += 1	# increase counter
+				if cnt == 100000:	# 99999 screenshots max
+					return
 
 	def drive_by_png(self, path_no_ext='', click_elements_by=[], terminator=None, per_page_action=None):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
@@ -349,12 +351,11 @@ class Chrome:
 			self.wait_expand_end()
 			self.set_position(y)	# go back to old y in case expanding changed the position
 			if path_no_ext != '':
-				self.visible_page_png(path_no_ext, cnt = cnt) # store screenshot
+				self.visible_page_png('%s_%05d' % (path_no_ext, cnt)) # store screenshot
 				cnt += 1
 			y += scroll_height
 			self.set_position(y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
-			print('--- cnt, old, new, y --->', cnt, old_height, new_height, y)
 			if (	# check for end of page or stop criteria
 				( new_height <= old_height and y > new_height-scroll_height )
 				or self.stop_check()
@@ -390,4 +391,4 @@ class ChromePath:
 				if self.path == '':
 					raise FileNotFoundError('Did not find Chrome/Chromium')
 		else:
-			raise Exception('The path to Chrome is the only possible argument.')
+			raise Exception('The path to Chrome/Chromium is the only possible argument.')

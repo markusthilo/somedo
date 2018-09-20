@@ -45,16 +45,17 @@ class Worker:
 	def execute(self, jobs, config, headless=True, stop=None):
 		'Execute jobs'
 		message = 'Errors occurred:\n'
-		chrome = Chrome(config['Chrome'], headless=headless, debug=self.DEBUG)
-		if self.DEBUG:
+		chrome = Chrome(config['Chrome'], headless=headless, stop = stop, debug=self.DEBUG)
+		if self.DEBUG:	# do not continue on errors in debug mode
 			for i in jobs:
-				exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]), stop=stop)' % i[0])
+				exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]))' % i[0])
 		else:
 			for i in jobs:
 				try:
-					exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]), stop=stop)' % i[0])
+					exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]))' % i[0])
 				except Exception as error:
 					message += str(error) + '\n'
+		if headless == True:
 			chrome.close()
 		if message == 'Errors occurred:\n':
 			return 'All done'

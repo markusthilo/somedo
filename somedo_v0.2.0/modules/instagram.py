@@ -7,11 +7,10 @@ class Instagram:
 
 	DEFINITION = ['Instagram', [],	[] ]
 
-	def __init__(self, target, options, login, chrome, storage, stop=None):
+	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Instagram'
 		self.storage = storage
 		self.chrome = chrome
-		self.stop = stop
 		for i in self.extract_targets(target):
 			self.get_main(i)
 

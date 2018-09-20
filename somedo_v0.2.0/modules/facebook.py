@@ -21,11 +21,10 @@ class Facebook:
 
 	ACCOUNT = ('id', 'name', 'path', 'link')
 
-	def __init__(self, target, options, login, chrome, storage, stop=None):
+	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
 		self.chrome = chrome
-		self.stop = stop
 		targets = self.extract_users(target)
 		try:
 			self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
@@ -36,27 +35,18 @@ class Facebook:
 		except:
 			raise Exception('Could not login to Facebook.')
 		time.sleep(2)
-		errors = ''
-		if 'Network' in options:
-			try:
+		if self.chrome.debug:	# abort on errors in debug mode
+			if 'Network' in options:
 				self.get_network(targets, options['Network']['Depth'])
-			except:
-				self.__raise__()
-				errors += ' Network,'
-		for i in targets:
-			account = None	# reset targeted account
-			if self.chrome.stop_check():
-				break
-			if 'Landing' in options:
-				try:
+			for i in targets:
+				account = None	# reset targeted account
+				if self.chrome.stop_check():
+					break
+				if 'Landing' in options:
 					account = self.get_landing(i, account=account)
-				except:
-					self.__raise__()
-					errors += ' %s/Landing,' % i
-			if self.chrome.stop_check():
-				break
-			if 'Timeline' in options:
-				try:
+				if self.chrome.stop_check():
+					break
+				if 'Timeline' in options:
 					self.stop_utc = self.get_utc(options['Timeline']['Until'])
 					account = self.get_timeline(
 						i,
@@ -65,13 +55,9 @@ class Facebook:
 						visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
 						account = account
 					)
-				except:
-					self.__raise__()
-					errors += ' %s/Timeline,' % i
-			if self.chrome.stop_check():
-				break
-			if 'Posts' in options:
-				try:
+				if self.chrome.stop_check():
+					break
+				if 'Posts' in options:
 					self.stop_utc = self.get_utc(options['Posts']['Until'])
 					account = self.get_posts(
 						i,
@@ -80,45 +66,95 @@ class Facebook:
 						visitors = 'Visitors' in options['Posts'] and options['Posts']['Visitors'],
 						account = account
 					)
-				except:
-					self.__raise__()
-					errors += ' %s/Posts,' % i
-			if self.chrome.stop_check():
-				break
-			if 'About' in options:
-				try:
+				if self.chrome.stop_check():
+					break
+				if 'About' in options:
 					account = self.get_about(i, account = account)
-				except:
-					self.__raise__()
-					errors += ' %s/About,' % i
-			if self.chrome.stop_check():
-				break
-			if 'Photos' in options:
-				try:
+				if self.chrome.stop_check():
+					break
+				if 'Photos' in options:
 					account = self.get_photos(
 						i,
 						expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
 						translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
 						account = account
 					)
-				except:
-					self.__raise__()
-					errors += ' %s/Photos,' % i
-			if self.chrome.stop_check():
-				break
-			if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
-				try:
+				if self.chrome.stop_check():
+					break
+				if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
 					account = self.get_friends(i, account = account)
+		else:	# error robust
+			errors = ''
+			if 'Network' in options:
+				try:
+					self.get_network(targets, options['Network']['Depth'])
 				except:
-					self.__raise__()
-					errors += ' %s/Friends,' % i
-		if errors != '':
-			raise Exception('The following Facebook accont(s)/action(s) returned errors: %s' % errors.rstrip(','))
-
-	def __raise__(self):
-		'Raise error if not in debug mode'
-		if not self.chrome.debug:
-			raise
+					errors += ' Network,'
+			for i in targets:
+				account = None	# reset targeted account
+				if self.chrome.stop_check():
+					break
+				if 'Landing' in options:
+					try:
+						account = self.get_landing(i, account=account)
+					except:
+						errors += ' %s/Landing,' % i
+				if self.chrome.stop_check():
+					break
+				if 'Timeline' in options:
+					try:
+						self.stop_utc = self.get_utc(options['Timeline']['Until'])
+						account = self.get_timeline(
+							i,
+							expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
+							translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
+							visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
+							account = account
+						)
+					except:
+						errors += ' %s/Timeline,' % i
+				if self.chrome.stop_check():
+					break
+				if 'Posts' in options:
+					try:
+						self.stop_utc = self.get_utc(options['Posts']['Until'])
+						account = self.get_posts(
+							i,
+							expand = 'Expand' in options['Posts'] and options['Posts']['Expand'],
+							translate = 'Translate' in options['Posts'] and options['Posts']['Translate'],
+							visitors = 'Visitors' in options['Posts'] and options['Posts']['Visitors'],
+							account = account
+						)
+					except:
+						errors += ' %s/Posts,' % i
+				if self.chrome.stop_check():
+					break
+				if 'About' in options:
+					try:
+						account = self.get_about(i, account = account)
+					except:
+						errors += ' %s/About,' % i
+				if self.chrome.stop_check():
+					break
+				if 'Photos' in options:
+					try:
+						account = self.get_photos(
+							i,
+							expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
+							translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
+							account = account
+						)
+					except:
+						errors += ' %s/Photos,' % i
+				if self.chrome.stop_check():
+					break
+				if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
+					try:
+						account = self.get_friends(i, account = account)
+					except:
+						errors += ' %s/Friends,' % i
+			if errors != '':
+				raise Exception('The following Facebook accont(s)/action(s) returned errors: %s' % errors.rstrip(','))
 
 	def extract_users(self, target):
 		'Extract facebook id or path from url'
@@ -191,7 +227,7 @@ class Facebook:
 		path = self.get_path(html)	# get path
 		if path == '':
 			return None
-		html = self.get_flink(html)	# get link
+		flink = self.get_flink(html)	# get link
 		if flink == '':
 			return None
 		return {'id': fid, 'name': name, 'path': path, 'link': flink}
@@ -229,12 +265,20 @@ class Facebook:
 			account['name'] = 'undetected'
 		return account	# return dictionary
 
+	def dirname(self, account):
+		'Generate dirname to store Screenshots, PDFs, JSON, CSV etc.'
+		m = re.search('profile\.php\?id=[0-9]+', account['path'])
+		if m == None:
+			return account['path']
+		return m.group()[8:]
+
 	def get_account(self, user, account):
 		'Get account data and write information as CSV and JSON file if not alredy done'
 		if account == None:
 			account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-			self.storage.write_dicts(account, self.ACCOUNT, 'account.csv', account['path'])
-			self.storage.write_json(account, 'account.json', account['path'])
+			dirname = self.dirname(account)
+			self.storage.write_dicts(account, self.ACCOUNT, 'account.csv', dirname)
+			self.storage.write_json(account, 'account.json', dirname)
 		return account
 
 	def rm_pagelets(self):
@@ -309,16 +353,16 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to landing page of the given faebook account
 		account = self.get_account(user, account)	# get account infos if not already done
 		self.rm_pagelets()	# remove bluebar etc.
-		path = self.storage.path('landing', account['path'])
-		self.chrome.visible_page_png(path)	# save the visible part of the page as png
-		self.chrome.page_pdf(path)
+		path_no_ext = self.storage.path('landing', self.dirname(account))
+		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
+		self.chrome.page_pdf(path_no_ext)
 		return account
 
 	def get_timeline(self, user, expand=False, translate=False, visitors=False, account=None):
 		'Get timeline'
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
 		account = self.get_account(user, account)	# get account infos if not already done
-		path_no_ext=self.storage.path('timeline', account['path'])
+		path_no_ext=self.storage.path('timeline', self.dirname(account))
 		self.expand_page(expand=expand, translate=translate)	# go through timeline
 		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
@@ -326,14 +370,14 @@ class Facebook:
 		self.chrome.entire_page_png(path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
-			self.get_visitors(account)
+			self.get_visitors(path_no_ext, account)
 		return account
 
 	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None):
 		'Get posts on a bussines page'
 		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
 		account = self.get_account(user, account)	# get account infos if not already done
-		path_no_ext=self.storage.path('posts', account['path'])
+		path_no_ext=self.storage.path('posts', self.dirname(account))
 		self.expand_page(expand=expand, translate=translate)	# go through posts
 		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
@@ -341,7 +385,7 @@ class Facebook:
 		self.chrome.entire_page_png(path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
-			self.get_visitors(account)
+			self.get_visitors(path_no_ext, account)
 		return account
 
 	def get_visitors(self, account):
@@ -378,17 +422,18 @@ class Facebook:
 						visitor_ids.add(fid)
 				except:
 					pass
-		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', account['path'])
-		self.storage.write_json(visitors, 'visitors.json', account['path'])
+		dirname = self.dirname(account)
+		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', dirname)
+		self.storage.write_json(visitors, 'visitors.json', account(dirname))
 
 	def get_about(self, user, account=None):
 		'Get About'
 		self.chrome.navigate('https://www.facebook.com/%s/about' % user)	# go to about
 		account = self.get_account(user, account)	# get account infos if not already done
-		path_no_ext=self.storage.path('about', account['path'])
-		self.rm_pagelets()	# remove bluebar etc.
-		path = self.storage.path('about', account['path'])
+		path_no_ext=self.storage.path('about', self.dirname(account))
 		self.expand_page()
+		time.sleep(3)
+		self.rm_pagelets()	# remove bluebar etc.
 		self.chrome.entire_page_png(path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
 		return account
@@ -399,25 +444,27 @@ class Facebook:
 		if self.chrome.get_outer_html_by_id('medley_header_photos') == None:
 			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % user)
 		account = self.get_account(user, account)	# get account infos if not already done
+		dirname = self.dirname(account)
+		path_no_ext = self.storage.path('photos', dirname)
+		self.expand_page()
+		time.sleep(3)
 		self.rm_pagelets()	# remove bluebar etc.
-		self.expand_page(path_no_ext=self.storage.path('photos', account['path']))	# go through photos
+		self.chrome.entire_page_png(path_no_ext)
+		self.chrome.page_pdf(path_no_ext)
 		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_photos')
 		if html == None:
 			html = self.chrome.get_outer_html_by_id('content_container')
 			if html == None:
 				raise Exception('No photos were found')
-		hrefs = re.findall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html)
 		cnt = 1	# to number screenshots
-		for i in hrefs:
+		for i in re.findall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 			self.chrome.navigate(i[9:-1])
 			self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
+			self.expand_page(expand=expand, translate=translate)	# expand photo comments
 			self.rm_pagelets()	# remove bluebar etc.
-			time.sleep(0.5)
-			self.expand_page(	# go through comments
-				path_no_ext=self.storage.path('%05d_photo' % cnt, account['path']),
-				expand=expand,
-				translate=translate
-			)
+			path_no_ext = self.storage.path('%05d_photo' % cnt, dirname)
+			self.chrome.entire_page_png(path_no_ext)
+			self.chrome.page_pdf(path_no_ext)
 			cnt += 1
 			if cnt == 100000:
 				break
@@ -429,19 +476,23 @@ class Facebook:
 		flist = []	# list to store friends
 		self.chrome.navigate('https://www.facebook.com/%s/friends' % user)
 		account = self.get_account(user, account)	# get account infos if not already done
+		dirname = self.dirname(account)
+		path_no_ext = self.storage.path('friends', dirname)
+		self.chrome.expand_page()
 		self.rm_pagelets()	# remove bluebar etc.
-		path = self.storage.path('friends', account['path'])
-		self.chrome.expand_page(path_no_ext = path)
-		self.chrome.page_pdf(path)
-		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_friends')	# try to get friends
+		self.chrome.entire_page_png(path_no_ext)
+		self.chrome.page_pdf(path_no_ext)
+		html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_friends')	# try to get friends
 		if html == None:
 			return (account, flist)	# return empty list if no visible friends
+		re.findall('<a href="https://www\.facebook\.com/[^?]+', html)
+		re.findall('<a href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)
 		for i in re.findall('<a href=\"[^?]*\?[^"]+\" [^<]*<\/a>', html):	# regex vs facebook
 			u = self.get_user(i)
 			if u != None:	
 				flist.append(u)	# append to friend list if info was extracted
-		self.storage.write_2d([ [ i[j] for j in i] for i in flist ], 'friends.csv', account['path'])
-		self.storage.write_json(flist, 'friends.json', account['path'])
+		self.storage.write_2d([ [ i[j] for j in i] for i in flist ], 'friends.csv', dirname)
+		self.storage.write_json(flist, 'friends.json', dirname)
 		return (account, flist)	# return account and friends as list
 
 	def get_network(self, targets, depth):
@@ -449,6 +500,7 @@ class Facebook:
 		network = dict()	# dictionary to store friend lists
 		old_ids =set()	# set to store ids (friend list has been downloaded)
 		for i in targets:	# start with the given target accounts
+			account = None	# reset account
 			(account, flist) = self.get_friends(i)	# get friend list
 			network.update({
 				account['id']: {
@@ -462,6 +514,7 @@ class Facebook:
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			new_ids = { k['id'] for j in network for k in network[j]['friends'] }	# set to store ids (friend list has not been downloaded so far)
 			for j in new_ids - old_ids:
+				account = None	# reset account
 				(account, flist) = self.get_friends(j)	# get friend list
 				network.update({
 					account['id']: {
@@ -480,6 +533,4 @@ class Facebook:
 	def write_network(self, network):
 		'Write network data'
 		self.storage.write_json(network, 'network.json')
-		self.storage.write_2d({ (i, j['id']) for i in network for j in network[i]['friends'] }, 'network.csv') # list of friend connections
-
-			
+		self.storage.write_2d({ (i, j['id']) for i in network for j in network[i]['friends'] }, 'network.csv') # list of friend connections			
