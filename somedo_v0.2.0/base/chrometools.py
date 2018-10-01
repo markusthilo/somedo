@@ -50,10 +50,13 @@ class Chrome:
 		'Send command to Chrome'
 		self.request_id += 1
 		self.conn.send(json.dumps({'method': method, 'id': self.request_id, 'params': kwargs}))	# send command
-		while True:	# wait for response
+		for i in range(100000):	# wait for response
 			message = json.loads(self.conn.recv())
 			if message.get('id') == self.request_id:
 				return message
+			if i > 1000:
+				time.sleep(0.1)
+		return None
 
 	def runtime_eval(self, js):
 		'Send JavaScript code with method Runtume.evaluate to Chrome'
@@ -169,52 +172,52 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(window.innerHeight)'))
 			except TypeError:
-				pass
+				time.sleep(0.1)
 		raise Exception('Could not get window height.')
 
 	def get_window_width(self):
 		'Get visible height of the window'
-		for i in range(1000):
+		for i in range(600):
 			try:
 				return int(self.runtime_eval('JSON.stringify(window.innerWidth)'))
 			except TypeError:
-				pass
+				time.sleep(0.1)
 		raise Exception('Could not get window width.')
 
 	def get_page_height(self):
 		'Get page height'
-		for i in range(1000):
+		for i in range(600):
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollHeight)'))
 			except TypeError:
-				pass
+				time.sleep(0.1)
 		raise Exception('Could not get page height.')
 
 	def get_page_width(self):
 		'Get page width'
-		for i in range(1000):
+		for i in range(600):
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollWidth)'))
 			except TypeError:
-				pass
+				time.sleep(0.1)
 		raise Exception('Could not get page width.')
 
 	def get_x_position(self):
 		'Get x scroll position'
-		for i in range(1000):
+		for i in range(600):
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollLeft)'))
 			except TypeError:
-				pass
+				time.sleep(0.1)
 		raise Exception('Could not get x position.')
 
 	def get_y_position(self):
 		'Get y scroll position'
-		for i in range(1000):
+		for i in range(600):
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollTop)'))
 			except TypeError:
-				pass
+				time.sleep(0.1)
 		raise Exception('Could not get page y position.')
 
 	def set_position(self, y):
@@ -272,7 +275,7 @@ class Chrome:
 		'Wait for page not expanding anymore'
 		time.sleep(0.2)
 		old_height = self.get_page_height()
-		while True:
+		for i in range(5000):
 			time.sleep(0.1)
 			new_height = self.get_page_height()
 			if new_height == old_height:
@@ -303,8 +306,13 @@ class Chrome:
 			self.__per_page__(per_page_action)	# execute per page action
 			self.set_position(self.wait_expand_end())
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
-			if new_height <= old_height or self.stop_check() or self.__terminator_check__():	# check for end of page or stop criteria
-				break	# exit if page did not change
+			if self.stop_check() or self.__terminator_check__():	# check for stop criteria
+				break	# exit
+			if new_height <= old_height:	# check for end of page or stop criteria
+				time.sleep(2)	# wait 2 seconds - page might load some more
+				new_height = self.wait_expand_end()
+				if new_height <= old_height:	# check again
+					break	# exit
 			old_height = new_height
 
 	def visible_page_png(self, path_no_ext):

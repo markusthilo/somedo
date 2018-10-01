@@ -476,7 +476,6 @@ class Facebook:
 		flist = []	# list to store friends
 		self.chrome.navigate('https://www.facebook.com/%s/friends' % user)
 		account = self.get_account(user, account)	# get account infos if not already done
-		print(user,account)
 		dirname = self.dirname(account)
 		path_no_ext = self.storage.path('friends', dirname)
 		self.chrome.expand_page()
@@ -486,12 +485,7 @@ class Facebook:
 		html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_friends')	# try to get friends
 		if html == None:
 			return (account, flist)	# return empty list if no visible friends
-		for i in re.findall('href="https://www\.facebook\.com[^=]+=[^=]+=friends_tab" [^<]+</a>',html):	# regex vs facebook
-			#get_flink(i)	# get link to friend's profile
-			###########################################################################################################	
-			# re.findall('<a href="https://www\.facebook\.com/[^?]+', html)
-			# re.findall('<a href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)
-			###########################################################################################################
+		for i in re.findall('href="https://www\.facebook\.com\/[^<]+=friends_tab" [^<]+</a>',html):	# regex vs facebook
 			u = self.get_user(i)
 			if u != None:	
 				flist.append(u)	# append to friend list if info was extracted
@@ -502,7 +496,7 @@ class Facebook:
 	def get_network(self, targets, depth):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
 		network = dict()	# dictionary to store friend lists
-		old_ids =set()	# set to store ids (friend list has been downloaded)
+		old_ids = set()	# set to store ids (friend list has been downloaded)
 		for i in targets:	# start with the given target accounts
 			(account, flist) = self.get_friends(i)	# get friend list
 			network.update({
@@ -516,8 +510,9 @@ class Facebook:
 			old_ids.add(account['id'])
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			new_ids = { k['id'] for j in network for k in network[j]['friends'] }	# set to store ids (friend list has not been downloaded so far)
+			new_paths = { k['id']: k['path'] for j in network for k in network[j]['friends'] if k['id'] in new_ids - old_ids }	# dict to store paths
 			for j in new_ids - old_ids:
-				(account, flist) = self.get_friends(j)	# get friend list
+				(account, flist) = self.get_friends(new_paths[j])	# get friend list
 				network.update({
 					account['id']: {
 						'name':		account['name'],
