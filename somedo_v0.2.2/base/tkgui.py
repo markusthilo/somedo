@@ -125,8 +125,9 @@ class GuiRoot(Tk):
 		if self.worker.DEBUG:
 			Button(self.frame_main_buttons, text="DEBUG: start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
 		self.__tk_running__ = StringVar()
-		self.__running_label__ = Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16)
+		self.__running_label__ = Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16, background='white')
 		self.__running_label__.pack(side=LEFT, padx=3, pady=1)
+		
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
 		try:
 			with open('ABOUT.txt', 'r', encoding='utf-8') as f:
@@ -293,7 +294,7 @@ class GuiRoot(Tk):
 					return
 			except:
 				pass
-			self.__running_label__.config(background='red')
+			self.__running_label__.config(background='green')
 			self.__tk_running__.set("Running...")
 			self.headless = False	# chrome will be visible
 			self.stop = threading.Event()	# to stop main thread
@@ -331,7 +332,7 @@ class GuiRoot(Tk):
 		'Execute jobs'
 		messagebox.showinfo('Done', self.worker.execute(self.jobs, self.__get_config__(), headless=self.headless, stop=self.stop))
 		self.__tk_running__.set("")
-		self.__running_label__.config(background=self.master.cget(background))
+		self.__running_label__.config(background='white')
 
 if __name__ == '__main__':	# start here if called as program / app
 	rootwindow = Tk()

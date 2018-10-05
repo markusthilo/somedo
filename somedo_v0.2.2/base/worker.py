@@ -34,7 +34,7 @@ class Worker:
 		stop_thread: threading.Event object to give the abort signal, None if not set
 	'''
 
-	DEBUG = True	# obvioulsy for debugging
+	DEBUG = False	# obvioulsy for debugging
 
 	def __init__(self):
 		'Create object that works out the jobs'
