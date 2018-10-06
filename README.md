@@ -1,16 +1,16 @@
-SOMEDO VERSION 0.2.2
+SOMEDO - Social Media Downloader for Open Source Intelligence / Law Enforcement.
 
-Social Media Downloader for Open Source Intelligence.
+SOMEDO provides automated download of open profile data in social networks as needed for OSINT and/or Law Enforcement.
 
-Automated download of open profile data in social networks as needed for OSINT and/or Law Enforcement.
-
-To find out, how Somedo works, see the Wiki on SourceForge:
+To find out, how Somedo works, see the wiki on SourceForge:
 
 https://sourceforge.net/projects/somedo/wiki/
 
 If you are interested in the code, visit the project on Github:
 
 https://github.com/markusthilo/somedo
+
+I would apreceate code donations or ideas!
 
 Development and License:
 
