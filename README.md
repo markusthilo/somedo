@@ -1,4 +1,4 @@
-SOMEDO VERSION 0.2.1
+SOMEDO VERSION 0.2.2
 
 Social Media Downloader for Open Source Intelligence.
 
@@ -12,12 +12,10 @@ If you are interested in the code, visit the project on Github:
 
 https://github.com/markusthilo/somedo
 
-
-Development and License
+Development and License:
 
 The use, development, distribution, etc. of the script is subject
-to the restrictions of GPL Version 3. Google's Chromedriver is under
-the Apache License 2.0.
+to the restrictions of GPL Version 3.
 
 The tool is in alpha state and propabliy will not be stable enough
 to have a final release ever. Constant changes and inhomogeneity
