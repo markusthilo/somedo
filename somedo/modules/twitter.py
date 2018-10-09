@@ -5,16 +5,26 @@ import re, time, datetime
 class Twitter:
 	'Downloader for Twitter'
 
-	DEFINITION = ['Twitter', [], [
-		[['Landing', True]],
-		[['Tweets', True], ['Search', False], ['Media', False], ['Limit', 100]]
-	] ]
+	DEFINITION = ['Twitter',
+		['Email', 'Password'],
+		[
+			[['Landing', True]],
+			[['Tweets', True], ['Search', False], ['Media', False], ['Limit', 100]]
+		]
+	]
 
 	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Twitter'
 		self.options = options
 		self.chrome = chrome
 		self.storage = storage
+		self.chrome.navigate('https://twitter.com/login')	# go to twitter login
+		time.sleep(2)
+		
+		self.chrome.insert_element('Name', 'session[username_or_email]', 0, login['Email'])	# login with email
+		self.chrome.insert_element('Name', 'session[password]', 0, login['Password'])	# and password
+		self.chrome.click_element('ClassName', 'submit EdgeButton EdgeButton--primary EdgeButtom--medium', 0)	# click login
+		
 		if 'Landing' in options:
 			self.landing = True
 		elif not 'Tweets' in self.options:
@@ -127,11 +137,10 @@ class Twitter:
 		self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
 		self.storage.write_json(minfo, 'media.json', path)
 
-	def get_links(self):
-		'Extract links from tag "article"'
-		for i in re.findall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
-			if not i[9:] in self.links:
-				self.links.append(i[9:])
+	def get_tweets(self):
+		'Extract tweets'
+		for i in self.chrome.get_outer_html('ClassName', 'content'):	# get all class="content"
+			
 
 	def terminator(self):
 		'Test if limit of media to download is reached'
