@@ -6,37 +6,43 @@ class Twitter:
 	'Downloader for Twitter'
 
 	DEFINITION = ['Twitter',
-		['Email', 'Password'],
+###		['Email', 'Password'],	###
+		[],
 		[
 			[['Landing', True]],
-			[['Tweets', True], ['Search', False], ['Media', False], ['Limit', 100]]
+			[['Tweets', True], ['Search', False], ['Photos', False], ['Limit', 200]]
 		]
 	]
 
 	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Twitter'
-		self.options = options
-		self.chrome = chrome
-		self.storage = storage
-		self.chrome.navigate('https://twitter.com/login')	# go to twitter login
-		time.sleep(2)
-		
-		self.chrome.insert_element('Name', 'session[username_or_email]', 0, login['Email'])	# login with email
-		self.chrome.insert_element('Name', 'session[password]', 0, login['Password'])	# and password
-		self.chrome.click_element('ClassName', 'submit EdgeButton EdgeButton--primary EdgeButtom--medium', 0)	# click login
-		
+		self.landing = False
+		self.tweets = False
+		self.photos = False
+		search = False
 		if 'Landing' in options:
 			self.landing = True
-		elif not 'Tweets' in self.options:
+		if 'Tweets' in options:
+			self.tweets = True
+			self.limit = options['Tweets']['Limit']
+			if 'Search' in options['Tweets']:
+				search = True
+			if 'Photos' in options['Tweets']:
+				self.photos = True
+		elif not self.landing:
 			raise Exception('Nothing to do.')
-		else:
-			self.landing = False
-		if self.landing or not self.options['Tweets']['search']:
-			for i in self.extract_targets(target):				
-				self.get_account(i)
-		else:
-			pass	# twitter search	
-
+		self.chrome = chrome
+		self.storage = storage
+###		if login['Email'] != '':	# go to twitter login if email is given
+###			self.chrome.navigate('https://twitter.com/login')	# go to twitter login
+###			time.sleep(1)
+###			self.chrome.insert_element('Name', 'session[username_or_email]', 0, login['Email'])	# login with email
+###			self.chrome.insert_element('Name', 'session[password]', 0, login['Password'])	# and password
+###			self.chrome.click_element('ClassName', 'submit EdgeButton EdgeButton--primary EdgeButtom--medium', 0)	# click login
+		if search:
+			raise Exception('Twitter search is not implemented.')
+		for i in self.extract_targets(target):				
+			self.get_account(i)
 
 	def extract_targets(self, target):
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
@@ -57,8 +63,16 @@ class Twitter:
 
 	def rm_profile_canopy(self):
 		'Remove general infos from profile'
-		self.chrome.rm_outer_html('ClassName', 'ProfileCanopy-inner')
+		self.chrome.rm_outer_html('ClassName', 'ProfileCanopy ProfileCanopy--withNav ProfileCanopy--large js-variableHeightTopBar')
 		self.chrome.rm_outer_html('ClassName', 'Grid-cell')
+
+	def rm_tweetstuff(self):
+		'Remove background from  tweet'
+		self.chrome.rm_outer_html_by_id('doc')
+		self.chrome.rm_outer_html('ClassName', 'inline-reply-tweetbox-container')
+		self.chrome.rm_outer_html('ClassName', 'module Trends trends Trends--wide')
+		self.chrome.rm_outer_html('ClassName', 'Footer module roaming-module Footer--slim')
+		self.chrome.rm_outer_html('ClassName', 'permalink-footer')
 
 	def get_account(self, path):
 		'Get tweets of an account / twitter user'
@@ -69,89 +83,56 @@ class Twitter:
 		if self.landing:
 			self.chrome.page_pdf(path_no_ext)
 			self.chrome.visible_page_png(path_no_ext)
-		if not 'Tweets' in self.options:
-			return
-		self.rm_profile_canopy()
-		self.chrome.set_x_center()
-		return
-		
-		try:	# try to get header part of main page
-			html = self.chrome.get_outer_html('TagName', 'header')[0]
-		except:
-			html = ''
-		try:	# try to get displayed name out of page header
-			name = re.findall('<h1 class="[^"]+" title="[^"]+"', html)[0].split('"')[3]
-		except:
-			name = 'UNKNOWN'
-		self.storage.write_str('%s\t%s\thttp://www.instagram.com/%s' % (path, name, path), 'profile.csv', path)	# write information as file
-		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, 'profile.json', path)	# write as json file
-		try:	# try to download profile picture
-			url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[0])[0][6:-1]
-			self.storage.download(url, 'profile' + self.cut_ext(url), path)	# download media file using the right file extension
-		except:
-			pass
-		self.rm_banner()
-		self.chrome.set_x_center()
-		self.chrome.page_pdf(self.storage.path('main', path))
-		self.links = []
-		self.limit_reached = False
-		self.chrome.drive_by_png(	# scroll through page and take screenshots
-			path_no_ext = self.storage.path('main', path),
-			per_page_action = self.get_links,
-			terminator = self.terminator
-		)
-		minfo = []	# list for media info
-		cnt = 0	# counter for the images/videos
-		for i in self.links:	# go through links
+		if self.tweets:
+			self.rm_profile_canopy()
+			path_no_ext = self.storage.path('tweets', path)
+			self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.limit)
+			self.chrome.page_pdf(path_no_ext)
+			self.get_tweets(path)
+
+	def get_tweets(self, path):
+		'Extract tweets'
+		tweet_cnt = 1
+		minfo = []
+		for html in self.chrome.get_outer_html('ClassName', 'content'):	# get all class="content"
 			if self.chrome.stop_check():
 				break
-			self.chrome.navigate('http:www.instagram.com/%s' % i)
-			time.sleep(0.2)
-			self.rm_banner()
-			cnt += 1
-			store_path = self.storage.path('%05d_page' % cnt, path)
-			self.chrome.visible_page_png(store_path)	# save page as png
-			self.chrome.page_pdf(store_path)	# save as pdf
-			self.storage.write_text(self.chrome.get_inner_html('TagName', 'article')[0], '%05d_page.txt' % cnt, path)	# write comments
-			try:	# try to get video url
-				url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'video')[-1])[0][6:-1]
-				fname = '%05d_video' % cnt
-				if self.photosonly:
-					continue
-			except:
-				try:	# try to get image url
-					url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[-1])[0][6:-1]
-					fname = '%05d_image' % cnt
+			tweet_url = 'https://twitter.com' + re.findall('<a href="[^"]+" class="tweet-timestamp js-permalink js-nav js-tooltip"', html)[0][9:-56]
+			self.chrome.navigate(tweet_url)
+			self.rm_tweetstuff()
+			text = tweet_url + '<br><br>' + self.chrome.get_inner_html('ClassName', 'js-tweet-text-container')[0]
+###			for html in self.chrome.get_outer_html('ClassName', 'content'):	# get all class="content"
+###				text += '<br><br>%s' % html
+			self.storage.write_text(text, 'tweet_%05d.txt' % tweet_cnt, path)
+			path_no_ext = self.storage.path('tweet_%05d' % tweet_cnt, path)
+			self.chrome.visible_page_png(path_no_ext)
+			self.chrome.page_pdf(path_no_ext)
+			if self.photos:
+				try:
+					html = self.chrome.get_outer_html('ClassName', 'AdaptiveMedia-container')[0]
 				except:
 					continue
-			try:	# try to download media file
-				fname += self.cut_ext(url)
-				self.storage.download(url, fname, path)
-				minfo.append({	# store counter, media type and url to media info list
-					'file':	fname,
-					'time':	datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
-					'url':	url
-				})
-			except:
-				pass
-		self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
-		self.storage.write_json(minfo, 'media.json', path)
-
-	def get_tweets(self):
-		'Extract tweets'
-		for i in self.chrome.get_outer_html('ClassName', 'content'):	# get all class="content"
-			
-
-	def terminator(self):
-		'Test if limit of media to download is reached'
-		if len(self.links) >= self.limit:
-			return True
-		return False
-
-	def cut_ext(self, url):
-		'Cut file extension out of media URL'
-		try:
-			ext = re.findall('\.[^.]+$', re.sub('\?.*$', '', url))[-1]
-		except:
-			ext = ''
-		return ext
+				m = re.search(' class="AdaptiveMedia[^"]*Photo"', html)
+				if m != None:
+					photo_cnt = 1
+					photo_urls = [ i[6:] for i in re.findall(' src="[^"]+', html) ]
+					for photo_url in photo_urls:
+						if len(photo_urls) == 1:
+							fname = 'photo_%05d%s' % (tweet_cnt, self.storage.url_cut_ext(photo_url))
+						else:
+							fname = 'photo_%05d_%05d%s' % (tweet_cnt, photo_cnt, self.storage.url_cut_ext(photo_url))
+						try:	# try to download photo
+							self.storage.download(photo_url, fname, path)
+							minfo.append({	# store counter, media type and urls to media info list
+								'file': fname,
+								'time': datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
+								'photo_url': photo_url,
+								'tweet_url': tweet_url
+							})
+							photo_cnt += 1
+						except:
+							pass
+			tweet_cnt += 1
+		if minfo != []:
+			self.storage.write_dicts(minfo,('file','time','photo_url','tweet_url') , 'media.csv', path)
+			self.storage.write_json(minfo, 'media.json', path)

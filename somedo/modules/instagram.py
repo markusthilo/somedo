@@ -5,11 +5,22 @@ import re, time, datetime
 class Instagram:
 	'Downloader for Instagram'
 
-	DEFINITION = ['Instagram', [],	[] ]
+	DEFINITION = ['Instagram', [], [ [['Landing', True]], [['Media', True], ['Limit', 200]] ] ]
 
 	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Instagram'
 		self.storage = storage
+		if 'Landing' in options:
+			self.landing = True
+		else:
+			self.landing = False
+		if 'Media' in options:
+			self.limit = options['Media']['Limit']
+			self.media = True
+		else:
+			self.media = False
+		if not self.landing and not self.media:
+			raise Exception('Nothing to do.')
 		self.chrome = chrome
 		for i in self.extract_targets(target):
 			self.get_main(i)
@@ -32,7 +43,7 @@ class Instagram:
 
 	def get_main(self, path):
 		'Scroll through main page and get images'
-		self.chrome.navigate('http:www.instagram.com/%s' % path)
+		self.chrome.navigate('http://www.instagram.com/%s' % path)
 		time.sleep(0.5)
 		try:	# try to get header part of main page
 			html = self.chrome.get_outer_html('TagName', 'header')[0]
@@ -46,26 +57,32 @@ class Instagram:
 		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, 'profile.json', path)	# write as json file
 		try:	# try to download profile picture
 			url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[0])[0][6:-1]
-			self.storage.download(url, 'profile' + self.cut_ext(url), path)	# download media file using the right file extension
+			self.storage.download(url, 'profile' + self.storage.url_cut_ext(url), path)	# download media file using the right file extension
 		except:
 			pass
 		self.rm_banner()
 		self.chrome.set_x_center()
-		self.chrome.page_pdf(self.storage.path('main', path))
+		path_no_ext = self.storage.path('landing', path)
+		if self.landing:
+			self.chrome.page_pdf(path_no_ext)
+			if not self.media:
+				self.chrome.visible_page_png(path_no_ext)
+				return
 		self.links = []
-		self.chrome.drive_by_png(	# scroll through page and take screenshots
-			path_no_ext = self.storage.path('main', path),
-			per_page_action = self.get_links
+		path_no_ext = self.storage.path('main', path)
+		self.chrome.expand_page(	# scroll through page and take screenshots
+			path_no_ext = path_no_ext,
+			per_page_action = self.get_links,
+			limit = self.limit
 		)
 		minfo = []	# list for media info
-		cnt = 0	# counter for the images/videos
+		cnt = 1	# counter for the images/videos
 		for i in self.links:	# go through links
 			if self.chrome.stop_check():
 				break
 			self.chrome.navigate('http:www.instagram.com/%s' % i)
 			time.sleep(0.2)
 			self.rm_banner()
-			cnt += 1
 			store_path = self.storage.path('%05d_page' % cnt, path)
 			self.chrome.visible_page_png(store_path)	# save page as png
 			self.chrome.page_pdf(store_path)	# save as pdf
@@ -80,7 +97,7 @@ class Instagram:
 				except:
 					continue
 			try:	# try to download media file
-				fname += self.cut_ext(url)
+				fname += self.storage.url_cut_ext(url)
 				self.storage.download(url, fname, path)
 				minfo.append({	# store counter, media type and url to media info list
 					'file':	fname,
@@ -89,6 +106,7 @@ class Instagram:
 				})
 			except:
 				pass
+			cnt += 1
 		self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
 		self.storage.write_json(minfo, 'media.json', path)
 
@@ -97,11 +115,3 @@ class Instagram:
 		for i in re.findall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
 			if not i[9:] in self.links:
 				self.links.append(i[9:])
-
-	def cut_ext(self, url):
-		'Cut file extension out of media URL'
-		try:
-			ext = re.findall('\.[^.]+$', re.sub('\?.*$', '', url))[-1]
-		except:
-			ext = ''
-		return ext

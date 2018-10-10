@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, json, re, urllib.request
+import os, json, re, urllib.request, html2text
 
 class Storage:
 	'Save data into destination directory and subdirectories'
@@ -103,12 +103,17 @@ class Storage:
 
 	def write_text(self, *args):
 		'Convert from html to text and write to file - very basic conversion but should work for the task here'
-		text = re.sub('"[^"]*"', '', args[0])	# convert to text
-		text = re.sub('<[^>]+>', '\n', text)
-		text = re.sub('\n+', '\n', text)
 		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
-			f.write(text)
+			f.write(html2text.html2text(args[0]))
 
 	def download(self, *args):
 		'Download and writte file'
 		urllib.request.urlretrieve(args[0], self.path(args[1:]))
+
+	def url_cut_ext(self, url):
+		'Cut file extension out of media URL'
+		try:
+			ext = re.findall('\.[^.]+$', re.sub('\?.*$', '', url))[-1]
+		except:
+			ext = ''
+		return ext

@@ -10,11 +10,11 @@ class Facebook:
 		'Facebook',
 		['Email', 'Password'],
 		[
-			[['Landing', False]],
-			[['Timeline', True], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO]],
-			[['Posts', False], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO]],
+			[['Landing', True]],
+			[['Timeline', True], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', 200]],
+			[['Posts', False], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', 200]],
 			[['About', False]],
-			[['Photos', False], ['Expand', False], ['Translate', False]],
+			[['Photos', False], ['Expand', False], ['Translate', False], ['Limit', 200]],
 			[['Friends', False]],
 			[['Network', False], ['Depth', 1]]
 		]
@@ -35,7 +35,7 @@ class Facebook:
 			self.chrome.click_element_by_id('loginbutton')	# click login
 		except:
 			raise Exception('Could not login to Facebook.')
-		time.sleep(2)
+		time.sleep(1)
 		if self.chrome.debug:	# abort on errors in debug mode
 			if 'Network' in options:
 				self.get_network(targets, options['Network']['Depth'])
@@ -54,7 +54,8 @@ class Facebook:
 						expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
 						translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
 						visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
-						account = account
+						account = account,
+						limit = options['Timeline']['Limit']
 					)
 				if self.chrome.stop_check():
 					break
@@ -65,7 +66,8 @@ class Facebook:
 						expand = 'Expand' in options['Posts'] and options['Posts']['Expand'],
 						translate = 'Translate' in options['Posts'] and options['Posts']['Translate'],
 						visitors = 'Visitors' in options['Posts'] and options['Posts']['Visitors'],
-						account = account
+						account = account,
+						limit = options['Posts']['Limit']
 					)
 				if self.chrome.stop_check():
 					break
@@ -78,7 +80,8 @@ class Facebook:
 						i,
 						expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
 						translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
-						account = account
+						account = account,
+						limit = options['Photos']['Limit']
 					)
 				if self.chrome.stop_check():
 					break
@@ -110,7 +113,8 @@ class Facebook:
 							expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
 							translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
 							visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
-							account = account
+							account = account,
+							limit = options['Timeline']['Limit']
 						)
 					except:
 						errors += ' %s/Timeline,' % i
@@ -124,7 +128,8 @@ class Facebook:
 							expand = 'Expand' in options['Posts'] and options['Posts']['Expand'],
 							translate = 'Translate' in options['Posts'] and options['Posts']['Translate'],
 							visitors = 'Visitors' in options['Posts'] and options['Posts']['Visitors'],
-							account = account
+							account = account,
+							limit = options['Posts']['Limit']
 						)
 					except:
 						errors += ' %s/Posts,' % i
@@ -143,7 +148,8 @@ class Facebook:
 							i,
 							expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
 							translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
-							account = account
+							account = account,
+							limit = options['Photos']['Limit']
 						)
 					except:
 						errors += ' %s/Photos,' % i
@@ -328,7 +334,7 @@ class Facebook:
 			pass
 		return False
 
-	def expand_page(self, expand=True, translate=False):
+	def expand_page(self, path_no_ext='', expand=True, translate=False, limit=200):
 		'Go through page, expand, translate, take screenshots and generate pdf'
 		clicks = []
 		if expand:	# clicks to expand page
@@ -345,6 +351,7 @@ class Facebook:
 		else:
 			action = None
 		self.chrome.expand_page(
+			path_no_ext = path_no_ext,
 			click_elements_by = clicks,
 			per_page_action = action,
 			terminator=self.terminator)
@@ -359,19 +366,18 @@ class Facebook:
 		self.chrome.page_pdf(path_no_ext)
 		return account
 
-	def get_timeline(self, user, expand=False, translate=False, visitors=False, account=None):
+	def get_timeline(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
 		'Get timeline'
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
 		account = self.get_account(user, account)	# get account infos if not already done
 		path_no_ext=self.storage.path('timeline', self.dirname(account))
-		self.expand_page(expand=expand, translate=translate)	# go through timeline
 		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
 		self.rm_left_of_timeline()
-		self.chrome.entire_page_png(path_no_ext)
+		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through timeline
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
-			self.get_visitors(path_no_ext, account)
+			self.get_visitors(account)
 		return account
 
 	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None):
@@ -379,11 +385,10 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
 		account = self.get_account(user, account)	# get account infos if not already done
 		path_no_ext=self.storage.path('posts', self.dirname(account))
-		self.expand_page(expand=expand, translate=translate)	# go through posts
 		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
 		self.rm_left_of_timeline()
-		self.chrome.entire_page_png(path_no_ext)
+		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through posts
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(path_no_ext, account)
@@ -425,21 +430,19 @@ class Facebook:
 					pass
 		dirname = self.dirname(account)
 		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', dirname)
-		self.storage.write_json(visitors, 'visitors.json', account(dirname))
+		self.storage.write_json(visitors, 'visitors.json', dirname)
 
 	def get_about(self, user, account=None):
 		'Get About'
 		self.chrome.navigate('https://www.facebook.com/%s/about' % user)	# go to about
 		account = self.get_account(user, account)	# get account infos if not already done
 		path_no_ext=self.storage.path('about', self.dirname(account))
-		self.expand_page()
-		time.sleep(3)
 		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.entire_page_png(path_no_ext)
+		self.expand_page(path_no_ext=path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
 		return account
 
-	def get_photos(self, user, expand=False, translate=False, account=None):
+	def get_photos(self, user, expand=False, translate=False, account=None, limit=200):
 		'Get Photos'
 		self.chrome.navigate('https://www.facebook.com/%s/photos_all' % user)
 		if self.chrome.get_outer_html_by_id('medley_header_photos') == None:
@@ -447,10 +450,8 @@ class Facebook:
 		account = self.get_account(user, account)	# get account infos if not already done
 		dirname = self.dirname(account)
 		path_no_ext = self.storage.path('photos', dirname)
-		self.expand_page()
-		time.sleep(3)
 		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.entire_page_png(path_no_ext)
+		self.expand_page(path_no_ext=path_no_ext, limit=limit)
 		self.chrome.page_pdf(path_no_ext)
 		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_photos')
 		if html == None:
@@ -461,10 +462,9 @@ class Facebook:
 		for i in re.findall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 			self.chrome.navigate(i[9:-1])
 			self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
-			self.expand_page(expand=expand, translate=translate)	# expand photo comments
-			self.rm_pagelets()	# remove bluebar etc.
 			path_no_ext = self.storage.path('%05d_photo' % cnt, dirname)
-			self.chrome.entire_page_png(path_no_ext)
+			self.rm_pagelets()	# remove bluebar etc.
+			self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
 			self.chrome.page_pdf(path_no_ext)
 			cnt += 1
 			if cnt == 100000:
@@ -479,9 +479,8 @@ class Facebook:
 		account = self.get_account(user, account)	# get account infos if not already done
 		dirname = self.dirname(account)
 		path_no_ext = self.storage.path('friends', dirname)
-		self.chrome.expand_page()
 		self.rm_pagelets()	# remove bluebar etc.
-		self.chrome.entire_page_png(path_no_ext)
+		self.chrome.expand_page(path_no_ext=path_no_ext, limit=99999)	# no limit for friends - it makes no sense not getting all friends
 		self.chrome.page_pdf(path_no_ext)
 		html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_friends')	# try to get friends
 		if html == None:

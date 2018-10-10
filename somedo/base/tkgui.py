@@ -330,9 +330,11 @@ class GuiRoot(Tk):
 
 	def __thread__(self):
 		'Execute jobs'
-		messagebox.showinfo('Done', self.worker.execute(self.jobs, self.__get_config__(), headless=self.headless, stop=self.stop))
+		msg = self.worker.execute(self.jobs, self.__get_config__(), headless=self.headless, stop=self.stop)
 		self.__tk_running__.set("")
 		self.__running_label__.config(background='white')
+		messagebox.showinfo('Done', msg)
+		
 
 if __name__ == '__main__':	# start here if called as program / app
 	rootwindow = Tk()
