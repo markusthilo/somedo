@@ -364,9 +364,9 @@ class ChromePath:
 			self.path = args[0]
 		elif len(args) == 0:
 			if os.name == 'nt':
-				self.path = 'chrome.exe'
+				self.path = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
 				if not os.path.isfile(self.path):
-					raise FileNotFoundError('Did not find Chrome')
+					raise FileNotFoundError('Did not find Chrome.')
 			else:
 				self.path = ''
 				for i in [
@@ -379,6 +379,6 @@ class ChromePath:
 						self.path = i
 						break
 				if self.path == '':
-					raise FileNotFoundError('Did not find Chrome/Chromium')
+					raise FileNotFoundError('Did not find Chrome/Chromium.')
 		else:
 			raise Exception('The path to Chrome/Chromium is the only possible argument.')

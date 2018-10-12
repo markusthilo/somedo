@@ -107,8 +107,9 @@ class Instagram:
 			except:
 				pass
 			cnt += 1
-		self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
-		self.storage.write_json(minfo, 'media.json', path)
+		if minfo != []:
+			self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
+			self.storage.write_json(minfo, 'media.json', path)
 
 	def get_links(self):
 		'Extract links from tag "article"'

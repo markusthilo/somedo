@@ -102,7 +102,7 @@ class Storage:
 			json.dump(args[0], f, ensure_ascii=False)
 
 	def write_text(self, *args):
-		'Convert from html to text and write to file - very basic conversion but should work for the task here'
+		'Convert from html to text and write to file'
 		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
 			f.write(html2text.html2text(args[0]))
 
