@@ -27,15 +27,21 @@ class Facebook:
 		self.storage = storage
 		self.chrome = chrome
 		targets = self.extract_users(target)
-		try:
-			self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
-			time.sleep(2)
-			self.chrome.insert_element_by_id('email', login['Email'])	# login with email
-			self.chrome.insert_element_by_id('pass', login['Password'])	# and password
-			self.chrome.click_element_by_id('loginbutton')	# click login
-		except:
-			raise Exception('Could not login to Facebook.')
-		time.sleep(1)
+		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
+		for i in range(3):	# try 3x to log into your facebbok account
+			time.sleep(1)
+			try:
+				self.chrome.insert_element_by_id('email', login['Email'])	# login with email
+				self.chrome.insert_element_by_id('pass', login['Password'])	# and password
+				self.chrome.click_element_by_id('loginbutton')	# click login
+			except:
+				continue
+			time.sleep(1)
+			if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
+				break
+			if i == 2:
+				self.chrome.visible_page_png(self.storage.path('login'))
+				raise Exception('Could not login to Facebook.')
 		if self.chrome.debug:	# abort on errors in debug mode
 			if 'Network' in options:
 				self.get_network(targets, options['Network']['Depth'])

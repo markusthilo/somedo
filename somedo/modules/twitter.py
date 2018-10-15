@@ -18,13 +18,19 @@ class Twitter:
 		self.chrome = chrome
 		self.storage = storage
 		if 'User' in options and not 'Search' in options:	# target userss / twitter user
-			self.photos = options['User']['Photos']
+			if 'Photos' in options['User']:
+				self.photos = options['User']['Photos']
+			else:
+				self.photos = None
 			self.limit = options['User']['Limit']
 			self.rm_banner()
 			for i in self.extract_targets(target):				
 				self.get_account(i)
 		elif not 'User' in options and 'Search' in options:	# twitter search
-			self.photos = options['Search']['Photos']
+			if 'Photos' in options['Search']:
+				self.photos = options['Search']['Photos']
+			else:
+				self.photos = None
 			self.limit = options['Search']['Limit']
 			self.get_search(target)
 		elif 'User' in options and 'Search' in options:	# either account or search, not both
@@ -47,7 +53,7 @@ class Twitter:
 		'Remove redundant parts of the page'
 		self.chrome.rm_outer_html('ClassName', 'topbar js-topbar')
 		self.chrome.rm_outer_html('ClassName', 'topbar-spacer')
-		self.chrome.rm_outer_html('ClassName', 'Bannner eu-cookie-notice')
+		self.chrome.rm_outer_html('ClassName', 'BannnersContainer')
 		self.chrome.rm_outer_html('ClassName', 'MoveableModule')
 
 	def rm_profile_canopy(self):
@@ -93,7 +99,12 @@ class Twitter:
 	def get_account(self, path):
 		'Get tweets of an account / Twitter user'
 		self.chrome.navigate('http://twitter.com/%s' % path)
-		time.sleep(0.5)
+		for i in range(3):
+			time.sleep(1)
+			if self.chrome.get_inner_html_by_id('timeline') != None:
+				break
+			if i == 2:
+				raise Exception('Could not open Twitter Timeline.')
 		self.rm_banner()
 		path_no_ext = self.storage.path('landing', path)
 		self.chrome.page_pdf(path_no_ext)
@@ -103,8 +114,13 @@ class Twitter:
 
 	def get_search(self, target):
 		'On Search the target is handled as Twitter search string'
-		self.chrome.navigate('https://twitter.com/search?f=tweets&vertical=default&q=%s' % target)
-		time.sleep(0.5)
+		self.chrome.navigate('https://twitter.com/search?f=tweets&vertical=news&q=%s&src=typd' % target)
+		for i in range(3):
+			time.sleep(1)
+			if self.chrome.get_inner_html_by_id('timeline') != None:
+				break
+			if i == 2:
+				raise Exception('Could not open Twitter Search.')
 		path = 'search_'	# handable directory name
 		if len(target) > 23:
 			path += target.replace(' ', '_')[:23]
