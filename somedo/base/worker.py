@@ -6,7 +6,11 @@ from modules.facebook import *
 from modules.instagram import *
 from modules.twitter import *
 
-MODULE_DEFINITIONS = [Facebook.DEFINITION, Instagram.DEFINITION, Twitter.DEFINITION]	# to load definitions for each module
+MODULE_DEFINITIONS = [	# to load definitions for each module
+	Facebook.DEFINITION,
+	Instagram.DEFINITION,
+	Twitter.DEFINITION
+]
 
 class Worker:
 	''' Work through a list of jobs and execute modules.
@@ -35,8 +39,8 @@ class Worker:
 		stop_thread: threading.Event object to give the abort signal, None if not set
 	'''
 
-	DEBUG = True	# obviously for debugging
-#	DEBUG = False
+#	DEBUG = True	# obviously for debugging
+	DEBUG = False
 
 	def __init__(self):
 		'Create object that works out the jobs'

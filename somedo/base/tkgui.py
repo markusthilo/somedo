@@ -130,7 +130,7 @@ class GuiRoot(Tk):
 		
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
 		try:
-			with open('ABOUT.txt', 'r', encoding='utf-8') as f:
+			with open('README.md', 'r', encoding='utf-8') as f:
 				self.about_help = f.read()
 				Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
 		except:

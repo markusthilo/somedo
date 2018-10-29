@@ -8,8 +8,8 @@ class Twitter:
 	DEFINITION = ['Twitter',
 		[],
 		[
-			[['User', True], ['Photos', False], ['Limit', 20]],
-			[['Search', False], ['Photos', False], ['Limit', 20]]
+			[['User', True], ['Photos', False], ['Limit', 200]],
+			[['Search', False], ['Photos', False], ['Limit', 200]]
 		]
 	]
 
