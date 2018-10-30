@@ -107,6 +107,10 @@ in one job.
 
 The use, development, distribution, etc. of the script is subject to the restrictions of
 GPL Version 3.
+If you are interested in the code, visit the project on Github:
+
+https://github.com/markusthilo/somedo
+
 The tool is in alpha state and propabliy will not be stable enough to have a final release
 ever. Constant changes and inhomogeneity of pages require permanent adaptation and development.
 The completeness and correctness of the information obtained can never be guaranteed.
