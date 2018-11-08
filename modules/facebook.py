@@ -386,7 +386,7 @@ class Facebook:
 			self.get_visitors(account)
 		return account
 
-	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None):
+	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
 		'Get posts on a bussines page'
 		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
 		account = self.get_account(user, account)	# get account infos if not already done
