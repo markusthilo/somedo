@@ -251,31 +251,23 @@ class Facebook:
 			account = {'id': user, 'name': '', 'path': 'profile.php?id=%s' % user, 'link': 'https://www.facebook.com/profile.php?id=%s' % user}
 		else:
 			account = {'id': '', 'name': '', 'path': user, 'link': 'https://www.facebook.com/%s' % user}
-		html = self.chrome.get_outer_html_by_id('fbProfileCover')	# get profile cover
+		html = self.chrome.get_inner_html_by_id('fbProfileCover')
 		if account['id'] == '':	# try to get id if not given as target
+			m = re.search(' data-referrerid="[0-9]+" ', html)
 			try:
-				account['id'] = re.findall(' data-referrerid="[0-9]+"', html)[0][18:-1]
+				account['id'] = m.group()[18:-2]
 			except:
-				pass
-		if account['id'] =='':
-			html = self.chrome.get_outer_html_by_id('entity_sidebar')	# try for /pg/-account
-			try:
-				account['id'] = re.findall(' href="/[0-9]+/photos/', html)[0][8:-8]
-			except:
-				pass
-		if account['id'] == '':	# in case no id was found
-			account['id'] = 'undetected'
-		try:	# try to cut out displayed name (e.g. John McLane)
-			account['name'] = re.findall(' href="https://www\.facebook\.com/[^"]+">[^<]+<', html)[0].split('>')[1][:-1]
+				account['id'] = 'undetected'
+		html = self.chrome.get_inner_html_by_id('fb-timeline-cover-name')
+		m = re.search('">[^<]+</a>', html)	# try to cut out displayed name (e.g. John McLane)
+		try:
+			account['name'] = m.group()[2:-4]
 		except:
-			pass
-		if account['name'] == '':
+			m = re.search('href="https://www\.facebook\.com/[^"]+"><span>[^<]+<', html)
 			try:
-				account['name'] = re.findall(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+<', html)[0].split('>')[2][:-1]
+				account['name'] = m.group().split('>')[2][:-1]
 			except:
-				pass
-		if account['name'] == '':	# in case no name was found
-			account['name'] = 'undetected'
+				account['name'] = 'undetected'
 		return account	# return dictionary
 
 	def dirname(self, account):
@@ -389,6 +381,17 @@ class Facebook:
 	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
 		'Get posts on a bussines page'
 		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
+		html = self.chrome.get_inner_html_by_id('entity_sidebar')	# try for /pg/-account
+		m = re.search('href="https://www.facebook.com/[^"]+">', html)
+		try:
+			account['name'] = m.group()[31:-3]
+		except:
+			account['name'] = 'undetected'
+		m = re.search('href="/[0-9]+/photos/', html)
+		try:
+			account['id'] = m.group()[0][7:-8]
+		except:
+			account['id'] = 'undetected'
 		account = self.get_account(user, account)	# get account infos if not already done
 		path_no_ext=self.storage.path('posts', self.dirname(account))
 		self.rm_pagelets()	# remove all around the timeline itself
