@@ -329,7 +329,9 @@ class Chrome:
 		view_height = self.get_window_height()
 		old_y = 0	# vertical position
 		old_height = self.get_page_height()	# to check if page is still expanding
-		for cnt in range(1, limit+1):
+		cnt = 1
+		print('############## limit:', limit)
+		while cnt < limit:
 			self.set_position(old_y)
 			if self.stop_check() or self.__terminator_check__():
 				break
@@ -348,6 +350,7 @@ class Chrome:
 			if path_no_ext != '':
 				self.set_position(old_y)	# go back to old y in case expanding changed the position
 				self.visible_page_png('%s_%05d' % (path_no_ext, cnt)) # store screenshot
+				cnt += 1
 			old_y = new_y
 			old_height = new_height
 		if path_no_ext != '':

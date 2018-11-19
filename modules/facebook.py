@@ -275,7 +275,7 @@ class Facebook:
 		m = re.search('profile\.php\?id=[0-9]+', account['path'])
 		if m == None:
 			return account['path']
-		return m.group()[8:]
+		return m.group()[15:]
 
 	def get_account(self, user, account):
 		'Get account data and write information as CSV and JSON file if not alredy done'
@@ -294,6 +294,8 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('pagelet_escape_hatch')	# remove "Do you know ...?"
 		self.chrome.rm_outer_html_by_id('pagelet_ego_pane')	# remove "Suggested Groups"
 		self.chrome.rm_outer_html_by_id('pagelet_rhc_footer')
+		self.chrome.rm_outer_html_by_id('pagelet_page_cover')
+		self.chrome.rm_outer_html_by_id('page_side_column')
 		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
 		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
 
@@ -376,31 +378,6 @@ class Facebook:
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(account)
-		return account
-
-	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
-		'Get posts on a bussines page'
-		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
-		html = self.chrome.get_inner_html_by_id('entity_sidebar')	# try for /pg/-account
-		m = re.search('href="https://www.facebook.com/[^"]+">', html)
-		try:
-			account['name'] = m.group()[31:-3]
-		except:
-			account['name'] = 'undetected'
-		m = re.search('href="/[0-9]+/photos/', html)
-		try:
-			account['id'] = m.group()[0][7:-8]
-		except:
-			account['id'] = 'undetected'
-		account = self.get_account(user, account)	# get account infos if not already done
-		path_no_ext=self.storage.path('posts', self.dirname(account))
-		self.rm_pagelets()	# remove all around the timeline itself
-		self.rm_profile_cover()
-		self.rm_left_of_timeline()
-		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through posts
-		self.chrome.page_pdf(path_no_ext)
-		if visitors:
-			self.get_visitors(path_no_ext, account)
 		return account
 
 	def get_visitors(self, account):
@@ -539,4 +516,43 @@ class Facebook:
 	def write_network(self, network):
 		'Write network data'
 		self.storage.write_json(network, 'network.json')
-		self.storage.write_2d({ (i, j['id']) for i in network for j in network[i]['friends'] }, 'network.csv') # list of friend connections			
+		self.storage.write_2d({ (i, j['id']) for i in network for j in network[i]['friends'] }, 'network.csv') # list of friend connections
+
+	def get_entity_sidebar(self):
+		'Get infos from entity_sidebar'
+		html = self.chrome.get_inner_html_by_id('entity_sidebar')
+		m = re.search(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+', html)
+		try:
+			account = {'name': m.group().rsplit('>', 1)[1], 'path': m.group().rsplit('/', 2)[1], 'link': m.group()[7:].split('"')[0]}
+		except:
+			account = {'name': 'undetected', 'path': 'undetected', 'link': 'undetected'}
+		m = re.search(' aria-label="Profile picture" class="[^"]+" href="/[0-9]+', html)
+		try:
+			account['id'] = m.group().rsplit('/', 1)[1]
+		except:
+			account['id'] = 'undetected'
+		return account
+
+	def rm_entity_sidebar(self):
+		'Remove entity_sidebar'
+		self.chrome.rm_outer_html_by_id('entity_sidebar')
+
+	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
+		'Get posts on a bussines page'
+		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
+		if account == None:	# get account infos if not already done
+			account = self.get_entity_sidebar()
+		path_no_ext=self.storage.path('posts', self.dirname(account))
+		self.rm_pagelets()	# remove all around the timeline itself
+		self.rm_profile_cover()
+		self.rm_entity_sidebar()
+		
+		print('#################################### limit:', limit)
+		
+		
+		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through posts
+		self.chrome.page_pdf(path_no_ext)
+		if visitors:
+			self.get_visitors(path_no_ext, account)
+		return account
+
