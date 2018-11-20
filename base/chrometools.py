@@ -12,6 +12,7 @@ class Chrome:
 	'Tools around the Chromedriver'
 
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
+	DEFAULT_PAGE_LIMIT = 200	# default limit for page expansion
 
 	def __init__(self, path=None, port=9222, headless=True, stop=None, window_width=960, window_height=1040, debug=False):
 		'Open Chrome session'
@@ -321,7 +322,7 @@ class Chrome:
 				if cnt == 100000:	# 99999 screenshots max
 					return
 
-	def expand_page(self, path_no_ext='', click_elements_by=[], terminator=None, per_page_action=None, limit=200):
+	def expand_page(self, path_no_ext='', click_elements_by=[], terminator=None, per_page_action=None, limit=DEFAULT_PAGE_LIMIT):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.terminator = terminator
 		self.wait_expand_end()	# do not start while page is still expanding
@@ -330,8 +331,7 @@ class Chrome:
 		old_y = 0	# vertical position
 		old_height = self.get_page_height()	# to check if page is still expanding
 		cnt = 1
-		print('############## limit:', limit)
-		while cnt < limit:
+		for cnt in range(1, limit+1):
 			self.set_position(old_y)
 			if self.stop_check() or self.__terminator_check__():
 				break
@@ -350,7 +350,6 @@ class Chrome:
 			if path_no_ext != '':
 				self.set_position(old_y)	# go back to old y in case expanding changed the position
 				self.visible_page_png('%s_%05d' % (path_no_ext, cnt)) # store screenshot
-				cnt += 1
 			old_y = new_y
 			old_height = new_height
 		if path_no_ext != '':

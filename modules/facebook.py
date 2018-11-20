@@ -6,15 +6,16 @@ class Facebook:
 	'Downloader for Facebook'
 
 	ONEYEARAGO  = ( datetime.datetime.now() - datetime.timedelta(days=366) ).strftime('%Y-%m-%d')
+	DEFAULT_PAGE_LIMIT = 200
 	DEFINITION = [
 		'Facebook',
 		['Email', 'Password'],
 		[
 			[['Landing', True]],
-			[['Timeline', True], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', 200]],
-			[['Posts', False], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', 200]],
+			[['Timeline', True], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', DEFAULT_PAGE_LIMIT]],
+			[['Posts', False], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', DEFAULT_PAGE_LIMIT]],
 			[['About', False]],
-			[['Photos', False], ['Expand', False], ['Translate', False], ['Limit', 200]],
+			[['Photos', False], ['Expand', False], ['Translate', False], ['Limit', DEFAULT_PAGE_LIMIT]],
 			[['Friends', False]],
 			[['Network', False], ['Depth', 1]]
 		]
@@ -334,7 +335,7 @@ class Facebook:
 			pass
 		return False
 
-	def expand_page(self, path_no_ext='', expand=True, translate=False, limit=200):
+	def expand_page(self, path_no_ext='', expand=True, translate=False, limit=DEFAULT_PAGE_LIMIT):
 		'Go through page, expand, translate, take screenshots and generate pdf'
 		clicks = []
 		if expand:	# clicks to expand page
@@ -354,7 +355,9 @@ class Facebook:
 			path_no_ext = path_no_ext,
 			click_elements_by = clicks,
 			per_page_action = action,
-			terminator=self.terminator)
+			terminator=self.terminator,
+			limit=limit
+		)
 
 	def get_landing(self, user, account=None):
 		'Get screenshot from start page (=unscrolled Timeline) about given user (id or path)'
@@ -366,7 +369,7 @@ class Facebook:
 		self.chrome.page_pdf(path_no_ext)
 		return account
 
-	def get_timeline(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
+	def get_timeline(self, user, expand=False, translate=False, visitors=False, account=None, limit=DEFAULT_PAGE_LIMIT):
 		'Get timeline'
 		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
 		account = self.get_account(user, account)	# get account infos if not already done
@@ -428,7 +431,7 @@ class Facebook:
 		self.chrome.page_pdf(path_no_ext)
 		return account
 
-	def get_photos(self, user, expand=False, translate=False, account=None, limit=200):
+	def get_photos(self, user, expand=False, translate=False, account=None, limit=DEFAULT_PAGE_LIMIT):
 		'Get Photos'
 		self.chrome.navigate('https://www.facebook.com/%s/photos_all' % user)
 		if self.chrome.get_outer_html_by_id('medley_header_photos') == None:
@@ -537,7 +540,7 @@ class Facebook:
 		'Remove entity_sidebar'
 		self.chrome.rm_outer_html_by_id('entity_sidebar')
 
-	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=200):
+	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=DEFAULT_PAGE_LIMIT):
 		'Get posts on a bussines page'
 		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
 		if account == None:	# get account infos if not already done
@@ -546,10 +549,6 @@ class Facebook:
 		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
 		self.rm_entity_sidebar()
-		
-		print('#################################### limit:', limit)
-		
-		
 		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through posts
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
