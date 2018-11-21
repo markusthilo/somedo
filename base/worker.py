@@ -14,9 +14,8 @@ MODULE_DEFINITIONS = [	# to load definitions for each module
 
 class Worker:
 	''' Work through a list of jobs and execute modules.
-		The modules must be in the same directory as this script.
 		The modules needs definitions (type: list) in this form:
-		
+
 		from base.chrometools import *
 		from base.storage import *
 		class Modulename:
