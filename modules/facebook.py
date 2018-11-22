@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import re, datetime, time
+import re, datetime, time, random
 
 class Facebook:
 	'Downloader for Facebook'
@@ -11,9 +11,7 @@ class Facebook:
 		'Facebook',
 		['Email', 'Password'],
 		[
-			[['Landing', True]],
 			[['Timeline', True], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', DEFAULT_PAGE_LIMIT]],
-			[['Posts', False], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', DEFAULT_PAGE_LIMIT]],
 			[['About', False]],
 			[['Photos', False], ['Expand', False], ['Translate', False], ['Limit', DEFAULT_PAGE_LIMIT]],
 			[['Friends', False]],
@@ -21,23 +19,23 @@ class Facebook:
 		]
 	]
 
-	ACCOUNT = ('id', 'name', 'path', 'link')
+	ACCOUNT = ('type', 'id', 'name', 'path', 'link')
 
 	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
 		self.chrome = chrome
-		targets = self.extract_users(target)
+		targets = self.extract_paths(target)
 		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
 		for i in range(3):	# try 3x to log into your facebbok account
-			time.sleep(1)
+			self.sleep(1)
 			try:
 				self.chrome.insert_element_by_id('email', login['Email'])	# login with email
 				self.chrome.insert_element_by_id('pass', login['Password'])	# and password
 				self.chrome.click_element_by_id('loginbutton')	# click login
 			except:
 				continue
-			time.sleep(1)
+			self.sleep(1)
 			if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
 				break
 			if i == 2:
@@ -54,12 +52,12 @@ class Facebook:
 					break
 				if 'Timeline' in options:
 					self.stop_utc = self.get_utc(options['Timeline']['Until'])
-					account = self.get_timeline(
-						i,
+					self.get_timeline(
+						account,
 						expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
 						translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
 						visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
-						account = account,
+						until = self.get_utc(options['Timeline']['Until']),
 						limit = options['Timeline']['Limit']
 					)
 				if self.chrome.stop_check():
@@ -168,19 +166,27 @@ class Facebook:
 			if errors != '':
 				raise Exception('The following Facebook accont(s)/action(s) returned errors: %s' % errors.rstrip(','))
 
-	def extract_users(self, target):
-		'Extract facebook id or path from url'
+	def sleep(self, t):
+		'Sleep a slightly ranomized time'
+		time.sleep(t + random.uniform(0, 0.1))
+
+	def extract_paths(self, target):
+		'Extract facebook paths from target that might be urls'
 		l= []	# list for the target users (id or path)
 		for i in target.split(';'):
-			i = re.sub('^.*facebook.com/', '', i)	# cut out id or path if url is given
-			i = re.sub('^profile\.php\?id=', '', i)
-			if i[:3] == 'pg/':
-				i = i[3:]
-			i = re.sub('[?%&/"].*$', '', i)
-			i = i.lstrip(' ').rstrip(' ')
+			i = re.sub('^.*facebook.com/', '', i.strip().rstrip().rstrip('/'))
+			i = re.sub('&.*$', '', i)
 			if i != '':
 				l.append(i)
 		return l
+
+	def get_utc(self, date_str):
+		'Convert date given as string (e.g. "2018-02-01") to utc as seconds since 01.01.1970'
+		l = date_str.split('-')
+		try:
+			return int(datetime.datetime(int(l[0]),int(l[1]),int(l[2]),0,0).timestamp())
+		except ValueError:
+			return 0
 
 	def get_fid(self, html):
 		'Extract facebook id using regex'
@@ -244,12 +250,8 @@ class Facebook:
 			return None
 		return {'id': fid, 'name': name, 'path': path, 'link': flink}
 
-	def extract_coverinfo(self, user):
+	def extract_coverinfo(self):
 		'Get information about given user (id or path) out of targeted profile cover'
-#		if re.sub('[0-9]+', '', user) == '':	# check if target is given as id (e.g. 10002345678) or path (e.g. john.mclane)
-#			account = {'id': user, 'name': '', 'path': 'profile.php?id=%s' % user, 'link': 'https://www.facebook.com/profile.php?id=%s' % user}
-#		else:
-#			account = {'id': '', 'name': '', 'path': user, 'link': 'https://www.facebook.com/%s' % user}
 		html = self.chrome.get_inner_html_by_id('fbProfileCover')
 		if html == None:	# exit if no cover ProfileCover
 			return None
@@ -275,22 +277,68 @@ class Facebook:
 			account['link'] = m.group()[31:-5]
 			account['path'] = m.group()[56:-5]
 		except:
-			account['link'] = 'undetected'
-			account['path'] = 'undetected'
-
+			account['link'] = None
+			account['path'] = None
 		return account	# return dictionary
+
+	def extract_sidebarinfo(self):
+		'Get infos from entity_sidebar'
+		html = self.chrome.get_outer_html_by_id('entity_sidebar')
+		if html == None:	# exit if no cover entity_sidebar
+			return None
+		account = {'type': 'pg'}
+		m = re.search(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+', html)
+		try:
+			account['name'] = m.group().rsplit('>', 1)[1]
+			account['path'] = m.group().rsplit('/', 2)[1]
+			account['link'] = m.group()[7:].split('"')[0][:-1]
+		except:
+			account['name'] = 'undetected'
+			account['path'] = None
+			account['link'] = None
+		m = re.search(' aria-label="Profile picture" class="[^"]+" href="/[0-9]+', html)
+		try:
+			account['id'] = m.group().rsplit('/', 1)[1]
+		except:
+			account['id'] = 'undetected'
+		return account
+
+	def extract_leftcolinfo(self):
+		'Get infos from leftCol'
+		html = self.chrome.get_inner_html_by_id('leftCol')
+		if html == None:	# exit if no cover entity_sidebar
+			return None
+		m = re.search('<a href="/[^"]+">[^<]+', html)
+		try:
+			account = {'type': m.group().split('/', 3)[1], 'id': 'undetected'}
+			account['name'] = m.group().rsplit('>', 1)[1]
+			account['path'] = '%s/%s' % ( m.group().split('/', 3)[1], m.group().split('/', 3)[2] )
+			account['link'] = 'https://www.facebook.com/%s/%s' % ( m.group().split('/', 3)[1], m.group().split('/', 3)[2] )
+		except:
+			account = None
+		return account
 
 	def dirname(self, account):
 		'Generate dirname to store Screenshots, PDFs, JSON, CSV etc.'
 		m = re.search('profile\.php\?id=[0-9]+', account['path'])
 		if m == None:
-			return account['path']
-		return m.group()[15:]
+			dirname = account['path']
+		else:
+			dirname = m.group()[15:]
+		return dirname.replace('/', '_')
 
-	def get_account(self, user):
+	def get_account(self, path):
 		'Get account data and write information as CSV and JSON file if not alredy done'
-		account = self.extract_coverinfo(user)	# get facebook id, path/url and name
-
+		account = self.extract_coverinfo()	# try to get facebook id, path/url and name from profile page
+		if account == None:
+			account = self.extract_sidebarinfo()	# try to get account info from pg page
+		if account == None:
+			account = self.extract_leftcolinfo()	# try to get account info from groups etc.
+		if account == None:
+			account = {'type': 'unknown', 'id': 'undetected', 'name': 'undetected', 'path': path, 'link': 'https://www.facebook.com/%s' % path}
+		if account['path'] == None:
+			 account['path'] = path
+			 account['link'] = 'https://www.facebook.com/%s' % path
 		dirname = self.dirname(account)
 		self.storage.write_dicts(account, self.ACCOUNT, 'account.csv', dirname)
 		self.storage.write_json(account, 'account.json', dirname)
@@ -305,7 +353,6 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('pagelet_ego_pane')	# remove "Suggested Groups"
 		self.chrome.rm_outer_html_by_id('pagelet_rhc_footer')
 		self.chrome.rm_outer_html_by_id('pagelet_page_cover')
-		self.chrome.rm_outer_html_by_id('page_side_column')
 		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
 		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
 
@@ -313,21 +360,11 @@ class Facebook:
 		'Remove fbProfileCover'
 		self.chrome.rm_outer_html_by_id('fbProfileCover')
 
-	def rm_left_of_timeline(self):
+	def rm_sides_of_timeline(self):
 		'Remove Intro, Photos, Friends etc. on the left'
 		self.chrome.rm_outer_html('ClassName', '_1vc-')
-
-	def rm_entity_sidebar(self):
-		'Remove entity_sidebar'
 		self.chrome.rm_outer_html_by_id('entity_sidebar')
-
-	def get_utc(self, date_str):
-		'Convert date given as string (e.g. "2018-02-01") to utc as seconds since 01.01.1970'
-		l = date_str.split('-')
-		try:
-			return int(datetime.datetime(int(l[0]),int(l[1]),int(l[2]),0,0).timestamp())
-		except ValueError:
-			return 0
+		self.chrome.rm_outer_html_by_id('pages_side_column')
 
 	def click_translations(self):
 		'Find the See Translation buttons and click'
@@ -348,7 +385,7 @@ class Facebook:
 			pass
 		return False
 
-	def expand_page(self, path_no_ext='', expand=True, translate=False, limit=DEFAULT_PAGE_LIMIT):
+	def expand_page(self, path_no_ext='', expand=True, translate=False, until=ONEYEARAGO, limit=0):
 		'Go through page, expand, translate, take screenshots and generate pdf'
 		clicks = []
 		if expand:	# clicks to expand page
@@ -364,6 +401,7 @@ class Facebook:
 			action = self.click_translations()
 		else:
 			action = None
+		self.stop_utc = until
 		self.chrome.expand_page(
 			path_no_ext = path_no_ext,
 			click_elements_by = clicks,
@@ -372,58 +410,26 @@ class Facebook:
 			limit=limit
 		)
 
-	def get_landing(self, user):
+	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
-		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to landing page of the given faebook account
-		account = self.get_account(user)		# get account infos if not already done
+		self.chrome.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
+		self.sleep(1)
+		account = self.get_account(path)		# get account infos if not already done
 		self.rm_pagelets()	# remove bluebar etc.
 		path_no_ext = self.storage.path('landing', self.dirname(account))
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
 		self.chrome.page_pdf(path_no_ext)
 		return account
 
-	def get_timeline(self, user, expand=False, translate=False, visitors=False, account=None, limit=DEFAULT_PAGE_LIMIT):
+	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT):
 		'Get timeline'
-		self.chrome.navigate('https://www.facebook.com/%s' % user)	# go to timeline
-		account = self.get_account(user, account)	# get account infos if not already done
 		path_no_ext=self.storage.path('timeline', self.dirname(account))
-		self.rm_pagelets()	# remove all around the timeline itself
 		self.rm_profile_cover()
-		self.rm_left_of_timeline()
-		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through timeline
+		self.rm_sides_of_timeline()
+		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, until=until, limit=limit)	# go through timeline
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(account)
-		return account
-
-	def get_entity_sidebar(self):
-		'Get infos from entity_sidebar'
-		html = self.chrome.get_inner_html_by_id('entity_sidebar')
-		m = re.search(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+', html)
-		try:
-			account = {'name': m.group().rsplit('>', 1)[1], 'path': m.group().rsplit('/', 2)[1], 'link': m.group()[7:].split('"')[0]}
-		except:
-			account = {'name': 'undetected', 'path': 'undetected', 'link': 'undetected'}
-		m = re.search(' aria-label="Profile picture" class="[^"]+" href="/[0-9]+', html)
-		try:
-			account['id'] = m.group().rsplit('/', 1)[1]
-		except:
-			account['id'] = 'undetected'
-		return account
-
-	def get_posts(self, user, expand=False, translate=False, visitors=False, account=None, limit=DEFAULT_PAGE_LIMIT):
-		'Get posts on a bussines page'
-		self.chrome.navigate('https://www.facebook.com/pg/%s/posts/' % user)	# go to posts
-		if account == None:	# get account infos if not already done
-			account = self.get_entity_sidebar()
-		path_no_ext=self.storage.path('posts', self.dirname(account))
-		self.rm_pagelets()	# remove all around the timeline itself
-		self.rm_profile_cover()
-		self.rm_entity_sidebar()
-		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, limit=limit)	# go through posts
-		self.chrome.page_pdf(path_no_ext)
-		if visitors:
-			self.get_visitors(path_no_ext, account)
 		return account
 
 	def get_visitors(self, account):
@@ -438,7 +444,7 @@ class Facebook:
 				fid = self.get_fid(i)
 				flink = self.get_flink(i)
 				if flink != '' and not fid in visitor_ids:	# uniq
-					visitors.append({'id': fid, 'name': self.get_name(i), 'path': self.get_path(i), 'link': flink})
+					visitors.append({'type': 'profile', 'id': fid, 'name': self.get_name(i), 'path': self.get_path(i), 'link': flink})
 					visitor_ids.add(fid)
 			except:
 				pass
@@ -456,7 +462,7 @@ class Facebook:
 					fid = self.get_fid(j)
 					flink = self.get_flink(j)
 					if flink != '' and not fid in visitor_ids:	# uniq
-						visitors.append({'id': fid, 'name': self.get_name(j), 'path': self.get_path(j), 'link': flink})
+						visitors.append({'type': 'profile', 'id': fid, 'name': self.get_name(j), 'path': self.get_path(j), 'link': flink})
 						visitor_ids.add(fid)
 				except:
 					pass
