@@ -14,7 +14,7 @@ class Chrome:
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
 	DEFAULT_PAGE_LIMIT = 200	# default limit for page expansion
 
-	def __init__(self, path=None, port=9222, headless=True, stop=None, window_width=960, window_height=1040, debug=False):
+	def __init__(self, path=None, port=9222, headless=True, stop=None, window_width=1024, window_height=1280, debug=False):
 		'Open Chrome session'
 		self.debug = debug
 		if path == None or not os.path.isfile(path):
