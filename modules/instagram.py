@@ -101,7 +101,7 @@ class Instagram:
 				self.storage.download(url, fname, path)
 				minfo.append({	# store counter, media type and url to media info list
 					'file':	fname,
-					'time':	datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
+					'time':	datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
 					'url':	url
 				})
 			except:

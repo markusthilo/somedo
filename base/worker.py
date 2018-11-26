@@ -38,8 +38,8 @@ class Worker:
 		stop_thread: threading.Event object to give the abort signal, None if not set
 	'''
 
-	DEBUG = True	# obviously for debugging
-#	DEBUG = False
+#	DEBUG = True	# obviously for debugging
+	DEBUG = False
 
 	def __init__(self):
 		'Create object that works out the jobs'

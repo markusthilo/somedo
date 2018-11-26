@@ -89,7 +89,7 @@ class Twitter:
 					cnt += 1
 					pinfo.append({	# store counter, media type and url to media info list
 						'file':	fname,
-						'time':	datetime.datetime.utcnow().strftime('%Y-%-m-%d %H:%M:%S'),
+						'time':	datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
 						'url':	url
 					})
 			if pinfo != []:
