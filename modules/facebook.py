@@ -353,7 +353,8 @@ class Facebook:
 			clicks.extend([
 				['ClassName', 'see_more_link'],
 				['ClassName', 'UFIPagerLink'],
-				['ClassName', 'UFICommentLink']
+				['ClassName', 'UFICommentLink'],
+				['ClassName', ' UFIReplyList']
 			])
 		if translate:	# show translations if in options
 			clicks.extend([
@@ -402,15 +403,14 @@ class Facebook:
 		'Get all visitors who left comments or likes etc. in timeline - timeline has to be open end expand'
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
-		html = self.chrome.get_outer_html_by_id('recent_capsule_container')	# get timeline
-		if html == '':
-			return
-		for i in re.findall('UFICommentActorName" data-hovercard="/ajax/hovercard/hovercard\.php\?id=[0-9]+[^>]*>[^<]+</a>', html ):	# look for comment authors
-			visitor = self.get_profile(i)
-			if visitor != None and not visitor['id'] in visitor_ids:	# uniq
-				visitors.append(visitor)
-				visitor_ids.add(visitor['id'])
-		for i in re.findall('href="/ufi/reaction/[^"]+"', html):	# go through reactions
+		actors = self.chrome.get_outer_html('ClassName', ' UFICommentActorName')	# get comment actors
+		if actors != None:
+			for i in actors:
+				visitor = self.get_profile(i)
+				if visitor != None and not visitor['id'] in visitor_ids:	# uniq
+					visitors.append(visitor)
+					visitor_ids.add(visitor['id'])
+		for i in re.findall('href="/ufi/reaction/[^"]+"', self.chrome.get_outer_html_by_id('recent_capsule_container')):	# go through reactions
 			if self.chrome.stop_check():
 				return
 			self.chrome.navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
