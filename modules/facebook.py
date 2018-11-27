@@ -420,6 +420,7 @@ class Facebook:
 			if html == '':
 				continue
 			for j in re.findall('href="https://www\.facebook\.com/[^"]+;hc_location=profile_browser" data-hovercard="/ajax/hovercard/user\.php\?id=[0-9]+[^>]*>[^<]+</a>', html):	# get people who reacted
+				visitor = self.get_profile(i)
 				if visitor != None and not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
 					visitor_ids.add(visitor['id'])

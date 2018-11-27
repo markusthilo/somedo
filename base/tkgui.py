@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, datetime, json, threading
+import datetime, json, threading
 from functools import partial
 from tkinter import *
 from tkinter import ttk
@@ -12,19 +12,19 @@ from base.chrometools import ChromePath
 class GuiRoot(Tk):
 	'Graphic user interface using Tkinter.'
 
-	def __init__(self, master):
+	def __init__(self, master, workdir, rootdir, slash):
 		'Generate object for main / root window.'
-		self.cwd = os.getcwd()	# get the working directory to propose destinations to store data
-		if os.name == 'nt':	# slash to build paths
-			self.slash = '\\'	# backslash for windows
-		else:
-			self.slash = '/'	# the real slash for real operating systems :-)
+		self.workdir = workdir	# get the working directory to propose destinations to store data
+		self.rootdir = rootdir	# set the root directory of the application files
+		self.slash = slash	# set / or \ depending on operating system
 		self.worker = Worker()	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		self.master = master	# this is for tk - in basic usage this will be the root window
 		self.master.title('Social Media Downloader')	# window title for somedo
 		try:
-			self.master.call('wm', 'iconphoto', self.master._w, PhotoImage(file='icons%ssmd_icon.png'  % self.slash))	# give the window manager an application icon
+			self.master.call('wm', 'iconphoto', self.master._w, PhotoImage(	# give the window manager an application icon
+				file='%s%sicons%ssmd_icon.png'  % (self.rootdir, self.slash, self.slash)
+			))
 		except:
 			pass
 		self.frame_jobs = LabelFrame(self.master, text = 'Jobs')	# in this tk-frame the jobs will be displayed
@@ -105,7 +105,7 @@ class GuiRoot(Tk):
 		Button(self.frame_configuration, text='Output directory:', width=16, command=self.__output_dir__
 			).grid(row=0, column=1, sticky=W, padx=2, pady=1)
 		self.outdir_tk = StringVar(self.frame_configuration,
-			self.cwd.rstrip(self.slash) + self.slash + datetime.datetime.utcnow().strftime('%Y%m%d_SocialMedia') + self.slash)
+			self.workdir.rstrip(self.slash) + self.slash + datetime.datetime.utcnow().strftime('%Y%m%d_SocialMedia') + self.slash)
 		self.outdir_value = Entry(self.frame_configuration, textvariable=self.outdir_tk, width=120)
 		self.outdir_value.grid(row=0, column=2, sticky=W, padx=1, pady=1)
 		Button(self.frame_configuration, text="Save configuration", width=16, command=self.__save_config__
@@ -129,12 +129,14 @@ class GuiRoot(Tk):
 		self.__running_label__.pack(side=LEFT, padx=3, pady=1)
 		
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
-		try:
-			with open('README.md', 'r', encoding='utf-8') as f:
-				self.about_help = f.read()
-				Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
-		except:
-			pass
+		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
+			try:
+				with open(self.rootdir + self.slash + i, 'r', encoding='utf-8') as f:
+					self.about_help = f.read()
+					Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
+					break
+			except:
+				continue
 		Button(self.frame_main_buttons, text="Quit", width=6, command=master.quit).pack(side=RIGHT, padx=3, pady=1)
 
 	def __hide_login__(self, module, item):
