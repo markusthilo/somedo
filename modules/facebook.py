@@ -151,7 +151,7 @@ class Facebook:
 		l = date_str.split('-')
 		try:
 			return int(datetime.datetime(int(l[0]),int(l[1]),int(l[2]),0,0).timestamp())
-		except ValueError:
+		except:
 			return 0
 
 	def dirname(self, account):
@@ -337,13 +337,13 @@ class Facebook:
 		'Check date of posts to abort'
 		if self.stop_utc <= 0:
 			return False
-		try:
-			for i in self.chrome.get_outer_html('TagName', 'abbr'):
-				m = re.search('.* data-utime=".* class="timestampContent">.*', i)
-				if int(re.sub('.*data-utime="', '', m.group()).split('"')[0]) <= self.stop_utc:
+		for i in self.chrome.get_outer_html('TagName', 'abbr'):
+			m = re.search(' data-utime="[0-9]+" ', i)
+			try:
+				if int(m.group()[13:-2]) <= self.stop_utc:
 					return True
-		except:
-			pass
+			except:
+				pass
 		return False
 
 	def expand_page(self, path_no_ext='', expand=True, translate=False, until=ONEYEARAGO, limit=0):
