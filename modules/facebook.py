@@ -315,9 +315,12 @@ class Facebook:
 		'Remove fbProfileCover'
 		self.chrome.rm_outer_html_by_id('fbProfileCover')
 
-	def rm_sides_of_page(self):
+	def rm_left(self):
 		'Remove Intro, Photos, Friends etc. on the left'
 		self.chrome.rm_outer_html('ClassName', '_1vc-')
+
+	def rm_right(self):
+		'Remove stuff right of timeline/posts'
 		self.chrome.rm_outer_html_by_id('entity_sidebar')
 		self.chrome.rm_outer_html_by_id('pages_side_column')
 
@@ -393,8 +396,9 @@ class Facebook:
 			path_no_ext = self.storage.path('timeline', self.dirname(account))
 		self.rm_profile_cover()
 		self.rm_pagelets()
-		self.rm_sides_of_page()
+		self.rm_right()
 		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, until=until, limit=limit)	# go through timeline
+		self.rm_left()
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(account)
@@ -416,11 +420,11 @@ class Facebook:
 			self.chrome.navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
 			self.chrome.expand_page(terminator=self.terminator)	# scroll through page
 			self.rm_pagelets()	# remove bluebar etc.
-			html = self.chrome.get_outer_html_by_id('globalContainer')	# get the necessary part of the page
+			html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
 			if html == '':
 				continue
-			for j in re.findall('href="https://www\.facebook\.com/[^"]+;hc_location=profile_browser" data-hovercard="/ajax/hovercard/user\.php\?id=[0-9]+[^>]*>[^<]+</a>', html):	# get people who reacted
-				visitor = self.get_profile(i)
+			for j in re.findall(' href="https://www\.facebook\.com/[^"]+hc_location=profile_browser" data-hovercard="[^"]+"[^<]+</a>', html):	# get people who reacted
+				visitor = self.get_profile(j)
 				if visitor != None and not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
 					visitor_ids.add(visitor['id'])
@@ -447,8 +451,9 @@ class Facebook:
 		dirname = self.dirname(account)
 		path_no_ext = self.storage.path('photos', dirname)
 		self.rm_pagelets()	# remove bluebar etc.
-		self.rm_sides_of_page()
+		self.rm_right()
 		self.expand_page(path_no_ext=path_no_ext, limit=limit)
+		self.rm_left()
 		self.chrome.page_pdf(path_no_ext)
 		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_photos')
 		if html == None:
@@ -475,7 +480,7 @@ class Facebook:
 			self.chrome.navigate('%s/friends' % account['link'])
 			path_no_ext = self.storage.path('friends', dirname)
 			self.rm_pagelets()	# remove bluebar etc.
-			self.rm_sides_of_page()
+			self.rm_left()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
 			self.chrome.page_pdf(path_no_ext)
 			html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_friends')	# try to get friends
@@ -493,8 +498,9 @@ class Facebook:
 			self.chrome.navigate('%s/members' % account['link'])
 			path_no_ext = self.storage.path('members', dirname)
 			self.rm_pagelets()	# remove bluebar etc.
-			self.rm_sides_of_page()
+			self.rm_right()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
+			self.rm_left()
 			self.chrome.page_pdf(path_no_ext)
 			html = self.chrome.get_inner_html_by_id('groupsMemberBrowser')	# try to get members
 			if html == None:

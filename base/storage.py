@@ -71,8 +71,8 @@ class Storage:
 		with open(self.path(args[1:]), 'w', encoding='utf-8') as f:
 			line = ''
 			for i in args[0]:	# write list as CSV/TSV (tab stop seperated fields)
-				line += str(i) + '\t'
-			f.write(line.rstrip('\t') + '\n')
+				line += '"%s";' % str(i)
+			f.write(line[:-1] + '\n')
 
 	def write_2d(self, *args):
 		'Write list of lists (2-dimensinal list) to CSV/TSV file'
@@ -80,8 +80,8 @@ class Storage:
 			for i in args[0]:
 				line = ''
 				for j in i:
-					line += str(j) + '\t'
-				f.write(line.rstrip('\t') + '\n')
+					line += '"%s";' % str(j)
+				f.write(line[:-1] + '\n')
 
 	def write_dicts(self, *args):
 		'Write dictionary or list of dictionaries to CSV/TSV file'
@@ -93,8 +93,8 @@ class Storage:
 			for i in ldicts:
 				line = ''
 				for j in args[1]:
-					line += str(i[j]) + '\t'
-				f.write(line.rstrip('\t') + '\n')
+					line += '"%s";' % str(i[j])
+				f.write(line[:-1] + '\n')
 
 	def write_json(self, *args):
 		'Write data to JSON file'
