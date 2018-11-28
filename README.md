@@ -10,9 +10,9 @@ Instagram an Twitter. Somedo ist in alpha state and might never leave beta.
 
 2 Quick Start Guide
 
-Install on Windows
+Install EXE on Windows
 
-Download somedo_win_*.zip from https://sourceforge.net/projects/somedo/files/
+Download somedo_win_v*.zip from https://sourceforge.net/projects/somedo/files/
 and unzip it in some folder. To run Somedo Google Chrome or Chromium has to be
 installed. Before running Somedo, you should close all Chrome/Chromium instances.
 Start Somedo by double clicking somedo.exe. Do not remove directories or files that
@@ -21,7 +21,7 @@ come within the zip file.
 
 Install on Linux
 
-Download somedo_linux_*.zip from https://sourceforge.net/projects/somedo/files/
+Download somedo_v*.zip from https://sourceforge.net/projects/somedo/files/
 and unzip it in some folder. For Somedo the Chromium Browser or Google Chrome has
 to be installed. The code should work on any current Python 3 which should come
 with your distro. You should manually install the following libraries:
