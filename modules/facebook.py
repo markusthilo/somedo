@@ -396,9 +396,9 @@ class Facebook:
 			path_no_ext = self.storage.path('timeline', self.dirname(account))
 		self.rm_profile_cover()
 		self.rm_pagelets()
+		self.rm_left()
 		self.rm_right()
 		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, until=until, limit=limit)	# go through timeline
-		self.rm_left()
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
 			self.get_visitors(account)
@@ -513,6 +513,7 @@ class Facebook:
 			self.storage.write_2d([ [ i[j] for j in i] for i in mlist ], 'members.csv', dirname)
 			self.storage.write_json(mlist, 'members.json', dirname)
 			return mlist	# return friends as list
+		return []
 
 	def get_network(self, accounts, depth):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
