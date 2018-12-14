@@ -11,9 +11,19 @@ class Facebook:
 		'Facebook',
 		['Email', 'Password'],
 		[
-			[['Timeline', True], ['Expand', False], ['Translate', False], ['Visitors', False], ['Until', ONEYEARAGO], ['Limit', DEFAULT_PAGE_LIMIT]],
+			[['Timeline', True],
+				['Expand', False],
+				['Translate', False],
+				['Visitors', False],
+				['Until', ONEYEARAGO],
+				['Limit', DEFAULT_PAGE_LIMIT]],
 			[['About', False]],
-			[['Photos', False], ['Expand', False], ['Translate', False], ['Limit', DEFAULT_PAGE_LIMIT]],
+			[['Photos', False],
+				['Expand', False],
+				['Translate', False],
+				['Limit', DEFAULT_PAGE_LIMIT]],
+			[['Videos', False],
+				['Limit', DEFAULT_PAGE_LIMIT]],
 			[['Friends', False]],
 			[['Network', False], ['Depth', 1]]
 		]
@@ -57,6 +67,13 @@ class Facebook:
 						expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
 						translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
 						limit = options['Photos']['Limit']
+					)
+				if self.chrome.stop_check():
+					break
+				if 'Videos' in options:
+					self.get_videos(
+						i,
+						limit = options['Videos']['Limit']
 					)
 				if self.chrome.stop_check():
 					break
@@ -444,10 +461,12 @@ class Facebook:
 		'Get Photos'
 		if account['type'] == 'pg':
 			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
-		elif account['type'] == 'profile':
-			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
+#		elif account['type'] == 'profile':
+#			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
+#		else:
+#			self.chrome.navigate('https://www.facebook.com/%s/photos' % account['path'])
 		else:
-			self.chrome.navigate('https://www.facebook.com/%s/photos' % account['path'])
+			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
 		dirname = self.dirname(account)
 		path_no_ext = self.storage.path('photos', dirname)
 		self.rm_pagelets()	# remove bluebar etc.
@@ -472,6 +491,29 @@ class Facebook:
 			if cnt == 100000:
 				break
 			self.chrome.go_back()
+
+	def get_videos(self, account, limit=DEFAULT_PAGE_LIMIT):
+		'Get Videos'
+#		if account['type'] == 'pg':
+#			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
+#		elif account['type'] == 'profile':
+#			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
+#		else:
+#			self.chrome.navigate('https://www.facebook.com/%s/photos' % account['path'])
+#		else:
+		self.chrome.navigate('https://www.facebook.com/%s/videos' % account['path'])
+		dirname = self.dirname(account)
+		path_no_ext = self.storage.path('videos', dirname)
+		self.rm_pagelets()	# remove bluebar etc.
+		self.rm_right()
+		self.expand_page(path_no_ext=path_no_ext, limit=limit)
+		self.rm_left()
+		self.chrome.page_pdf(path_no_ext)
+		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_videos')
+		if html == None:
+			return
+		for i in re.findall('' ,html):
+			print(i)
 
 	def get_friends(self, account):
 		'Get friends list from given user (id or path)'
