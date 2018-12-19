@@ -397,6 +397,12 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		self.sleep(1)
 		account = self.get_account(path)		# get account infos if not already done
+		html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
+		m = re.search('src="[^"]+', html)
+		if m != None:
+			print(m.group()[5:], 'profile_pic.jpg', self.dirname(account))
+			self.storage.download(m.group()[5:], 'profile_pic.jpg', self.dirname(account))	# download profile pic
+
 		self.rm_pagelets()	# remove bluebar etc.
 		path_no_ext = self.storage.path('landing', self.dirname(account))
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
