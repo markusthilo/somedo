@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 
-import os
-import time
-import json
-import subprocess
-import requests
+import os, sys, time, json, subprocess, requests
 from websocket import create_connection
 from base64 import b64decode
 
@@ -245,6 +241,17 @@ class Chrome:
 	def close(self):
 		'Close session/browser'
 		self.chrome_proc.kill()
+
+	def download(self, url, path):
+		'Download file'
+		self.runtime_eval('''
+			var a = document.createElement('a');
+			a.href = "%s";
+			a.download = "%s";
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+		''' % (url, path))
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
