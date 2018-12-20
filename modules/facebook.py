@@ -397,9 +397,9 @@ class Facebook:
 		self.chrome.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		self.sleep(1)
 		account = self.get_account(path)		# get account infos if not already done
-		html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
-		m = re.search('src="[^"]+', html)
 		try:	# try to download profile photo
+			html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
+			m = re.search('src="[^"]+', html)
 			self.storage.download(re.sub('&amp;', '&', m.group()[5:]), 'profile.jpg', self.dirname(account))
 		except:
 			pass
@@ -572,15 +572,32 @@ class Facebook:
 				break
 			flist = self.get_friends(i)	# get friend list
 			if flist != []:
-				network.update({i['id']: [ j['id'] for j in flist ]})
+				network.update({i['id']: {
+					'type': account['type'],
+					'name': i['name'],
+					'path': i['path'],
+					'link': i['link'],
+					'friends': [ j['id'] for j in flist ]
+				}})
 				old_ids.add(i['id'])
+		if depth < 1:	# less than 0 makes no sense
+			depth = 1
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			if self.chrome.stop_check():
 				break
 			for j in { k for j in network for k in network[j] } - old_ids:	# work on friend list which have not been downloaded so far
-				flist = self.get_friends(self.get_landing(j))	# get friend list
+				account = self.get_landing(j)
+				network.update({account['id']: {	# add new account
+					'type': account['type'],
+					'name': account['name'],
+					'path': account['path'],
+					'link': account['link'],
+				}})
+				if i == depth - 1:	# on last recusion level do not get the friend lists anymore
+					continue
+				flist = self.get_friends(account)	# get friend list
 				if flist != []:
-					network.update({j: [ k['id'] for k in flist ]})
+					network[j] = [ k['id'] for k in flist ]
 					old_ids.add(j)
 				if self.chrome.stop_check():
 					break
@@ -591,3 +608,9 @@ class Facebook:
 				if not (i, j) in friends and not (j, i) in friends:
 					friends.append((i ,j))
 		self.storage.write_2d(friends, 'network.csv') # list of friend connections
+		print(network)
+		print(friends)
+		with open(self.filesystem.path())
+		for i in network:
+			print(i, i[link])
+

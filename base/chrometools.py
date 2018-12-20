@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, time, json, subprocess, requests
+import os, time, json, subprocess, requests
 from websocket import create_connection
 from base64 import b64decode
 
@@ -310,7 +310,6 @@ class Chrome:
 				f.write(b64decode(self.send_cmd('Page.captureScreenshot', format='png')['result']['data']))
 		except:
 			raise Exception('Unable to save visible part of page as PNG')
-		return
 
 	def entire_page_png(self, path_no_ext):
 		'Take screenshots of the entire page by scrolling through'
