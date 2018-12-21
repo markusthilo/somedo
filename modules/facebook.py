@@ -483,7 +483,7 @@ class Facebook:
 	def get_about(self, account):
 		'Get About'
 		self.chrome.navigate('%s/about' % account['link'])	# go to about
-		path_no_ext=self.storage.path('about', self.dirname(account))
+		path_no_ext=self.storage.modpath(self.dirname(account), 'about')
 		self.rm_pagelets()	# remove bluebar etc.
 		self.expand_page(path_no_ext=path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
@@ -499,7 +499,7 @@ class Facebook:
 		else:
 			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
 		dirname = self.dirname(account)
-		path_no_ext = self.storage.path('photos', dirname)
+		path_no_ext = self.storage.path(dirname, 'photos')
 		self.rm_pagelets()	# remove bluebar etc.
 		self.rm_right()
 		self.expand_page(path_no_ext=path_no_ext, limit=limit)
