@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
-from base.chrometools import *
-from base.storage import *
-from modules.facebook import *
-from modules.instagram import *
-from modules.twitter import *
+from base.chrometools import Chrome
+from modules.facebook import Facebook
+from modules.instagram import Instagram
+from modules.twitter import Twitter
 
 MODULE_DEFINITIONS = [	# to load definitions for each module
 	Facebook.DEFINITION,
@@ -16,8 +15,6 @@ class Worker:
 	''' Work through a list of jobs and execute modules.
 		The modules needs definitions (type: list) in this form:
 
-		from base.chrometools import *
-		from base.storage import *
 		class Modulename:
 			DEFINITION = [
 				'NAME',
@@ -28,7 +25,7 @@ class Worker:
 					...
 				]
 			]
-		def __init__(self, targets, options, login, chrome, storage, stop=stop_thread):
+		def __init__(self, targets, options, login, chrome, storage):
 		...
 		targets: string that is given to your class/object
 		options: dictionary of dictionarys that is given to your class/object
@@ -41,8 +38,9 @@ class Worker:
 	DEBUG = True	# obviously for debugging
 #	DEBUG = False
 
-	def __init__(self):
+	def __init__(self, storage):
 		'Create object that works out the jobs'
+		self.storage = storage
 		self.mods = [ i[0] for i in MODULE_DEFINITIONS ]	# list of all the loaded somedo modules
 		self.logins = { i[0]: i[1] for i in MODULE_DEFINITIONS }
 		self.opts = { i[0]: i[2] for i in MODULE_DEFINITIONS }
@@ -50,14 +48,16 @@ class Worker:
 	def execute(self, jobs, config, headless=True, stop=None):
 		'Execute jobs'
 		message = 'Errors occurred:\n'
-		chrome = Chrome(config['Chrome'], headless=headless, stop = stop, debug=self.DEBUG)
+		chrome = Chrome(config['Chrome'], headless=headless, stop=stop, debug=self.DEBUG)
 		if self.DEBUG:	# do not continue on errors in debug mode
 			for i in jobs:
-				exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]))' % i[0])
+				self.storage.mkmoddir(i[0])
+				exec('%s(i[1], i[2], config[i[0]], chrome, self.storage)' % i[0])
 		else:
 			for i in jobs:
 				try:
-					exec('%s(i[1], i[2], config[i[0]], chrome, Storage(config["Output directory"], i[0]))' % i[0])
+					self.storage.mkmoddir(i[0])
+					exec('%s(i[1], i[2], config[i[0]], chrome, self.storage)' % i[0])
 				except Exception as error:
 					message += str(error) + '\n'
 		if headless == True:

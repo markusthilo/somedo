@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 
-import datetime, json, threading
+from threading import Event, Thread
 from functools import partial
-from tkinter import *
+from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry, Text, PhotoImage, StringVar, BooleanVar, IntVar
+from tkinter import BOTH, GROOVE, END, W, X, LEFT, RIGHT
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-from base.worker import *
+from base.storage import Storage
+from base.worker import Worker
 from base.chrometools import ChromePath
 
 class GuiRoot(Tk):
 	'Graphic user interface using Tkinter.'
 
-	def __init__(self, master, workdir, rootdir, slash):
+	def __init__(self, master):
 		'Generate object for main / root window.'
-		self.workdir = workdir	# get the working directory to propose destinations to store data
-		self.rootdir = rootdir	# set the root directory of the application files
-		self.slash = slash	# set / or \ depending on operating system
-		self.worker = Worker()	# generate object for the worker (smd_worker.py)
+		self.storage = Storage()# object for file system accesss
+		self.worker = Worker(self.storage)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		self.master = master	# this is for tk - in basic usage this will be the root window
 		self.master.title('Social Media Downloader')	# window title for somedo
@@ -104,8 +104,7 @@ class GuiRoot(Tk):
 			).grid(row=0, column=0, sticky=W, padx=2, pady=1)
 		Button(self.frame_configuration, text='Output directory:', width=16, command=self.__output_dir__
 			).grid(row=0, column=1, sticky=W, padx=2, pady=1)
-		self.outdir_tk = StringVar(self.frame_configuration,
-			self.workdir.rstrip(self.slash) + self.slash + datetime.datetime.utcnow().strftime('%Y%m%d_SocialMedia') + self.slash)
+		self.outdir_tk = StringVar(self.frame_configuration, self.storage.outdir)
 		self.outdir_value = Entry(self.frame_configuration, textvariable=self.outdir_tk, width=120)
 		self.outdir_value.grid(row=0, column=2, sticky=W, padx=1, pady=1)
 		Button(self.frame_configuration, text="Save configuration", width=16, command=self.__save_config__
@@ -127,7 +126,7 @@ class GuiRoot(Tk):
 		self.__tk_running__ = StringVar()
 		self.__running_label__ = Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16, background='white')
 		self.__running_label__.pack(side=LEFT, padx=3, pady=1)
-		
+
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
@@ -231,6 +230,7 @@ class GuiRoot(Tk):
 		if outdir != ():
 			self.outdir_value.delete(0, END)
 			self.outdir_value.insert(0, outdir)
+			self.storage.outdir = outdir
 
 	def __chrome__(self):
 		'Set path to chrome.'
@@ -254,8 +254,7 @@ class GuiRoot(Tk):
 		if filename[-5:] != '.smdc':
 			filename += '.smdc'
 		try:
-			with open(filename, 'w', encoding='utf-8') as f:
-				json.dump(self.__get_config__(), f, ensure_ascii=False)
+			self.storage.json_dump(self.__get_config__(), filename)
 		except:
 			messagebox.showerror('Error', 'Could not save configuration file')
 
@@ -263,12 +262,16 @@ class GuiRoot(Tk):
 		'Load configuration from file.'
 		filename = filedialog.askopenfilename(title = 'Configuration file', filetypes = [('Somedo configuration files', '*.smdc'), ('All files', '*.*')])
 		if filename != () and filename !=  '':
-			with open(filename, 'r', encoding='utf-8') as f:
-				config = json.load(f)
+			try:
+				config = self.storage.json_load(filename)
+			except:
+				messagebox.showerror('Error', 'Could not load configuration file')
+				return
 			self.outdir_value.delete(0, END)
 			self.outdir_value.insert(0, config['Output directory'])
 			self.chrome_value.delete(0, END)
 			self.chrome_value.insert(0, config['Chrome'])
+			self.storage.outdir = config['Output directory']
 			for i in self.worker.mods:
 				if i in config:
 					try:
@@ -299,8 +302,8 @@ class GuiRoot(Tk):
 			self.__running_label__.config(background='green')
 			self.__tk_running__.set("Running...")
 			self.headless = False	# chrome will be visible
-			self.stop = threading.Event()	# to stop main thread
-			self.thread = threading.Thread(target=self.__thread__)	# define main thread
+			self.stop = Event()	# to stop main thread
+			self.thread = Thread(target=self.__thread__)	# define main thread
 			self.thread.start()	# start thread
 		else:
 			messagebox.showerror('Error', 'Nothing to do')
@@ -316,8 +319,8 @@ class GuiRoot(Tk):
 			self.__running_label__.config(background='red')
 			self.__tk_running__.set("Running...")
 			self.headless = True	# chrome will be started with option --headless
-			self.stop = threading.Event()	# to stop main thread
-			self.thread = threading.Thread(target=self.__thread__)	# define main thread
+			self.stop = Event()	# to stop main thread
+			self.thread = Thread(target=self.__thread__)	# define main thread
 			self.thread.start()	# start thread
 		else:
 			messagebox.showerror('Error', 'Nothing to do')
@@ -336,7 +339,6 @@ class GuiRoot(Tk):
 		self.__tk_running__.set("")
 		self.__running_label__.config(background='white')
 		messagebox.showinfo('Done', msg)
-		
 
 if __name__ == '__main__':	# start here if called as program / app
 	rootwindow = Tk()

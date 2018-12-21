@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 
-import re, datetime, time, random
+from datetime import datetime, timedelta
+from time import sleep as tsleep
+from random import uniform as runiform
+from re import sub as rsub
+from re import search as rsearch
+from re import findall as rfindall
 
 class Facebook:
 	'Downloader for Facebook Accounts'
 
-	ONEYEARAGO  = ( datetime.datetime.now() - datetime.timedelta(days=366) ).strftime('%Y-%m-%d')
+	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
 	DEFAULT_PAGE_LIMIT = 200
 	DEFINITION = [
 		'Facebook',
@@ -151,14 +156,25 @@ class Facebook:
 
 	def sleep(self, t):
 		'Sleep a slightly ranomized time'
-		time.sleep(t + random.uniform(0, 0.1))
+		tsleep(t + runiform(0, 0.1))
+
+	def search(self, pattern, string):
+		'Makes re.search usable'
+		m = rsearch(pattern, string)
+		if m == None:
+			return None
+		return m.group()
+
+	def search_href(self, html):
+		'Search href/link'
+		return self.search('href="[^"]+', html)
 
 	def extract_paths(self, target):
 		'Extract facebook paths from target that might be urls'
 		l= []	# list for the target users (id or path)
 		for i in target.split(';'):
-			i = re.sub('^.*facebook.com/', '', i.strip().rstrip().rstrip('/'))
-			i = re.sub('&.*$', '', i)
+			i = rsub('^.*facebook.com/', '', i.strip().rstrip().rstrip('/'))
+			i = rsub('&.*$', '', i)
 			if i != '':
 				l.append(i)
 		return l
@@ -167,13 +183,13 @@ class Facebook:
 		'Convert date given as string (e.g. "2018-02-01") to utc as seconds since 01.01.1970'
 		l = date_str.split('-')
 		try:
-			return int(datetime.datetime(int(l[0]),int(l[1]),int(l[2]),0,0).timestamp())
+			return int(datetime(int(l[0]),int(l[1]),int(l[2]),0,0).timestamp())
 		except:
 			return 0
 
 	def dirname(self, account):
 		'Generate dirname to store Screenshots, PDFs, JSON, CSV etc.'
-		m = re.search('profile\.php\?id=[0-9]+', account['path'])
+		m = rsearch('profile\.php\?id=[0-9]+', account['path'])
 		if m == None:
 			dirname = account['path']
 		else:
@@ -186,23 +202,23 @@ class Facebook:
 		if html == None:	# exit if no cover ProfileCover
 			return None
 		account = {'type': 'profile'}
-		m = re.search(' data-referrerid="[0-9]+" ', html)	# get id
+		m = rsearch(' data-referrerid="[0-9]+" ', html)	# get id
 		try:
 			account['id'] = m.group()[18:-2]
 		except:
-			account['id'] = 'undetected'
+			account['id'] = None
 		html = self.chrome.get_inner_html_by_id('fb-timeline-cover-name')
-		m = re.search('">[^<]+</a>', html)	# try to cut out displayed name (e.g. John McLane)
+		m = rsearch('">[^<]+</a>', html)	# try to cut out displayed name (e.g. John McLane)
 		try:
 			account['name'] = m.group()[2:-4]
 		except:
-			m = re.search('href="https://www\.facebook\.com/[^"]+"><span>[^<]+<', html)
+			m = rsearch('href="https://www\.facebook\.com/[^"]+"><span>[^<]+<', html)
 			try:
 				account['name'] = m.group().split('>')[2][:-1]
 			except:
 				account['name'] = 'undetected'
 		html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
-		m = re.search(' data-tab-key="timeline" href="https://www\.facebook\.com/[^"]+[?&]lst=', html)
+		m = rsearch(' data-tab-key="timeline" href="https://www\.facebook\.com/[^"]+[?&]lst=', html)
 		try:
 			account['link'] = m.group()[31:-5]
 			account['path'] = m.group()[56:-5]
@@ -217,7 +233,7 @@ class Facebook:
 		if html == None:	# exit if no cover entity_sidebar
 			return None
 		account = {'type': 'pg'}
-		m = re.search(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+', html)
+		m = rsearch(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+', html)
 		try:
 			account['name'] = m.group().rsplit('>', 1)[1]
 			account['path'] = m.group().rsplit('/', 2)[1]
@@ -226,7 +242,7 @@ class Facebook:
 			account['name'] = 'undetected'
 			account['path'] = None
 			account['link'] = None
-		m = re.search(' aria-label="Profile picture" class="[^"]+" href="/[0-9]+', html)
+		m = rsearch(' aria-label="Profile picture" class="[^"]+" href="/[0-9]+', html)
 		try:
 			account['id'] = m.group().rsplit('/', 1)[1]
 		except:
@@ -238,7 +254,7 @@ class Facebook:
 		html = self.chrome.get_inner_html_by_id('leftCol')
 		if html == None:	# exit if no cover entity_sidebar
 			return None
-		m = re.search('<a href="/[^"]+">[^<]+', html)
+		m = rsearch('<a href="/[^"]+">[^<]+', html)
 		try:
 			account = {'type': m.group().split('/', 3)[1], 'id': 'undetected'}
 			account['name'] = m.group().rsplit('>', 1)[1]
@@ -258,47 +274,46 @@ class Facebook:
 		if account == None:
 			account = {'type': 'unknown', 'id': 'undetected', 'name': 'undetected', 'path': path, 'link': 'https://www.facebook.com/%s' % path}
 		if account['path'] == None:
-			 account['path'] = path
-			 account['link'] = 'https://www.facebook.com/%s' % path
-		dirname = self.dirname(account)
-		self.storage.write_dicts(account, self.ACCOUNT, 'account.csv', dirname)
-		self.storage.write_json(account, 'account.json', dirname)
+			account['path'] = path
+			account['link'] = 'https://www.facebook.com/%s' % path
+		if account['id'] == None:
+			account['id'] = account['path']
 		return account
 
 	def get_profile_id(self, html):
 		'Extract id'
-		m = re.search('id=[0-9]+', html)
+		m = rsearch('id=[0-9]+', html)
 		if m == None:
 			return None
 		return m.group()[3:]
 
 	def get_profile_name(self, html):
 		'Extract name'
-		m = re.search('>[^<]+</a>', html)
+		m = rsearch('>[^<]+</a>', html)
 		if m == None:
 			return 'undetected'
 		return m.group()[1:-4]
 
 	def get_profile_path(self, html):
 		'Extract path'
-		m = re.search(' href="https://www.facebook.com/[^?]+', html)
+		m = rsearch(' href="https://www.facebook.com/[^?]+', html)
 		if m == None:
 			return 'undetected'
 		if m.group()[32:] != 'profile.php':
 			return m.group()[32:]
-		m = re.search(' href="https://www.facebook.com/profile.php\?id=[^&]+', html)
+		m = rsearch(' href="https://www.facebook.com/profile.php\?id=[^&]+', html)
 		if m == None:
 			return 'undetected'
 		return m.group()[47:]
 
 	def get_profile_link(self, html):
 		'Extract link to profile'
-		m = re.search(' href="https://www.facebook.com/[^?]+', html)
+		m = rsearch(' href="https://www.facebook.com/[^?]+', html)
 		if m == None:
 			return 'undetected'
 		if m.group()[32:] != 'profile.php':
 			return m.group()[7:]
-		m = re.search(' href="https://www.facebook.com/profile.php\?id=[^&]+', html)
+		m = rsearch(' href="https://www.facebook.com/profile.php\?id=[^&]+', html)
 		if m == None:
 			return 'undetected'
 		return m.group()[7:]
@@ -335,6 +350,7 @@ class Facebook:
 	def rm_left(self):
 		'Remove Intro, Photos, Friends etc. on the left'
 		self.chrome.rm_outer_html('ClassName', '_1vc-')
+		self.chrome.rm_outer_html_by_id('timeline_small_column')
 
 	def rm_right(self):
 		'Remove stuff right of timeline/posts'
@@ -350,7 +366,7 @@ class Facebook:
 			html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
 		if html == None:
 			return
-		for i in re.findall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
+		for i in rfindall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
 			self.chrome.click_element_by_id(i[10:-1])
 
 	def terminator(self):
@@ -358,7 +374,7 @@ class Facebook:
 		if self.stop_utc <= 0:
 			return False
 		for i in self.chrome.get_outer_html('TagName', 'abbr'):
-			m = re.search(' data-utime="[0-9]+" ', i)
+			m = rsearch(' data-utime="[0-9]+" ', i)
 			try:
 				if int(m.group()[13:-2]) <= self.stop_utc:
 					return True
@@ -396,27 +412,31 @@ class Facebook:
 		'Get screenshot from start page about given user (id or path)'
 		self.chrome.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		self.sleep(1)
-		account = self.get_account(path)		# get account infos if not already done
+		account = self.get_account(path)# get account infos if not already done
+		dirname = self.dirname(account)	# generate a name for the account's subdirectory
+		self.storage.mksubdir(dirname)	# as landing is the first task to perform, generate the subdiroctory here
+		self.storage.write_dicts(account, self.ACCOUNT, dirname, 'account.csv')	# write account infos
+		self.storage.write_json(account, dirname, 'account.json')
 		try:	# try to download profile photo
 			html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
-			m = re.search('src="[^"]+', html)
-			self.storage.download(re.sub('&amp;', '&', m.group()[5:]), 'profile.jpg', self.dirname(account))
+			m = rsearch('src="[^"]+', html)
+			self.storage.download(rsub('&amp;', '&', m.group()[5:]), dirname, 'profile.jpg')
 		except:
 			pass
 		self.rm_pagelets()	# remove bluebar etc.
-		path_no_ext = self.storage.path('landing', self.dirname(account))
+		path_no_ext = self.storage.modpath(dirname, 'landing')	# generate a file path for screenshot and pdf
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
-		self.chrome.page_pdf(path_no_ext)
-		return account
+		self.chrome.page_pdf(path_no_ext)	# and as pdf (when headless)
+		return account# give back the targeted account
 
 	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT):
 		'Get timeline'
 		if account['type'] == 'pg':
 			self.chrome.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
-			path_no_ext = self.storage.path('posts', self.dirname(account))
+			path_no_ext = self.storage.modpath(self.dirname(account), 'posts')
 		else:
 			self.chrome.navigate(account['link'])
-			path_no_ext = self.storage.path('timeline', self.dirname(account))
+			path_no_ext = self.storage.modpath(self.dirname(account), 'timeline')
 		self.rm_profile_cover()
 		self.rm_pagelets()
 		self.rm_left()
@@ -430,30 +450,35 @@ class Facebook:
 		'Get all visitors who left comments or likes etc. in timeline - timeline has to be open end expand'
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
-		actors = self.chrome.get_outer_html('ClassName', ' UFICommentActorName')	# get comment actors
-		if actors != None:
-			for i in actors:
-				visitor = self.get_profile(i)
-				if visitor != None and not visitor['id'] in visitor_ids:	# uniq
+		items = self.chrome.get_outer_html('ClassName', 'commentable_item')	# get commentable items
+		for i in items:
+			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+', i):	# get comment authors
+				visitor = {
+					'type': 'profile',
+					'id': self.search('/user.php\?id=[0-9]+', j)[13:],
+					'name': j.rsplit('>', 1)[1],
+					'path': self.search_href(j),
+					'link': 'https://facebook.com/%s' % self.search_href(j)
+				}
+				if not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
 					visitor_ids.add(visitor['id'])
-		for i in re.findall('href="/ufi/reaction/[^"]+"', self.chrome.get_outer_html_by_id('recent_capsule_container')):	# go through reactions
-			if self.chrome.stop_check():
-				return
-			self.chrome.navigate('https://www.facebook.com' + i[6:-1])	# open reaction page
-			self.chrome.expand_page(terminator=self.terminator)	# scroll through page
-			self.rm_pagelets()	# remove bluebar etc.
-			html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
-			if html == '':
-				continue
-			for j in re.findall(' href="https://www\.facebook\.com/[^"]+hc_location=profile_browser" data-hovercard="[^"]+"[^<]+</a>', html):	# get people who reacted
-				visitor = self.get_profile(j)
-				if visitor != None and not visitor['id'] in visitor_ids:	# uniq
-					visitors.append(visitor)
-					visitor_ids.add(visitor['id'])
+			href = self.search('href="/ufi/reaction/profile/browser/[^"]+', i)		# get reactions
+			if href != None:
+				if self.chrome.stop_check():
+					return
+				self.chrome.navigate('https://www.facebook.com' + href[6:])	# open reaction page
+				self.chrome.expand_page(terminator=self.terminator)	# scroll through page
+				self.rm_pagelets()	# remove bluebar etc.
+				html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
+				for j in rfindall(' href="https://www\.facebook\.com/[^"]+hc_location=profile_browser" data-hovercard="[^"]+"[^<]+</a>', html):	# get people who reacted
+					visitor = self.get_profile(j)
+					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
+						visitors.append(visitor)
+						visitor_ids.add(visitor['id'])
 		dirname = self.dirname(account)
-		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], 'visitors.csv', dirname)
-		self.storage.write_json(visitors, 'visitors.json', dirname)
+		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], dirname, 'visitors.csv')
+		self.storage.write_json(visitors, dirname, 'visitors.json')
 
 	def get_about(self, account):
 		'Get About'
@@ -486,7 +511,7 @@ class Facebook:
 			if html == None:
 				return
 		cnt = 1	# to number screenshots
-		for i in re.findall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
+		for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 			self.chrome.navigate(i[9:-1])
 			self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 			path_no_ext = self.storage.path('%05d_photo' % cnt, dirname)
@@ -518,7 +543,7 @@ class Facebook:
 		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_videos')
 		if html == None:
 			return
-		for i in re.findall('' ,html):
+		for i in rfindall('' ,html):
 			print(i)
 
 	def get_friends(self, account):
@@ -535,7 +560,7 @@ class Facebook:
 			if html == None:
 				return []	# return empty list if no visible friends
 			flist = []	# list to store friends
-			for i in re.findall(' href="https://www\.facebook\.com\/[^<]+=friends_tab" [^<]+</a>', html):	# get the links to friends
+			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+=friends_tab" [^<]+</a>', html):	# get the links to friends
 				friend = self.get_profile(i)
 				if friend != None:
 					flist.append(friend)	# append to friend list if info was extracted
@@ -554,7 +579,7 @@ class Facebook:
 			if html == None:
 				return []	# return empty list if no visible friends
 			mlist = []	# list to store friends
-			for i in re.findall(' href="https://www\.facebook\.com\/[^<]+location=group" [^<]+</a>', html):	# regex vs facebook
+			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+location=group" [^<]+</a>', html):	# regex vs facebook
 				member = self.get_profile(i)
 				if member != None:
 					mlist.append(member)	# append to friend list if info was extracted
@@ -573,7 +598,7 @@ class Facebook:
 			flist = self.get_friends(i)	# get friend list
 			if flist != []:
 				network.update({i['id']: {
-					'type': account['type'],
+					'type': i['type'],
 					'name': i['name'],
 					'path': i['path'],
 					'link': i['link'],
@@ -610,7 +635,7 @@ class Facebook:
 		self.storage.write_2d(friends, 'network.csv') # list of friend connections
 		print(network)
 		print(friends)
-		with open(self.filesystem.path())
-		for i in network:
-			print(i, i[link])
+#		with open(self.filesystem.path())
+#		for i in network:
+#			print(i, i[link])
 
