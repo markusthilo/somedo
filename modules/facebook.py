@@ -6,6 +6,7 @@ from random import uniform as runiform
 from re import sub as rsub
 from re import search as rsearch
 from re import findall as rfindall
+from base.cutter import Cutter
 
 class Facebook:
 	'Downloader for Facebook Accounts'
@@ -39,6 +40,7 @@ class Facebook:
 	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
+		self.ct = Cutter()
 		self.chrome = chrome
 		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
 		for i in range(3):	# try 3x to log into your facebbok account
@@ -166,20 +168,6 @@ class Facebook:
 		if m == None:
 			return None
 		return m.group()
-
-	def get_href(self, html):
-		'Search href='
-		try:
-			return rsub('&amp;', '&', self.search(' href="[^"]+', html)[7:])
-		except:
-			return None
-
-	def get_src(self, html):
-		'Get src='
-		try:
-			return rsub('&amp;', '&', self.search(' src="[^"]+', html)[6:])
-		except:
-			return None
 
 	def extract_paths(self, target):
 		'Extract facebook paths from target that might be urls'
@@ -428,7 +416,7 @@ class Facebook:
 		self.storage.write_dicts(account, self.ACCOUNT, dirname, 'account.csv')	# write account infos
 		self.storage.write_json(account, dirname, 'account.json')
 		try:	# try to download profile photo
-			self.storage.download(self.get_src(self.chrome.get_inner_html_by_id('fbTimelineHeadline')), dirname, 'profile.jpg')
+			self.storage.download(self.ct.src(self.chrome.get_inner_html_by_id('fbTimelineHeadline')), dirname, 'profile.jpg')
 		except:
 			pass
 		self.rm_pagelets()	# remove bluebar etc.
@@ -465,8 +453,8 @@ class Facebook:
 					'type': 'profile',
 					'id': self.search('/user.php\?id=[0-9]+', j)[13:],
 					'name': j.rsplit('>', 1)[1],
-					'path': self.search_href(j),
-					'link': 'https://facebook.com/%s' % self.search_href(j),
+					'path': self.ct.href(j),
+					'link': 'https://facebook.com/%s' % self.ct.href(j),
 					'relation': 'visitor'
 				}
 				if not visitor['id'] in visitor_ids:	# uniq
@@ -502,10 +490,6 @@ class Facebook:
 		'Get Photos'
 		if account['type'] == 'pg':
 			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
-#		elif account['type'] == 'profile':
-#			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
-#		else:
-#			self.chrome.navigate('https://www.facebook.com/%s/photos' % account['path'])
 		else:
 			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
 		dirname = self.dirname(account)
@@ -515,31 +499,53 @@ class Facebook:
 		self.expand_page(path_no_ext=path_no_ext, limit=limit)
 		self.rm_left()
 		self.chrome.page_pdf(path_no_ext)
-		html = self.chrome.get_outer_html_by_id('pagelet_timeline_medley_photos')
-		if html == None:
-			html = self.chrome.get_outer_html_by_id('content_container')
-			if html == None:
-				return
 		cnt = 1	# to number screenshots
-		for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
-			self.chrome.navigate(i[9:-1])
-			self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
-			path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
-			self.rm_pagelets()	# remove bluebar etc.
-			self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
-			self.chrome.page_pdf(path_no_ext)
-			try:
-				self.storage.download(
-					self.get_src(self.chrome.get_outer_html('ClassName', 'scaledImageFitWidth img')[0]),
-					dirname,
-					'%05d_photo.jpg' % cnt
-				)
-			except:
-				pass
-			cnt += 1
-			if cnt == 100000:
-				break
-			self.chrome.go_back()
+		if account['type'] == 'profile':
+			html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_photos')
+			for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
+				if self.chrome.stop_check():
+					return
+				self.chrome.navigate(i[8:])
+				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
+				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
+				self.rm_pagelets()	# remove bluebar etc.
+				self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
+				self.chrome.page_pdf(path_no_ext)
+				try:
+					self.storage.download(
+						self.ct.src(self.chrome.get_outer_html('ClassName', 'scaledImageFitWidth img')[0]),
+						dirname,
+						'%05d_image.jpg' % cnt
+					)
+				except:
+					pass
+				cnt += 1
+				if cnt == 100000:
+					break
+				self.chrome.go_back()
+		elif account['type'] == 'pg':
+			html = self.chrome.get_inner_html_by_id('content_container')
+			for i in rfindall('<a href="https://www.facebook.com/[^"]+/photos/[^"]+', html):
+				if self.chrome.stop_check():
+					return
+				self.chrome.navigate(i[9:])
+				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
+				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
+				self.rm_pagelets()	# remove bluebar etc.
+				self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
+				self.chrome.page_pdf(path_no_ext)
+				try:
+					self.storage.download(
+						self.ct.src(self.chrome.get_outer_html('ClassName', 'scaledImageFitWidth img')[0]),
+						dirname,
+						'%05d_image.jpg' % cnt
+					)
+				except:
+					pass
+				cnt += 1
+				if cnt == 100000:
+					break
+				self.chrome.go_back()
 
 	def get_videos(self, account, limit=DEFAULT_PAGE_LIMIT):
 		'Get Videos'
@@ -569,7 +575,7 @@ class Facebook:
 		dirname = self.dirname(account)
 		if account['type'] == 'profile':
 			self.chrome.navigate('%s/friends' % account['link'])
-			path_no_ext = self.storage.modpath('friends', dirname)
+			path_no_ext = self.storage.modpath(dirname, 'friends')
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_left()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
@@ -583,12 +589,12 @@ class Facebook:
 				if friend != None:
 					friend['relation'] = 'friend'
 					flist.append(friend)	# append to friend list if info was extracted
-			self.storage.write_2d([ [ i[j] for j in i] for i in flist ], dirname, 'friends.csv')
+			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in flist ], dirname, 'friends.csv')
 			self.storage.write_json(flist, dirname, 'friends.json')
 			return flist	# return friends as list
 		if account['type'] == 'groups':
 			self.chrome.navigate('%s/members' % account['link'])
-			path_no_ext = self.storage.modpath('members', dirname)
+			path_no_ext = self.storage.modpath(dirname, 'members')
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_right()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
@@ -603,7 +609,7 @@ class Facebook:
 				if member != None:
 					friend['relation'] = 'member'
 					mlist.append(member)	# append to friend list if info was extracted
-			self.storage.write_2d([ [ i[j] for j in i] for i in mlist ], dirname, 'members.csv')
+			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in mlist ], dirname, 'members.csv')
 			self.storage.write_json(mlist, dirname, 'members.json')
 			return mlist	# return friends as list
 		return []

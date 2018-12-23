@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-import re, time, datetime
+from re import sub as rsub
+from re import findall as rfindall
+from time import sleep
+from datetime import datetime
+from base.cutter import Cutter
 
 class Instagram:
 	'Downloader for Instagram'
@@ -10,6 +14,7 @@ class Instagram:
 	def __init__(self, target, options, login, chrome, storage):
 		'Generate object for Instagram'
 		self.storage = storage
+		self.ct = Cutter()
 		if 'Landing' in options:
 			self.landing = True
 		else:
@@ -29,8 +34,8 @@ class Instagram:
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
 		l= []	# list for the target users (id or path)
 		for i in target.split(';'):
-			i = re.sub('^.*instagram\.com/', '', i)
-			i = re.sub('/.*$', '', i)
+			i = rsub('^.*instagram\.com/', '', i)
+			i = rsub('/.*$', '', i)
 			i = i.lstrip(' ').rstrip(' ')
 			if i != '' and i != 'p':
 				l.append(i)
@@ -44,32 +49,29 @@ class Instagram:
 	def get_main(self, path):
 		'Scroll through main page and get images'
 		self.chrome.navigate('http://www.instagram.com/%s' % path)
-		time.sleep(0.5)
-		try:	# try to get header part of main page
-			html = self.chrome.get_outer_html('TagName', 'header')[0]
-		except:
-			html = ''
-		try:	# try to get displayed name out of page header
-			name = re.findall('<h1 class="[^"]+" title="[^"]+"', html)[0].split('"')[3]
+		sleep(0.5)
+		try:
+			name = self.chrome.get_inner_html('TagName', 'h1')[0]
 		except:
 			name = 'UNKNOWN'
-		self.storage.write_str('%s\t%s\thttp://www.instagram.com/%s' % (path, name, path), 'profile.csv', path)	# write information as file
-		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, 'profile.json', path)	# write as json file
+		self.storage.mksubdir(path)
+		self.storage.write_str('%s\t%s\thttp://www.instagram.com/%s' % (path, name, path), path, 'profile.csv')	# write information as file
+		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, path, 'profile.json')	# write as json file
 		try:	# try to download profile picture
-			url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[0])[0][6:-1]
-			self.storage.download(url, 'profile' + self.storage.url_cut_ext(url), path)	# download media file using the right file extension
+			url = self.ct.src(self.chrome.get_outer_html('TagName', 'img')[0])
+			self.storage.download(url, path, 'profile' + self.ct.ext(url))	# download media file using the right file extension
 		except:
 			pass
 		self.rm_banner()
 		self.chrome.set_x_center()
-		path_no_ext = self.storage.path('landing', path)
+		path_no_ext = self.storage.modpath(path, 'landing')
 		if self.landing:
 			self.chrome.page_pdf(path_no_ext)
 			if not self.media:
 				self.chrome.visible_page_png(path_no_ext)
 				return
 		self.links = []
-		path_no_ext = self.storage.path('main', path)
+		path_no_ext = self.storage.modpath(path, 'main')
 		self.chrome.expand_page(	# scroll through page and take screenshots
 			path_no_ext = path_no_ext,
 			per_page_action = self.get_links,
@@ -81,38 +83,46 @@ class Instagram:
 			if self.chrome.stop_check():
 				break
 			self.chrome.navigate('http:www.instagram.com/%s' % i)
-			time.sleep(0.2)
+			sleep(0.2)
 			self.rm_banner()
-			store_path = self.storage.path('%05d_page' % cnt, path)
+			store_path = self.storage.modpath(path, '%05d_page' % cnt)
 			self.chrome.visible_page_png(store_path)	# save page as png
 			self.chrome.page_pdf(store_path)	# save as pdf
-			self.storage.write_text(self.chrome.get_inner_html('TagName', 'article')[0], '%05d_page.txt' % cnt, path)	# write comments
-			try:	# try to get video url
-				url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'video')[-1])[0][6:-1]
-				fname = '%05d_video' % cnt
-			except:
-				try:	# try to get image url
-					url = re.findall(' src="[^"]+"', self.chrome.get_outer_html('TagName', 'img')[-1])[0][6:-1]
-					fname = '%05d_image' % cnt
-				except:
-					continue
-			try:	# try to download media file
-				fname += self.storage.url_cut_ext(url)
-				self.storage.download(url, fname, path)
-				minfo.append({	# store counter, media type and url to media info list
-					'file':	fname,
-					'time':	datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-					'url':	url
-				})
-			except:
-				pass
+			self.storage.write_text(self.chrome.get_inner_html('TagName', 'article')[0], path, '%05d_page.txt' % cnt)	# write comments
+			if self.media:
+				tags = self.chrome.get_outer_html('TagName', 'video')
+				if tags != []:
+					url = self.ct.src(tags[0])
+					ftype = 'video'
+				else:
+					tags = self.chrome.get_outer_html('TagName', 'img')
+					if len(tags) == 1:
+						url = self.ct.src(tags[0])
+						ftype = 'image'
+					elif len(tags) > 1:
+						url = self.ct.src(tags[1])
+						ftype = 'image'
+					else:
+						ftype = None
+				if ftype != None:
+					fname = '%05d_%s%s' % (cnt, ftype, self.ct.ext(url))
+					try:
+						self.storage.download(url, path, fname)	# try to download media file
+						minfo.append({	# store counter, media type and url to media info list
+							'type': ftype,
+							'file':	fname,
+							'time':	datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+							'url':	url
+						})
+					except:
+						pass
 			cnt += 1
-		if minfo != []:
-			self.storage.write_dicts(minfo,('file','time','url') , 'media.csv', path)
-			self.storage.write_json(minfo, 'media.json', path)
+			if minfo != []:
+				self.storage.write_dicts(minfo,('type', 'file','time','url'), path , 'media.csv')
+				self.storage.write_json(minfo, path, 'media.json')
 
 	def get_links(self):
 		'Extract links from tag "article"'
-		for i in re.findall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
+		for i in rfindall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
 			if not i[9:] in self.links:
 				self.links.append(i[9:])

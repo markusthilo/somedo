@@ -125,11 +125,3 @@ class Storage:
 	def download(self, *args):
 		'Download and writte file'
 		urlretrieve(args[0], self.modpath(args[1:]))
-
-	def url_cut_ext(self, url):
-		'Cut file extension out of media URL'
-		splitted = url.rsplit('/', 1)[-1].split('?', 1)[0].rsplit('.', 1)
-		if len(splitted) == 1:
-			return splitted[1]
-		else:
-			return ''
