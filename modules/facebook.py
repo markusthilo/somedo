@@ -160,14 +160,26 @@ class Facebook:
 
 	def search(self, pattern, string):
 		'Makes re.search usable'
+		if string == None:
+			return None
 		m = rsearch(pattern, string)
 		if m == None:
 			return None
 		return m.group()
 
-	def search_href(self, html):
-		'Search href/link'
-		return self.search('href="[^"]+', html)
+	def get_href(self, html):
+		'Search href='
+		try:
+			return rsub('&amp;', '&', self.search(' href="[^"]+', html)[7:])
+		except:
+			return None
+
+	def get_src(self, html):
+		'Get src='
+		try:
+			return rsub('&amp;', '&', self.search(' src="[^"]+', html)[6:])
+		except:
+			return None
 
 	def extract_paths(self, target):
 		'Extract facebook paths from target that might be urls'
@@ -282,17 +294,14 @@ class Facebook:
 
 	def get_profile_id(self, html):
 		'Extract id'
-		m = rsearch('id=[0-9]+', html)
-		if m == None:
-			return None
-		return m.group()[3:]
+		return self.search('id=[0-9]+', html)[3:]
 
 	def get_profile_name(self, html):
 		'Extract name'
-		m = rsearch('>[^<]+</a>', html)
-		if m == None:
+		html = self.search('>[^<]+</a>', html)
+		if html == None:
 			return 'undetected'
-		return m.group()[1:-4]
+		return html[1:-4]
 
 	def get_profile_path(self, html):
 		'Extract path'
@@ -356,6 +365,7 @@ class Facebook:
 		'Remove stuff right of timeline/posts'
 		self.chrome.rm_outer_html_by_id('entity_sidebar')
 		self.chrome.rm_outer_html_by_id('pages_side_column')
+		self.chrome.rm_outer_html_by_id('rightCol')
 
 	def click_translations(self):
 		'Find the See Translation buttons and click'
@@ -418,9 +428,7 @@ class Facebook:
 		self.storage.write_dicts(account, self.ACCOUNT, dirname, 'account.csv')	# write account infos
 		self.storage.write_json(account, dirname, 'account.json')
 		try:	# try to download profile photo
-			html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
-			m = rsearch('src="[^"]+', html)
-			self.storage.download(rsub('&amp;', '&', m.group()[5:]), dirname, 'profile.jpg')
+			self.storage.download(self.get_src(self.chrome.get_inner_html_by_id('fbTimelineHeadline')), dirname, 'profile.jpg')
 		except:
 			pass
 		self.rm_pagelets()	# remove bluebar etc.
@@ -458,7 +466,8 @@ class Facebook:
 					'id': self.search('/user.php\?id=[0-9]+', j)[13:],
 					'name': j.rsplit('>', 1)[1],
 					'path': self.search_href(j),
-					'link': 'https://facebook.com/%s' % self.search_href(j)
+					'link': 'https://facebook.com/%s' % self.search_href(j),
+					'relation': 'visitor'
 				}
 				if not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
@@ -474,6 +483,7 @@ class Facebook:
 				for j in rfindall(' href="https://www\.facebook\.com/[^"]+hc_location=profile_browser" data-hovercard="[^"]+"[^<]+</a>', html):	# get people who reacted
 					visitor = self.get_profile(j)
 					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
+						visitor['relation'] = 'visitor'
 						visitors.append(visitor)
 						visitor_ids.add(visitor['id'])
 		dirname = self.dirname(account)
@@ -499,7 +509,7 @@ class Facebook:
 		else:
 			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
 		dirname = self.dirname(account)
-		path_no_ext = self.storage.path(dirname, 'photos')
+		path_no_ext = self.storage.modpath(dirname, 'photos')
 		self.rm_pagelets()	# remove bluebar etc.
 		self.rm_right()
 		self.expand_page(path_no_ext=path_no_ext, limit=limit)
@@ -514,10 +524,18 @@ class Facebook:
 		for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 			self.chrome.navigate(i[9:-1])
 			self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
-			path_no_ext = self.storage.path('%05d_photo' % cnt, dirname)
+			path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 			self.rm_pagelets()	# remove bluebar etc.
 			self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
 			self.chrome.page_pdf(path_no_ext)
+			try:
+				self.storage.download(
+					self.get_src(self.chrome.get_outer_html('ClassName', 'scaledImageFitWidth img')[0]),
+					dirname,
+					'%05d_photo.jpg' % cnt
+				)
+			except:
+				pass
 			cnt += 1
 			if cnt == 100000:
 				break
@@ -534,7 +552,7 @@ class Facebook:
 #		else:
 		self.chrome.navigate('https://www.facebook.com/%s/videos' % account['path'])
 		dirname = self.dirname(account)
-		path_no_ext = self.storage.path('videos', dirname)
+		path_no_ext = self.storage.modpath(dirname, 'videos')
 		self.rm_pagelets()	# remove bluebar etc.
 		self.rm_right()
 		self.expand_page(path_no_ext=path_no_ext, limit=limit)
@@ -551,7 +569,7 @@ class Facebook:
 		dirname = self.dirname(account)
 		if account['type'] == 'profile':
 			self.chrome.navigate('%s/friends' % account['link'])
-			path_no_ext = self.storage.path('friends', dirname)
+			path_no_ext = self.storage.modpath('friends', dirname)
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_left()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
@@ -563,13 +581,14 @@ class Facebook:
 			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+=friends_tab" [^<]+</a>', html):	# get the links to friends
 				friend = self.get_profile(i)
 				if friend != None:
+					friend['relation'] = 'friend'
 					flist.append(friend)	# append to friend list if info was extracted
-			self.storage.write_2d([ [ i[j] for j in i] for i in flist ], 'friends.csv', dirname)
-			self.storage.write_json(flist, 'friends.json', dirname)
+			self.storage.write_2d([ [ i[j] for j in i] for i in flist ], dirname, 'friends.csv')
+			self.storage.write_json(flist, dirname, 'friends.json')
 			return flist	# return friends as list
 		if account['type'] == 'groups':
 			self.chrome.navigate('%s/members' % account['link'])
-			path_no_ext = self.storage.path('members', dirname)
+			path_no_ext = self.storage.modpath('members', dirname)
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_right()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
@@ -582,9 +601,10 @@ class Facebook:
 			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+location=group" [^<]+</a>', html):	# regex vs facebook
 				member = self.get_profile(i)
 				if member != None:
+					friend['relation'] = 'member'
 					mlist.append(member)	# append to friend list if info was extracted
-			self.storage.write_2d([ [ i[j] for j in i] for i in mlist ], 'members.csv', dirname)
-			self.storage.write_json(mlist, 'members.json', dirname)
+			self.storage.write_2d([ [ i[j] for j in i] for i in mlist ], dirname, 'members.csv')
+			self.storage.write_json(mlist, dirname, 'members.json')
 			return mlist	# return friends as list
 		return []
 
