@@ -490,6 +490,8 @@ class Facebook:
 		'Get Photos'
 		if account['type'] == 'pg':
 			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
+		if account['type'] == 'group':
+			self.chrome.navigate('https://www.facebook.com/groups/%s/photos' % account['path'])
 		else:
 			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
 		dirname = self.dirname(account)
@@ -500,12 +502,12 @@ class Facebook:
 		self.rm_left()
 		self.chrome.page_pdf(path_no_ext)
 		cnt = 1	# to number screenshots
-		if account['type'] == 'profile':
-			html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_photos')
-			for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
+		if account['type'] == 'pg':
+			html = self.chrome.get_inner_html_by_id('content_container')
+			for i in rfindall('<a href="https://www.facebook.com/[^"]+/photos/[^"]+', html):
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[8:])
+				self.chrome.navigate(i[9:])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.
@@ -523,12 +525,35 @@ class Facebook:
 				if cnt == 100000:
 					break
 				self.chrome.go_back()
-		elif account['type'] == 'pg':
-			html = self.chrome.get_inner_html_by_id('content_container')
-			for i in rfindall('<a href="https://www.facebook.com/[^"]+/photos/[^"]+', html):
+		elif account['type'] == 'group':
+			html = self.chrome.get_inner_html_by_id('pagelet_group_photos')
+			for i in rfindall(' href="https://www.facebook.com/photo\.php\?[^"]+', html):
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[9:])
+				self.chrome.navigate(i[7:])
+				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
+				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
+				self.rm_pagelets()	# remove bluebar etc.
+				self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
+				self.chrome.page_pdf(path_no_ext)
+				try:
+					self.storage.download(
+						self.ct.src(self.chrome.get_outer_html('ClassName', 'scaledImageFitWidth img')[0]),
+						dirname,
+						'%05d_image.jpg' % cnt
+					)
+				except:
+					pass
+				cnt += 1
+				if cnt == 100000:
+					break
+				self.chrome.go_back()
+		else:
+			html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_photos')
+			for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
+				if self.chrome.stop_check():
+					return
+				self.chrome.navigate(i[8:])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.

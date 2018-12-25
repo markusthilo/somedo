@@ -22,6 +22,7 @@ class Twitter:
 		'Generate object for Twitter'
 		self.chrome = chrome
 		self.storage = storage
+		self.ct = Cutter()
 		if 'User' in options and not 'Search' in options:	# target userss / twitter user
 			if 'Photos' in options['User']:
 				self.photos = options['User']['Photos']
@@ -75,18 +76,16 @@ class Twitter:
 
 	def get_tweets(self, path):
 		'Get Tweets by scrolling down.'
-		path_no_ext = self.storage.path(path, 'tweets')
+		path_no_ext = self.storage.modpath(path, 'tweets')
 		self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.limit)
 		self.chrome.page_pdf(path_no_ext)
 		if self.photos:
 			cnt = 1
 			pinfo = []	# to store urls
-			for html in self.chrome.get_outer_html('ClassName', 'AdaptiveMediaOuterContainer'):	# get all embeded media
-				if rsearch(' class="AdaptiveMedia[^"]*Photo"', html) == None:	# check for photos
-					continue
-				photo_urls = [ i[6:] for i in rfindall(' src="[^"]+', html) ]	# get the urls
-				for url in photo_urls:
-					fname = 'photo_%05d%s' % (cnt, self.storage.url_cut_ext(url))
+			for html in self.chrome.get_outer_html('TagName', 'img'):	# get all embeded media
+				if rsearch('class="avatar', html) == None and rsearch('class="Emoji', html) == None:
+					url = self.ct.src(html)
+					fname = 'photo_%05d%s' % (cnt, self.ct.ext(url))
 					try:	# try to download photo
 						self.storage.download(url, path, fname)
 					except:
@@ -111,6 +110,7 @@ class Twitter:
 			if i == 2:
 				raise Exception('Could not open Twitter Timeline.')
 		self.rm_banner()
+		self.storage.mksubdir(path)
 		path_no_ext = self.storage.modpath(path, 'landing')
 		self.chrome.page_pdf(path_no_ext)
 		self.chrome.visible_page_png(path_no_ext)
