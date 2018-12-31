@@ -255,7 +255,7 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		if not self.headless:	# only works with --headless according to the google developers
+		if not self.headless or path_no_ext == '':	# only works with --headless according to the google developers
 			return
 		try:
 			with open('%s.pdf' % path_no_ext, 'wb') as f:

@@ -126,7 +126,6 @@ class GuiRoot(Tk):
 		self.__tk_running__ = StringVar()
 		self.__running_label__ = Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16, background='white')
 		self.__running_label__.pack(side=LEFT, padx=3, pady=1)
-
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
@@ -153,8 +152,8 @@ class GuiRoot(Tk):
 				if self.tk_options[module][i][i].get():
 					self.jobs[-1][2][i] = dict()
 					for j in self.tk_options[module][i]:
-						if j != i and self.tk_options[module][i][j].get() != False:
-								self.jobs[-1][2][i][j] = self.tk_options[module][i][j].get()
+						if j != i:
+							self.jobs[-1][2][i][j] = self.tk_options[module][i][j].get()
 			self.__update_joblist__()
 
 	def __purge_jobs__(self):

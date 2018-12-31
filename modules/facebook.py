@@ -71,7 +71,12 @@ class Facebook:
 		if self.chrome.debug:	# abort on errors in debug mode
 			accounts = [ self.get_landing(i) for i in self.extract_paths(target) ]	# get account infos with a first visit
 			if 'Network' in options:
-				self.get_network(accounts, options['Network']['Depth'])
+				self.get_network(
+					accounts,
+					options['Network']['Depth'],
+					extended = options['Network']['Visitors'],
+					limit = options['Network']['Limit']
+				)
 			for i in accounts:
 				if self.chrome.stop_check():
 					break
@@ -82,16 +87,9 @@ class Facebook:
 				if 'Photos' in options:
 					self.get_photos(
 						i,
-						expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
-						translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
+						expand = options['Photos']['Expand'],
+						translate = options['Photos']['Translate'],
 						limit = options['Photos']['Limit']
-					)
-				if self.chrome.stop_check():
-					break
-				if 'Videos' in options:
-					self.get_videos(
-						i,
-						limit = options['Videos']['Limit']
 					)
 				if self.chrome.stop_check():
 					break
@@ -103,9 +101,9 @@ class Facebook:
 					self.stop_utc = self.get_utc(options['Timeline']['Until'])
 					self.get_timeline(
 						i,
-						expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
-						translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
-						visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
+						expand = options['Timeline']['Expand'],
+						translate = options['Timeline']['Translate'],
+						visitors =  options['Timeline']['Visitors'],
 						until = self.get_utc(options['Timeline']['Until']),
 						limit = options['Timeline']['Limit']
 					)
@@ -120,7 +118,12 @@ class Facebook:
 				accounts.append(account)
 			if 'Network' in options:
 				try:
-					self.get_network(accounts, options['Network']['Depth'])
+					self.get_network(
+						accounts,
+						options['Network']['Depth'],
+						extended = options['Network']['Visitors'],
+						limit = options['Network']['Limit']
+					)
 				except:
 					errors += ' Network,'
 			for i in accounts:
@@ -137,8 +140,8 @@ class Facebook:
 					try:
 						self.get_photos(
 							i,
-							expand = 'Expand' in options['Photos'] and options['Photos']['Expand'],
-							translate = 'Translate' in options['Photos'] and options['Photos']['Translate'],
+							expand = options['Photos']['Expand'],
+							translate = options['Photos']['Translate'],
 							limit = options['Photos']['Limit']
 						)
 					except:
@@ -156,9 +159,9 @@ class Facebook:
 					try:
 						self.get_timeline(
 							i,
-							expand = 'Expand' in options['Timeline'] and options['Timeline']['Expand'],
-							translate = 'Translate' in options['Timeline'] and options['Timeline']['Translate'],
-							visitors = 'Visitors' in options['Timeline'] and options['Timeline']['Visitors'],
+							expand = options['Timeline']['Expand'],
+							translate = options['Timeline']['Translate'],
+							visitors = options['Timeline']['Visitors'],
 							until = self.get_utc(options['Timeline']['Until']),
 							limit = options['Timeline']['Limit']
 						)
@@ -436,7 +439,7 @@ class Facebook:
 		self.chrome.page_pdf(path_no_ext)	# and as pdf (when headless)
 		return account# give back the targeted account
 
-	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT):
+	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT, dontsave=False):
 		'Get timeline'
 		if account['type'] == 'pg':
 			self.chrome.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
@@ -444,6 +447,8 @@ class Facebook:
 		else:
 			self.chrome.navigate(account['link'])
 			path_no_ext = self.storage.modpath(self.dirname(account), 'timeline')
+		if dontsave:
+			path_no_ext = ''
 		self.rm_profile_cover()
 		self.rm_pagelets()
 		self.rm_left()
@@ -451,7 +456,9 @@ class Facebook:
 		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, until=until, limit=limit)	# go through timeline
 		self.chrome.page_pdf(path_no_ext)
 		if visitors:
-			self.get_visitors(account)
+			return self.get_visitors(account)
+		else:
+			return None
 
 	def get_visitors(self, account):
 		'Get all visitors who left comments or likes etc. in timeline - timeline has to be open end expand'
@@ -488,6 +495,7 @@ class Facebook:
 		dirname = self.dirname(account)
 		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], dirname, 'visitors.csv')
 		self.storage.write_json(visitors, dirname, 'visitors.json')
+		return { i['id'] for i in visitors }	# return visitors ids as set
 
 	def get_about(self, account):
 		'Get About'
@@ -604,7 +612,7 @@ class Facebook:
 					flist.append(friend)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in flist ], dirname, 'friends.csv')
 			self.storage.write_json(flist, dirname, 'friends.json')
-			return flist	# return friends as list
+			return { i['id'] for i in flist }	# return friends ids as set
 		if account['type'] == 'groups':
 			self.chrome.navigate('%s/members' % account['link'])
 			path_no_ext = self.storage.modpath(dirname, 'members')
@@ -624,32 +632,51 @@ class Facebook:
 					mlist.append(member)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in mlist ], dirname, 'members.csv')
 			self.storage.write_json(mlist, dirname, 'members.json')
-			return mlist	# return friends as list
-		return []
+			return { i['id'] for i in mlist }	# return members ids as set
+		return set()
 
-	def get_network(self, accounts, depth):
+	def get_network(self, accounts, depth, extended=False, limit=DEFAULT_PAGE_LIMIT):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
 		network = dict()	# dictionary to store friend lists
-		old_ids = set()	# set to store ids (friend list has been downloaded)
+		old_ids = set()	# set to store ids already got handled
+		all_ids = set() # set for all ids
 		for i in accounts:	# start with the given target accounts
 			if self.chrome.stop_check():
 				break
-			flist = self.get_friends(i)	# get friend list
-			if flist != []:
+			fids = self.get_friends(i)	# get friends ids
+			old_ids.add(i['id'])
+			print('-----fids-----')
+			print(fids)
+			if fids != set():
 				network.update({i['id']: {
 					'type': i['type'],
 					'name': i['name'],
 					'path': i['path'],
 					'link': i['link'],
-					'friends': [ j['id'] for j in flist ]
+					'friends': fids
 				}})
-				old_ids.add(i['id'])
-		if depth < 1:	# less than 0 makes no sense
+				all
+			if extended:	# also add visitors to network
+				vids = self.get_timeline(i, expand=True, translate=False, visitors=True, until=0, limit=limit, dontsave=True)
+				print('-----vids----')
+				print(vids)
+				if vids != set():
+					network.update({i['id']: {
+						'type': i['type'],
+						'name': i['name'],
+						'path': i['path'],
+						'link': i['link'],
+						'visitors': vids
+					}})
+		if depth < 1:	# less than 1 makes no sense
 			depth = 1
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			if self.chrome.stop_check():
 				break
+			print('Loop')
 			for j in { k for j in network for k in network[j] } - old_ids:	# work on friend list which have not been downloaded so far
+				print(j)
+				return
 				account = self.get_landing(j)
 				network.update({account['id']: {	# add new account
 					'type': account['type'],
@@ -662,18 +689,24 @@ class Facebook:
 				flist = self.get_friends(account)	# get friend list
 				if flist != []:
 					network[j] = [ k['id'] for k in flist ]
-					old_ids.add(j)
+				elif extended:	# also add visitors to network
+					vlist = self.get_timeline(i, expand=True, translate=False, visitors=True, until=0, limit=limit, dontsave=True)
+					if vlist != []:
+						pass
+				old_ids.add(j)
 				if self.chrome.stop_check():
 					break
 		self.storage.write_json(network, 'network.json')
-		friends = []	# list to store pairs of befriended accounts (ids only)
-		for i in network:
-			for j in network[i]:
-				if not (i, j) in friends and not (j, i) in friends:
-					friends.append((i ,j))
-		self.storage.write_2d(friends, 'network.csv') # list of friend connections
+
 		print(network)
-		print(friends)
+
+#		friends = []	# list to store pairs of befriended accounts (ids only)
+#		for i in network:
+#			for j in network[i]:
+#				if not (i, j) in friends and not (j, i) in friends:
+#					friends.append((i ,j))
+#		self.storage.write_2d(friends, 'network.csv') # list of friend connections
+
 #		with open(self.filesystem.path())
 #		for i in network:
 #			print(i, i[link])
