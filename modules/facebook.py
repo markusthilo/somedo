@@ -643,40 +643,39 @@ class Facebook:
 		for i in accounts:	# start with the given target accounts
 			if self.chrome.stop_check():
 				break
-			fids = self.get_friends(i)	# get friends ids
-			old_ids.add(i['id'])
-			print('-----fids-----')
-			print(fids)
-			if fids != set():
-				network.update({i['id']: {
-					'type': i['type'],
-					'name': i['name'],
-					'path': i['path'],
-					'link': i['link'],
-					'friends': fids
-				}})
-				all
-			if extended:	# also add visitors to network
-				vids = self.get_timeline(i, expand=True, translate=False, visitors=True, until=0, limit=limit, dontsave=True)
-				print('-----vids----')
-				print(vids)
-				if vids != set():
-					network.update({i['id']: {
-						'type': i['type'],
-						'name': i['name'],
-						'path': i['path'],
-						'link': i['link'],
-						'visitors': vids
-					}})
+			friends = self.get_friends(i)
+			network.update({i['id']: {	# add friends
+				'type': i['type'],
+				'name': i['name'],
+				'path': i['path'],
+				'link': i['link'],
+				'friends': friends
+			}})
+			old_ids.add(i['id'])	# remember already handled accounts
+			all_ids.add(i['id'])	# update set of all ids
+			all_ids |= friends
+			if extended:	# also add visitors to network if desired
+				visitors = self.get_timeline(
+					i, expand=True,
+					translate=False,
+					visitors=True,
+					until=0,
+					limit=limit,
+					dontsave=True
+				)
+				network[i['id']]['visitors'] = visitors
+				all_ids |= visitors
+			else:
+				network[i['id']]['visitors'] = set()	# empty set if extended option is false
 		if depth < 1:	# less than 1 makes no sense
 			depth = 1
+		print(old_ids)
+		print(all_ids)
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			if self.chrome.stop_check():
 				break
-			print('Loop')
-			for j in { k for j in network for k in network[j] } - old_ids:	# work on friend list which have not been downloaded so far
+			for j in all_ids - old_ids:	# work on friend list which have not been handled so far
 				print(j)
-				return
 				account = self.get_landing(j)
 				network.update({account['id']: {	# add new account
 					'type': account['type'],
@@ -684,21 +683,27 @@ class Facebook:
 					'path': account['path'],
 					'link': account['link'],
 				}})
-				if i == depth - 1:	# on last recusion level do not get the friend lists anymore
-					continue
-				flist = self.get_friends(account)	# get friend list
-				if flist != []:
-					network[j] = [ k['id'] for k in flist ]
-				elif extended:	# also add visitors to network
-					vlist = self.get_timeline(i, expand=True, translate=False, visitors=True, until=0, limit=limit, dontsave=True)
-					if vlist != []:
-						pass
-				old_ids.add(j)
-				if self.chrome.stop_check():
-					break
+				print('i:', i)
+				if i < depth - 1:	# on last recusion level do not get the friend lists anymore
+					print('!!! i:', i)
+					if self.chrome.stop_check():
+						break
+					network[j]['friends'] = self.get_friends(account)
+					if extended:
+						network[j]['visitors'] = self.get_timeline(
+							i, expand=True,
+							translate=False,
+							visitors=True,
+							until=0,
+							limit=limit,
+							dontsave=True
+						)
+					else:
+						network[j]['visitors'] = set()
+		print('NETWORK')
+		print(network)
 		self.storage.write_json(network, 'network.json')
 
-		print(network)
 
 #		friends = []	# list to store pairs of befriended accounts (ids only)
 #		for i in network:

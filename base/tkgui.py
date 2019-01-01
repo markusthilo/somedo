@@ -23,7 +23,7 @@ class GuiRoot(Tk):
 		self.master.title('Social Media Downloader')	# window title for somedo
 		try:
 			self.master.call('wm', 'iconphoto', self.master._w, PhotoImage(	# give the window manager an application icon
-				file='%s%sicons%ssmd_icon.png'  % (self.rootdir, self.slash, self.slash)
+				file='%s%sicons%ssomedo.png'  % (self.storage.rootdir, self.storage.slash, self.storage.slash)
 			))
 		except:
 			pass
