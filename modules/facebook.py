@@ -7,6 +7,7 @@ from re import sub as rsub
 from re import search as rsearch
 from re import findall as rfindall
 from base.cutter import Cutter
+from vis.netvis import NetVis
 
 class Facebook:
 	'Downloader for Facebook Accounts'
@@ -696,19 +697,15 @@ class Facebook:
 						network[j]['visitors'] = set()
 		print('NETWORK')
 		print(network)
-		
+
+		netvis = NetVis(self.storage)	# create network visualisation object
+		for i in network:
+#			netvis.add_node(
+			print(
+				i,
+				'../%s/profile.jpg' % network[i]['path'],
+				'./netvis/pixmaps/profile.jpg',
+				network[i]['name']
+			)
 			
-
-
-
-#		friends = []	# list to store pairs of befriended accounts (ids only)
-#		for i in network:
-#			for j in network[i]:
-#				if not (i, j) in friends and not (j, i) in friends:
-#					friends.append((i ,j))
-#		self.storage.write_2d(friends, 'network.csv') # list of friend connections
-
-#		with open(self.filesystem.path())
-#		for i in network:
-#			print(i, i[link])
 

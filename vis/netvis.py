@@ -13,7 +13,7 @@ class NetVis:
 
 	def add_node(self, node_id, image, alt_image, label):
 		self.nodes_js += '''
-				{id: '%s',  shape: 'image', image: '%s', brokenImage: DIR + '%s', label: '%s'},''' % (node_id, image, alt_image, label)
+				{id: '%s',  shape: 'image', image: '%s', brokenImage: '%s', label: '%s'},''' % (node_id, image, alt_image, label)
 
 	def add_edge(self, from_id, to_id, arrows='', dashes=False):
 		if dashes = True:
@@ -21,7 +21,7 @@ class NetVis:
 		else:
 			dashes = 'false'
 		self.edges_js += '''
-				{from: '%s', to: '%s', arrows: '%s', dashes: '%s'},''' % (from_id, to_id, arrows, dashes=)
+				{from: '%s', to: '%s', arrows: '%s', dashes: '%s'},''' % (from_id, to_id, arrows, dashes)
 
 	def write(self):
 		'Write HTML/CSS/JavaScript'
