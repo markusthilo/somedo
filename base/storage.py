@@ -9,6 +9,7 @@ from json import dump as jdump
 from json import load as jload
 from urllib.request import urlretrieve
 from html2text import html2text
+from shutil import copytree
 
 class Storage:
 	'Save data into destination directory and subdirectories'
@@ -51,6 +52,31 @@ class Storage:
 		with open(path, 'r', encoding='utf-8') as f:
 			return jload(f)
 
+	def genpath(self, path, *args):
+		'Generate file path from base directory, subdirectory/subdirectories and probalbly filename'
+		for i in args:
+			if isinstance(i, str):
+				path += self.slash + i
+			elif isinstance(i, list) or isinstance(i, tuple):	# also take lists or tuples
+				for j in i:
+					path += self.slash + j
+			else:
+				raise RuntimeError('Only strings, lists or tuples work as arguments')
+		return path.rstrip(self.slash)
+
+	def rootpath(self, *args):
+		'Build file path under root directory'
+		return self.genpath(self.rootdir, *args)
+
+	def modpath(self, *args):
+		'Build file path under module directory (e.g. Facebook/)'
+		return self.genpath(self.moddir, *args)
+
+	def read_static(self, *args):
+		'Read file as string from root directory or static subdirectory (e.g. vis/)'
+		with open(self.rootpath(*args), 'r', encoding='utf-8') as f:
+			return f.read()
+
 	def mkoutdir(self):
 		'Make top level output directory'
 		self.mkdir(self.outdir)
@@ -64,64 +90,61 @@ class Storage:
 		'Make subdirectory under module directory directory, e.g. for an account'
 		return self.mkdir(self.moddir + self.slash + dirname)
 
-	def modpath(self, *args):
-		'Build file path. Arguments: filename (, subdir).'
-		path = self.moddir	# 1 main directory for 1 session
-		for i in args:
-			if isinstance(i, str):
-				path += self.slash + i
-			elif isinstance(i, list) or isinstance(i, tuple):# also tke lists or tuples
-				for j in i:
-					path += self.slash + j
-			else:
-				raise RuntimeError('Only strings, lists or tuples work as arguments')
-		return path.rstrip(self.slash)
+	def cptree2moddir(self, *args):
+		'Copy recursivly from root or static subdirectory to module directory'
+		sourcepath = self.rootpath(*args)
+		sourcedir = sourcepath.rsplit(self.slash, 1)[1]
+		copytree(sourcepath, self.moddir + self.slash + sourcedir)
 
-	def write_str(self, *args):
-		'Write string to file. Arguments: string, filename (, subdir). If no subdirectory is give, write to main directory'
-		with open(self.modpath(args[1:]) , 'w', encoding='utf-8') as f:
-			f.write(str(args[0]))	# write string
+	def write_str(self, string, *args):
+		'Write string to file from main or subdirectory'
+		with open(self.modpath(*args) , 'w', encoding='utf-8') as f:
+			f.write(str(string))	# write string
 
-	def write_1d(self, *args):
+	def read_str(self, *args):
+		'Read file as string from main or subdirecoty'
+		with open(modpath(*args), 'r', encoding='utf-8') as f:
+			return f.read()
+
+	def write_1d(self, lst1d, *args):
 		'Write (1-dimensional) list to CSV/TSV file (1 line, tab separated)'
-		with open(self.modpath(args[1:]), 'w', encoding='utf-8') as f:
+		with open(self.modpath(*args), 'w', encoding='utf-8') as f:
 			line = ''
-			for i in args[0]:	# write list as CSV/TSV (tab stop seperated fields)
+			for i in lst1d:	# write list as CSV/TSV (tab stop seperated fields)
 				line += '"%s";' % str(i)
 			f.write(line[:-1] + '\n')
 
-	def write_2d(self, *args):
+	def write_2d(self, lst2d, *args):
 		'Write list of lists (2-dimensinal list) to CSV/TSV file'
-		with open(self.modpath(args[1:]), 'w', encoding='utf-8') as f:
-			for i in args[0]:
+		with open(self.modpath(*args), 'w', encoding='utf-8') as f:
+			for i in lst2d:
 				line = ''
 				for j in i:
 					line += '"%s";' % str(j)
 				f.write(line[:-1] + '\n')
 
-	def write_dicts(self, *args):
+	def write_dicts(self, dictionary, index, *args):
 		'Write dictionary or list of dictionaries to CSV/TSV file'
-		with open(self.modpath(args[2:]), 'w', encoding='utf-8') as f:
-			if isinstance(args[0], dict):
-				ldicts = [args[0]]
+		with open(self.modpath(*args), 'w', encoding='utf-8') as f:
+			if isinstance(dictionary, dict):
+				ldicts = [dictionary]
 			else:
-				ldicts = args[0]
+				ldicts = dictionary
 			for i in ldicts:
 				line = ''
-				for j in args[1]:
+				for j in index:
 					line += '"%s";' % str(i[j])
 				f.write(line[:-1] + '\n')
 
-	def write_json(self, *args):
+	def write_json(self, json, *args):
 		'Write data to JSON file'
-		with open(self.modpath(args[1:]), 'w', encoding='utf-8') as f:
-			jdump(args[0], f, ensure_ascii=False)
+		self.json_dump(json, self.modpath(*args))
 
-	def write_text(self, *args):
+	def write_text(self, string, *args):
 		'Convert from html to text and write to file'
-		with open(self.modpath(args[1:]), 'w', encoding='utf-8') as f:
-			f.write(html2text(args[0]))
+		with open(self.modpath(*args), 'w', encoding='utf-8') as f:
+			f.write(html2text(string))
 
-	def download(self, *args):
+	def download(self, url, *args):
 		'Download and writte file'
-		urlretrieve(args[0], self.modpath(args[1:]))
+		urlretrieve(url, self.modpath(*args))

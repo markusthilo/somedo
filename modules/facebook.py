@@ -66,7 +66,7 @@ class Facebook:
 			if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
 				break
 			if i == 2:
-				self.chrome.visible_page_png(self.storage.path('login'))
+				self.chrome.visible_page_png(self.storage.modpath('login'))
 				raise Exception('Could not login to Facebook.')
 		if self.chrome.debug:	# abort on errors in debug mode
 			accounts = [ self.get_landing(i) for i in self.extract_paths(target) ]	# get account infos with a first visit
@@ -473,7 +473,6 @@ class Facebook:
 					'name': j.rsplit('>', 1)[1],
 					'path': self.ct.href(j),
 					'link': 'https://facebook.com/%s' % self.ct.href(j),
-					'relation': 'visitor'
 				}
 				if not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
@@ -489,7 +488,6 @@ class Facebook:
 				for j in rfindall(' href="https://www\.facebook\.com/[^"]+hc_location=profile_browser" data-hovercard="[^"]+"[^<]+</a>', html):	# get people who reacted
 					visitor = self.get_profile(j)
 					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
-						visitor['relation'] = 'visitor'
 						visitors.append(visitor)
 						visitor_ids.add(visitor['id'])
 		dirname = self.dirname(account)
@@ -608,7 +606,6 @@ class Facebook:
 			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+=friends_tab" [^<]+</a>', html):	# get the links to friends
 				friend = self.get_profile(i)
 				if friend != None:
-					friend['relation'] = 'friend'
 					flist.append(friend)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in flist ], dirname, 'friends.csv')
 			self.storage.write_json(flist, dirname, 'friends.json')
@@ -628,7 +625,6 @@ class Facebook:
 			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+location=group" [^<]+</a>', html):	# regex vs facebook
 				member = self.get_profile(i)
 				if member != None:
-					friend['relation'] = 'member'
 					mlist.append(member)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in mlist ], dirname, 'members.csv')
 			self.storage.write_json(mlist, dirname, 'members.json')
@@ -669,21 +665,19 @@ class Facebook:
 				network[i['id']]['visitors'] = set()	# empty set if extended option is false
 		if depth < 1:	# less than 1 makes no sense
 			depth = 1
-		print(old_ids)
-		print(all_ids)
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			if self.chrome.stop_check():
 				break
 			for j in all_ids - old_ids:	# work on friend list which have not been handled so far
-				print(j)
 				account = self.get_landing(j)
 				network.update({account['id']: {	# add new account
 					'type': account['type'],
 					'name': account['name'],
 					'path': account['path'],
 					'link': account['link'],
+					'friends': set(),
+					'visitors': set()
 				}})
-				print('i:', i)
 				if i < depth - 1:	# on last recusion level do not get the friend lists anymore
 					print('!!! i:', i)
 					if self.chrome.stop_check():
@@ -702,7 +696,9 @@ class Facebook:
 						network[j]['visitors'] = set()
 		print('NETWORK')
 		print(network)
-		self.storage.write_json(network, 'network.json')
+		
+			
+
 
 
 #		friends = []	# list to store pairs of befriended accounts (ids only)
