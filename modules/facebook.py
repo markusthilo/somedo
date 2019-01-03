@@ -680,7 +680,6 @@ class Facebook:
 					'visitors': set()
 				}})
 				if i < depth - 1:	# on last recusion level do not get the friend lists anymore
-					print('!!! i:', i)
 					if self.chrome.stop_check():
 						break
 					network[j]['friends'] = self.get_friends(account)
@@ -695,17 +694,34 @@ class Facebook:
 						)
 					else:
 						network[j]['visitors'] = set()
-		print('NETWORK')
+
 		print(network)
 
 		netvis = NetVis(self.storage)	# create network visualisation object
+		friend_edges = set()	# generate edges for facebook friends excluding doubles
 		for i in network:
-#			netvis.add_node(
-			print(
+			netvis.add_node(
 				i,
-				'../%s/profile.jpg' % network[i]['path'],
-				'./netvis/pixmaps/profile.jpg',
-				network[i]['name']
+				image = '../%s/profile.jpg' % network[i]['path'],
+				alt_image = './pixmaps/profile.jpg',
+				label = network[i]['name'],
+				title = network[i]['link']
 			)
+			for j in network[i]['friends']:
+				if not '%s %s' % (i, j) in friend_edges:
+					friend_edges.add('%s %s' % (j, i))
+		for i in friend_edges:
+			ids = i.split(' ')
+			netvis.add_edge(ids[0], ids[1])
+		if extended:	# on extended create edges for the visitors as arrows
+			visitor_edges = { '%s %s' % (j, i) for i in network for j in network[i]['visitors'] }
+			for i in visitor_edges:
+				ids = i.split(' ')
+				netvis.add_edge(ids[0], ids[1], arrow=True, dashes=True)
 			
+			print(visitor_edges)
+
+		netvis.write()
+		
+
 

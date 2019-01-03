@@ -21,8 +21,12 @@ class Storage:
 		else:
 			self.slash = '/'# the real slash for real operating systems :-)
 		self.rootdir = os_path.realpath(__file__).rsplit(self.slash, 2)[0]# set root directory of the application (one level up from here)
-		self.outdir = getcwd() + self.slash + datetime.utcnow().strftime('%Y%m%d_SocialMedia')
+		self.outdir = getcwd() + self.slash + self.today() + '_SocialMedia'
 		self.moddir = self.outdir# output directory
+
+	def today(self):
+		'Give date of today as string'
+		return datetime.utcnow().strftime('%Y-%m-%d')
 
 	def mkdir(self, path):
 		'Make directory. Do nothing if already existent.'
