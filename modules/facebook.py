@@ -175,15 +175,6 @@ class Facebook:
 		'Sleep a slightly ranomized time'
 		tsleep(t + runiform(0, 0.1))
 
-	def search(self, pattern, string):
-		'Makes re.search usable'
-		if string == None:
-			return None
-		m = rsearch(pattern, string)
-		if m == None:
-			return None
-		return m.group()
-
 	def extract_paths(self, target):
 		'Extract facebook paths from target that might be urls'
 		l= []	# list for the target users (id or path)
@@ -297,38 +288,39 @@ class Facebook:
 
 	def get_profile_id(self, html):
 		'Extract id'
-		return self.search('id=[0-9]+', html)[3:]
+		return self.ct.search('id=[0-9]+', html)[3:]
 
 	def get_profile_name(self, html):
 		'Extract name'
-		html = self.search('>[^<]+</a>', html)
+		html = self.ct.search('>[^<]+</a>', html)
 		if html == None:
 			return 'undetected'
 		return html[1:-4]
 
 	def get_profile_path(self, html):
 		'Extract path'
-		m = rsearch(' href="https://www.facebook.com/[^?]+', html)
-		if m == None:
+		if self.ct.search(' href="', html) == '':
 			return 'undetected'
-		if m.group()[32:] != 'profile.php':
-			return m.group()[32:]
-		m = rsearch(' href="https://www.facebook.com/profile.php\?id=[^&]+', html)
-		if m == None:
-			return 'undetected'
-		return m.group()[47:]
+		path = self.ct.search(' href="https://www.facebook.com/profile.php\?id=[0-9]+', html)
+		if path != None:
+			return path[47:]
+		path = self.ct.search(' href="https://www.facebook.com/[^?/"&]+', html)
+		if path != None:
+			return path[32:]
+		path = self.ct.search(' href="/profile.php\?id=[0-9]+', html)
+		if path != None:
+			return path[8:]
+		path = self.ct.search(' href="/[^?/"&]+', html)
+		if path != None:
+			return path[8:]
+		return 'undetected'
 
 	def get_profile_link(self, html):
 		'Extract link to profile'
-		m = rsearch(' href="https://www.facebook.com/[^?]+', html)
-		if m == None:
-			return 'undetected'
-		if m.group()[32:] != 'profile.php':
-			return m.group()[7:]
-		m = rsearch(' href="https://www.facebook.com/profile.php\?id=[^&]+', html)
-		if m == None:
-			return 'undetected'
-		return m.group()[7:]
+		path = self.get_profile_path(html)
+		if path == 'undetected':
+			return path
+		return 'https://www.facebook.com/' + path
 
 	def get_profile(self, html):
 		'Extract profile'
@@ -467,18 +459,12 @@ class Facebook:
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
 		items = self.chrome.get_outer_html('ClassName', 'commentable_item')	# get commentable items
 		for i in items:
-			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+', i):	# get comment authors
-				visitor = {
-					'type': 'profile',
-					'id': self.search('/user.php\?id=[0-9]+', j)[13:],
-					'name': j.rsplit('>', 1)[1],
-					'path': self.ct.href(j),
-					'link': 'https://facebook.com/%s' % self.ct.href(j),
-				}
+			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+</a>', i):	# get comment authors
+				visitor = self.get_profile(j)
 				if not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
 					visitor_ids.add(visitor['id'])
-			href = self.search('href="/ufi/reaction/profile/browser/[^"]+', i)		# get reactions
+			href = self.ct.search('href="/ufi/reaction/profile/browser/[^"]+', i)		# get reactions
 			if href != None:
 				if self.chrome.stop_check():
 					return
@@ -486,7 +472,10 @@ class Facebook:
 				self.chrome.expand_page(terminator=self.terminator)	# scroll through page
 				self.rm_pagelets()	# remove bluebar etc.
 				html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
-				for j in rfindall(' href="https://www\.facebook\.com/[^"]+hc_location=profile_browser" data-hovercard="[^"]+"[^<]+</a>', html):	# get people who reacted
+				for j in rfindall(
+					' href="https://www\.facebook\.com/[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" data-hovercard-prefer-more-content-show="1"[^<]+</a>',
+					html
+				):
 					visitor = self.get_profile(j)
 					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
 						visitors.append(visitor)
@@ -653,7 +642,8 @@ class Facebook:
 			all_ids |= friends
 			if extended:	# also add visitors to network if desired
 				visitors = self.get_timeline(
-					i, expand=True,
+					i,
+					expand=True,
 					translate=False,
 					visitors=True,
 					until=0,
@@ -685,7 +675,8 @@ class Facebook:
 					network[j]['friends'] = self.get_friends(account)
 					if extended:
 						network[j]['visitors'] = self.get_timeline(
-							i, expand=True,
+							i,
+							expand=True,
 							translate=False,
 							visitors=True,
 							until=0,
@@ -718,8 +709,6 @@ class Facebook:
 			for i in visitor_edges:
 				ids = i.split(' ')
 				netvis.add_edge(ids[0], ids[1], arrow=True, dashes=True)
-			
-			print(visitor_edges)
 
 		netvis.write()
 		
