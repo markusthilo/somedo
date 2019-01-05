@@ -270,6 +270,16 @@ class Facebook:
 			account = None
 		return account
 
+	def extract_profileactions(self):
+		'Get infos from pagelet_timeline_profile_actions'
+		html = self.chrome.get_inner_html_by_id('pagelet_timeline_profile_actions')
+		if html == None:	# exit if no profile actions
+			return None
+		html = self.ct.search('id&quot;:[0-9]+', html)
+		if html == None:	# exit if no id was found
+			return None
+		return html[9:]
+
 	def get_account(self, path):
 		'Get account data and write information as CSV and JSON file if not alredy done'
 		account = self.extract_coverinfo()	# try to get facebook id, path/url and name from profile page
@@ -282,6 +292,9 @@ class Facebook:
 		if account['path'] == None:
 			account['path'] = path
 			account['link'] = 'https://www.facebook.com/%s' % path
+		fid =self.extract_profileactions()
+		if fid != None:
+			account['id'] = fid
 		if account['id'] == None:
 			account['id'] = account['path']
 		return account
@@ -557,10 +570,14 @@ class Facebook:
 				self.chrome.go_back()
 		else:
 			html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_photos')
+			print('html:')
+			print(html)
+			print()
 			for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[8:])
+				print(i)
+				self.chrome.navigate(i[9:-1])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.
@@ -685,9 +702,6 @@ class Facebook:
 						)
 					else:
 						network[j]['visitors'] = set()
-
-		print(network)
-
 		netvis = NetVis(self.storage)	# create network visualisation object
 		friend_edges = set()	# generate edges for facebook friends excluding doubles
 		for i in network:
@@ -696,7 +710,7 @@ class Facebook:
 				image = '../%s/profile.jpg' % network[i]['path'],
 				alt_image = './pixmaps/profile.jpg',
 				label = network[i]['name'],
-				title = network[i]['link']
+				title = '<img src="../%s/landing.png" alt="%s" style="width: 25 %%;"/>' % (network[i]['path'], network[i]['path'])
 			)
 			for j in network[i]['friends']:
 				if not '%s %s' % (i, j) in friend_edges:
@@ -709,8 +723,4 @@ class Facebook:
 			for i in visitor_edges:
 				ids = i.split(' ')
 				netvis.add_edge(ids[0], ids[1], arrow=True, dashes=True)
-
 		netvis.write()
-		
-
-
