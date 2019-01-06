@@ -8,7 +8,7 @@
 		}
 		#network {
 		    width: 100%;
-		    height: 1200px;
+		    height: 200em;
 		}
 	</style>
 	<script type="text/javascript" src="./dist/vis.js"></script>
@@ -23,16 +23,14 @@
 			edges = [</edges>
 			];
 			var container = document.getElementById('network');
-			var data = {
-				nodes: nodes,
-				edges: edges
-			};
+			var data = {nodes: nodes, edges: edges};
 			var options = {
+				autoResize: true,
+				interaction: {hover: true},
+				physics: {'barnesHut': {'gravitationalConstant': -20000}},
 				nodes: {
 					color: 'grey', 
-					shapeProperties: {
-						useBorderWithImage:true
-					}
+					shapeProperties: {useBorderWithImage: true}
 				}
 			};
 			network = new vis.Network(container, data, options);

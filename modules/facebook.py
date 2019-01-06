@@ -426,11 +426,30 @@ class Facebook:
 			limit=limit
 		)
 
+	def account2html(self, account):
+		'Write account info as html file'
+		html = '<!doctype html>\n<html>\n<head>\n\t<title>Somed0 | Facebook Account | '
+		html += account['name']
+		html += '</title>\n\t<style type="text/css">\n\t\tbody {font-family: Sans-Serif;}\n\t</style>\n</head>\n<body>\n\t<h1>'
+		html += account['name']
+		html += '</h1><h2>Facebook ID: '
+		html += account['id']
+		html += ', Account Type: '
+		html += account['type']
+		html += '</h2>\n\t<h2>'
+		html += account['link']
+		html += '</h2>\n\t<h2><a href="'
+		html += account['link']
+		html += '" style="color: red; border-style: solid; padding: 0.2em;">Warning: Link to online Facebook account!!!</a></h2></br>\n\t<img src="'
+		html += '%s/%s' % (self.storage.moddir, account['path']) 
+		html += '/account.png" alt="" style="border: solid;"\>\n</body>\n</html>'
+		self.storage.write_str(html, account['path'], 'account.html')
+
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
 		self.chrome.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		self.sleep(1)
-		account = self.get_account(path)# get account infos if not already done
+		account = self.get_account(path)	# get account infos if not already done
 		dirname = self.dirname(account)	# generate a name for the account's subdirectory
 		self.storage.mksubdir(dirname)	# as landing is the first task to perform, generate the subdiroctory here
 		self.storage.write_dicts(account, self.ACCOUNT, dirname, 'account.csv')	# write account infos
@@ -440,10 +459,11 @@ class Facebook:
 		except:
 			pass
 		self.rm_pagelets()	# remove bluebar etc.
-		path_no_ext = self.storage.modpath(dirname, 'landing')	# generate a file path for screenshot and pdf
+		path_no_ext = self.storage.modpath(dirname, 'account')	# generate a file path for screenshot and pdf
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
 		self.chrome.page_pdf(path_no_ext)	# and as pdf (when headless)
-		return account# give back the targeted account
+		self.account2html(account)
+		return account	# give back the targeted account
 
 	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT, dontsave=False):
 		'Get timeline'
@@ -647,15 +667,15 @@ class Facebook:
 			if self.chrome.stop_check():
 				break
 			friends = self.get_friends(i)
-			network.update({i['id']: {	# add friends
+			network.update({i['path']: {	# add friends
+				'id': i['id'],
 				'type': i['type'],
 				'name': i['name'],
-				'path': i['path'],
 				'link': i['link'],
 				'friends': friends
 			}})
-			old_ids.add(i['id'])	# remember already handled accounts
-			all_ids.add(i['id'])	# update set of all ids
+			old_ids.add(i['path'])	# remember already handled accounts
+			all_ids.add(i['path'])	# update set of all ids
 			all_ids |= friends
 			if extended:	# also add visitors to network if desired
 				visitors = self.get_timeline(
@@ -667,10 +687,10 @@ class Facebook:
 					limit=limit,
 					dontsave=True
 				)
-				network[i['id']]['visitors'] = visitors
+				network[i['path']]['visitors'] = visitors
 				all_ids |= visitors
 			else:
-				network[i['id']]['visitors'] = set()	# empty set if extended option is false
+				network[i['path']]['visitors'] = set()	# empty set if extended option is false
 		if depth < 1:	# less than 1 makes no sense
 			depth = 1
 		for i in range(depth):	# stay in depth limit and go through friend lists
@@ -678,10 +698,10 @@ class Facebook:
 				break
 			for j in all_ids - old_ids:	# work on friend list which have not been handled so far
 				account = self.get_landing(j)
-				network.update({account['id']: {	# add new account
+				network.update({account['path']: {	# add new account
+					'id': account['id'],
 					'type': account['type'],
 					'name': account['name'],
-					'path': account['path'],
 					'link': account['link'],
 					'friends': set(),
 					'visitors': set()
@@ -707,10 +727,10 @@ class Facebook:
 		for i in network:
 			netvis.add_node(
 				i,
-				image = '../%s/profile.jpg' % network[i]['path'],
+				image = '../%s/profile.jpg' % network[i],
 				alt_image = './pixmaps/profile.jpg',
 				label = network[i]['name'],
-				title = '<img src="../%s/landing.png" alt="%s" style="width: 25 %%;"/>' % (network[i]['path'], network[i]['path'])
+				title = '<img src="../%s/account.png" alt="%s" style="width: 24em;"/>' % (network[i], network[i])
 			)
 			for j in network[i]['friends']:
 				if not '%s %s' % (i, j) in friend_edges:
