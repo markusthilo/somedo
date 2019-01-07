@@ -92,9 +92,9 @@ to take screenshots from the pictures in the Photop section. For the comments Ex
 Translate and is available like in Timeline.
 The option Friends should store friend lists to as CSV and JSON (or members on Group of group
 accounts) and create in addition to screenshots. Network gets friends of friends and so on.
-The recursion is limited by Recursion depth (default is 1 = friends of friends). It seems
-Facebook does not like unlicensed data mining, so while using Network your investigator
-account might get blocked for a while.
+The recursion is limited by Recursion depth (default is 1 = friends of targets, 2 = friends of
+friends). It seems Facebook does not like unlicensed data mining, so while using Network your
+investigator account might get blocked for a while.
 
 
 Instagram
@@ -115,6 +115,12 @@ GPL Version 3.
 If you are interested in the code, visit the project on Github:
 
 https://github.com/markusthilo/somedo
+
+The network visualisation uses Vis.js which is dual licensed under both Apache 2.0 and MIT:
+
+http://visjs.org
+http://www.apache.org/licenses/LICENSE-2.0
+http://opensource.org/licenses/MIT
 
 The tool is in alpha state and propably will not be stable enough to have a final release
 ever. Constant changes and inhomogeneity of pages require permanent adaptation and development.

@@ -21,6 +21,7 @@ class Storage:
 		else:
 			self.slash = '/'# the real slash for real operating systems :-)
 		self.rootdir = os_path.realpath(__file__).rsplit(self.slash, 2)[0]# set root directory of the application (one level up from here)
+		self.icondir = self.rootdir + self.slash + 'icons'
 		self.outdir = getcwd() + self.slash + self.today() + '_SocialMedia'
 		self.moddir = self.outdir# output directory
 
@@ -102,13 +103,18 @@ class Storage:
 
 	def write_str(self, string, *args):
 		'Write string to file from main or subdirectory'
-		with open(self.modpath(*args) , 'w', encoding='utf-8') as f:
+		with open(self.modpath(*args), 'w', encoding='utf-8') as f:
 			f.write(str(string))	# write string
 
 	def read_str(self, *args):
 		'Read file as string from main or subdirecoty'
 		with open(modpath(*args), 'r', encoding='utf-8') as f:
 			return f.read()
+
+	def write_html(self, string, *args):
+		'Write string to file while encoding UTF8 to HTML'
+		with open(self.modpath(*args), 'wb') as f:
+			f.write(string.encode('ascii', 'xmlcharrefreplace'))
 
 	def write_1d(self, lst1d, *args):
 		'Write (1-dimensional) list to CSV/TSV file (1 line, tab separated)'

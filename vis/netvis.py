@@ -44,15 +44,16 @@ class NetVis:
 		self.edges_gexf += ' />'
 		self.edge_id += 1
 
-	def write(self):
+	def write(self, doubleclick=''):
 		'Write HTML/CSS/JavaScript'
 		self.storage.cptree2moddir('vis', 'Network')
 		html = self.storage.read_static('vis', 'skeleton.html')
 		html = sub('</nodes>', self.nodes_js.rstrip(','), html)
 		html = sub('</edges>', self.edges_js.rstrip(','), html)
+		html = sub('</doubleclick>', doubleclick, html)
 		self.storage.write_str(html, 'Network', 'network.html')
 		gexf = self.storage.read_static('vis', 'skeleton.gexf')
 		gexf = sub('#today#', self.storage.today(), gexf)
 		gexf = sub('#nodes#', self.nodes_gexf, gexf)
 		gexf = sub('#edges#', self.edges_gexf, gexf)
-		self.storage.write_str(gexf, 'Network', 'network.gexf')
+		self.storage.write_html(gexf, 'Network', 'network.gexf')

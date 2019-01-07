@@ -3,7 +3,7 @@
 from threading import Event, Thread
 from functools import partial
 from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry, Text, PhotoImage, StringVar, BooleanVar, IntVar
-from tkinter import BOTH, GROOVE, END, W, X, LEFT, RIGHT
+from tkinter import BOTH, GROOVE, END, W, E, X, LEFT, RIGHT
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
@@ -17,13 +17,14 @@ class GuiRoot(Tk):
 	def __init__(self, master):
 		'Generate object for main / root window.'
 		self.storage = Storage()# object for file system accesss
+
 		self.worker = Worker(self.storage)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		self.master = master	# this is for tk - in basic usage this will be the root window
 		self.master.title('Social Media Downloader')	# window title for somedo
 		try:
 			self.master.call('wm', 'iconphoto', self.master._w, PhotoImage(	# give the window manager an application icon
-				file='%s%sicons%ssomedo.png'  % (self.storage.rootdir, self.storage.slash, self.storage.slash)
+				file='%s%ssomedo.png' % (self.storage.icondir, self.storage.slash)
 			))
 		except:
 			pass
@@ -33,9 +34,9 @@ class GuiRoot(Tk):
 		for i in range(10):	# generate job list
 			Label(self.frame_jobs, textvariable=self.__tk_labels__[i], width=110, relief=GROOVE, anchor=W, padx=2).grid(
 			row=i, column=0, padx=4, pady=4, ipadx=4, ipady=4)
-			Button(self.frame_jobs, text='Up', width=4, command=partial(self.__job_up__, i)).grid(row=i, column=1)
-			Button(self.frame_jobs, text='Down', width=4, command=partial(self.__job_down__, i)).grid(row=i, column=2)
-			Button(self.frame_jobs, text='Check / Remove', width=14, command=partial(self.__job_check__, i)).grid(row=i, column=3)
+			Button(self.frame_jobs, text='\u2191', command=partial(self.__job_up__, i)).grid(row=i, column=1)
+			Button(self.frame_jobs, text='\u2193', command=partial(self.__job_down__, i)).grid(row=i, column=2)
+			Button(self.frame_jobs, text='\u267b Check / Remove', width=14, command=partial(self.__job_check__, i)).grid(row=i, column=3)
 		self.nb_modules = ttk.Notebook(self.master)	# here is the tk-notebook for the modules
 		self.nb_modules.pack(fill = X, expand = False)	# tk-stuff
 		self.tabs = [ ttk.Frame(self.nb_modules) for i in self.worker.mods ]	# notebook-tabs for the modules
@@ -83,7 +84,7 @@ class GuiRoot(Tk):
 			Button(self.tabs[tab_cnt], text='Purge jobs', width=16, command=partial(self.__purge_jobs__)).grid(row=row, column=1, pady=2)
 			row += 1
 			if self.worker.logins[i] != []:
-				Label(self.tabs[tab_cnt], text='Login:').grid(row=row, column=0, sticky=W, padx=24, pady=2)
+				Label(self.tabs[tab_cnt], text='Login').grid(row=row, column=0, sticky=W, padx=2, pady=2)
 				row += 1
 				self.tk_logins[i] = dict()	# login credentials as email and password
 				self.tk_logins_hide[i] = dict()
@@ -91,11 +92,11 @@ class GuiRoot(Tk):
 				for j in self.worker.logins[i]:
 					self.tk_logins[i][j] = StringVar(self.tabs[tab_cnt], '')
 					self.tk_logins_hide[i][j] = BooleanVar(self.tabs[tab_cnt], True)
-					Label(self.tabs[tab_cnt], text=j + ':').grid(row=row, column=1, sticky=W, padx=2, pady=2)
+					Label(self.tabs[tab_cnt], text=j + ':').grid(row=row, column=0, sticky=E, padx=2, pady=2)
 					Checkbutton(self.tabs[tab_cnt], text='hide', variable=self.tk_logins_hide[i][j],
-						command=partial(self.__hide_login__, i, j)).grid(row=row, column=2,sticky=W,  pady=2)
-					self.tk_logins_entry_fields[i][j] = Entry(self.tabs[tab_cnt], textvariable=self.tk_logins[i][j], show='*', width=40)
-					self.tk_logins_entry_fields[i][j].grid(row=row, column=3, columnspan=100, sticky=W, pady=2)
+						command=partial(self.__hide_login__, i, j)).grid(row=row, column=1,sticky=E,  pady=2)
+					self.tk_logins_entry_fields[i][j] = Entry(self.tabs[tab_cnt], textvariable=self.tk_logins[i][j], show='*', width=120)
+					self.tk_logins_entry_fields[i][j].grid(row=row, column=2, columnspan=100, sticky=W, padx=2, pady=2)
 					row += 1
 			tab_cnt += 1
 		self.frame_configuration = LabelFrame(self.master, text = 'Configuration')
@@ -129,7 +130,7 @@ class GuiRoot(Tk):
 		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
-				with open(self.rootdir + self.slash + i, 'r', encoding='utf-8') as f:
+				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
 					self.about_help = f.read()
 					Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
 					break

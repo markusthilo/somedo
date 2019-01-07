@@ -13,7 +13,7 @@ class Facebook:
 	'Downloader for Facebook Accounts'
 
 	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
-	DEFAULT_PAGE_LIMIT = 200
+	DEFAULT_PAGE_LIMIT = 100
 	DEFINITION = [
 		'Facebook',
 		['Email', 'Password'],
@@ -314,15 +314,15 @@ class Facebook:
 		'Extract path'
 		if self.ct.search(' href="', html) == '':
 			return 'undetected'
-		path = self.ct.search(' href="https://www.facebook.com/profile.php\?id=[0-9]+', html)
+		path = self.ct.search(' href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)
 		if path != None:
 			return path[47:]
-		path = self.ct.search(' href="https://www.facebook.com/[^?/"&]+', html)
+		path = self.ct.search(' href="https://www\.facebook\.com/[^?/"&]+', html)
 		if path != None:
 			return path[32:]
-		path = self.ct.search(' href="/profile.php\?id=[0-9]+', html)
+		path = self.ct.search(' href="/profile\.php\?id=[0-9]+', html)
 		if path != None:
-			return path[8:]
+			return path[23:]
 		path = self.ct.search(' href="/[^?/"&]+', html)
 		if path != None:
 			return path[8:]
@@ -443,7 +443,7 @@ class Facebook:
 		html += '" style="color: red; border-style: solid; padding: 0.2em;">Warning: Link to online Facebook account!!!</a></h2></br>\n\t<img src="'
 		html += '%s/%s' % (self.storage.moddir, account['path']) 
 		html += '/account.png" alt="" style="border: solid;"\>\n</body>\n</html>'
-		self.storage.write_str(html, account['path'], 'account.html')
+		self.storage.write_html(html, account['path'], 'account.html')
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
@@ -516,7 +516,7 @@ class Facebook:
 		dirname = self.dirname(account)
 		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], dirname, 'visitors.csv')
 		self.storage.write_json(visitors, dirname, 'visitors.json')
-		return { i['id'] for i in visitors }	# return visitors ids as set
+		return { i['path'] for i in visitors }	# return visitors ids as set
 
 	def get_about(self, account):
 		'Get About'
@@ -530,7 +530,7 @@ class Facebook:
 		'Get Photos'
 		if account['type'] == 'pg':
 			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
-		if account['type'] == 'group':
+		elif account['type'] == 'group':
 			self.chrome.navigate('https://www.facebook.com/groups/%s/photos' % account['path'])
 		else:
 			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
@@ -544,10 +544,10 @@ class Facebook:
 		cnt = 1	# to number screenshots
 		if account['type'] == 'pg':
 			html = self.chrome.get_inner_html_by_id('content_container')
-			for i in rfindall('<a href="https://www.facebook.com/[^"]+/photos/[^"]+', html):
+			for i in rfindall('<a href="https://www\.facebook\.com/[^"]+/photos/[^"]+" rel="theater">', html):
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[9:])
+				self.chrome.navigate(i[9:-16])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.
@@ -590,13 +590,9 @@ class Facebook:
 				self.chrome.go_back()
 		else:
 			html = self.chrome.get_inner_html_by_id('pagelet_timeline_medley_photos')
-			print('html:')
-			print(html)
-			print()
 			for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 				if self.chrome.stop_check():
 					return
-				print(i)
 				self.chrome.navigate(i[9:-1])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
@@ -636,7 +632,7 @@ class Facebook:
 					flist.append(friend)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in flist ], dirname, 'friends.csv')
 			self.storage.write_json(flist, dirname, 'friends.json')
-			return { i['id'] for i in flist }	# return friends ids as set
+			return { i['path'] for i in flist }	# return friends as set
 		if account['type'] == 'groups':
 			self.chrome.navigate('%s/members' % account['link'])
 			path_no_ext = self.storage.modpath(dirname, 'members')
@@ -655,7 +651,7 @@ class Facebook:
 					mlist.append(member)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in mlist ], dirname, 'members.csv')
 			self.storage.write_json(mlist, dirname, 'members.json')
-			return { i['id'] for i in mlist }	# return members ids as set
+			return { i['path'] for i in mlist }	# return members as set
 		return set()
 
 	def get_network(self, accounts, depth, extended=False, limit=DEFAULT_PAGE_LIMIT):
@@ -727,10 +723,10 @@ class Facebook:
 		for i in network:
 			netvis.add_node(
 				i,
-				image = '../%s/profile.jpg' % network[i],
+				image = '../%s/profile.jpg' % i,
 				alt_image = './pixmaps/profile.jpg',
 				label = network[i]['name'],
-				title = '<img src="../%s/account.png" alt="%s" style="width: 24em;"/>' % (network[i], network[i])
+				title = '<img src="../%s/account.png" alt="%s" style="width: 24em;"/>' % (i, i)
 			)
 			for j in network[i]['friends']:
 				if not '%s %s' % (i, j) in friend_edges:
@@ -743,4 +739,4 @@ class Facebook:
 			for i in visitor_edges:
 				ids = i.split(' ')
 				netvis.add_edge(ids[0], ids[1], arrow=True, dashes=True)
-		netvis.write()
+		netvis.write(doubleclick="window.open('../' + params.nodes[0] + '/account.html')")
