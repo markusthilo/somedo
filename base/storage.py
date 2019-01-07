@@ -111,7 +111,7 @@ class Storage:
 		with open(modpath(*args), 'r', encoding='utf-8') as f:
 			return f.read()
 
-	def write_html(self, string, *args):
+	def write_xml(self, string, *args):
 		'Write string to file while encoding UTF8 to HTML'
 		with open(self.modpath(*args), 'wb') as f:
 			f.write(string.encode('ascii', 'xmlcharrefreplace'))

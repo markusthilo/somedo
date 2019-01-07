@@ -443,7 +443,7 @@ class Facebook:
 		html += '" style="color: red; border-style: solid; padding: 0.2em;">Warning: Link to online Facebook account!!!</a></h2></br>\n\t<img src="'
 		html += '%s/%s' % (self.storage.moddir, account['path']) 
 		html += '/account.png" alt="" style="border: solid;"\>\n</body>\n</html>'
-		self.storage.write_html(html, account['path'], 'account.html')
+		self.storage.write_xml(html, account['path'], 'account.html')
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
