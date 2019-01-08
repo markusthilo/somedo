@@ -18,9 +18,10 @@ class Storage:
 		'Create object by making a destination directory if not exists'
 		if os_name == 'nt':
 			self.slash = '\\'# to build filepaths in windows
+			self.rootdir = getcwd()	# working directory as root on windows
 		else:
 			self.slash = '/'# the real slash for real operating systems :-)
-		self.rootdir = os_path.realpath(__file__).rsplit(self.slash, 2)[0]# set root directory of the application (one level up from here)
+			self.rootdir = os_path.realpath(__file__).rsplit(self.slash, 2)[0]	# set root directory of the application (one level up from here)
 		self.icondir = self.rootdir + self.slash + 'icons'
 		self.outdir = getcwd() + self.slash + self.today() + '_SocialMedia'
 		self.moddir = self.outdir# output directory
