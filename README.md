@@ -94,7 +94,8 @@ The option Friends should store friend lists to as CSV and JSON (or members on G
 accounts) and create in addition to screenshots. Network gets friends of friends and so on.
 The recursion is limited by Recursion depth (default is 1 = friends of targets, 2 = friends of
 friends). It seems Facebook does not like unlicensed data mining, so while using Network your
-investigator account might get blocked for a while.
+investigator account might get blocked for a while. Open Facebook/Network/network.html to show
+the visualisation.
 
 
 Instagram
