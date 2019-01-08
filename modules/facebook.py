@@ -208,21 +208,13 @@ class Facebook:
 		if html == None:	# exit if no cover ProfileCover
 			return None
 		account = {'type': 'profile'}
-		m = rsearch(' data-referrerid="[0-9]+" ', html)	# get id
+		m = rsearch(' data-referrerid="[0-9]+" ', html)	# try to get facebook id
 		try:
 			account['id'] = m.group()[18:-2]
 		except:
 			account['id'] = None
 		html = self.chrome.get_inner_html_by_id('fb-timeline-cover-name')
-		m = rsearch('">[^<]+</a>', html)	# try to cut out displayed name (e.g. John McLane)
-		try:
-			account['name'] = m.group()[2:-4]
-		except:
-			m = rsearch('href="https://www\.facebook\.com/[^"]+"><span>[^<]+<', html)
-			try:
-				account['name'] = m.group().split('>')[2][:-1]
-			except:
-				account['name'] = 'undetected'
+		account['name'] = self.get_profile_name(html)	# try to cut out displayed name (e.g. John McLane)
 		html = self.chrome.get_inner_html_by_id('fbTimelineHeadline')
 		m = rsearch(' data-tab-key="timeline" href="https://www\.facebook\.com/[^"]+[?&]lst=', html)
 		try:
@@ -305,10 +297,13 @@ class Facebook:
 
 	def get_profile_name(self, html):
 		'Extract name'
-		html = self.ct.search('>[^<]+</a>', html)
-		if html == None:
-			return 'undetected'
-		return html[1:-4]
+		m = rsearch('>[^<]+</a>', html)
+		if m != None:
+			return m.group()[1:-4]
+		m = rsearch('>[^<]+<span[^>]*>[^<]+</span>[^<]*</a>', html)
+		if m != None:
+			return rsub('<[^>]+>', '', m.group()[1:-4])
+		return 'undetected'
 
 	def get_profile_path(self, html):
 		'Extract path'
