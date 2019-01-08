@@ -36,7 +36,7 @@ class GuiRoot(Tk):
 			row=i, column=0, padx=4, pady=4, ipadx=4, ipady=4)
 			Button(self.frame_jobs, text='\u2191', command=partial(self.__job_up__, i)).grid(row=i, column=1)
 			Button(self.frame_jobs, text='\u2193', command=partial(self.__job_down__, i)).grid(row=i, column=2)
-			Button(self.frame_jobs, text='\u267b Check / Remove', width=14, command=partial(self.__job_check__, i)).grid(row=i, column=3)
+			Button(self.frame_jobs, text='\u267b Check / Remove', width=16, command=partial(self.__job_check__, i)).grid(row=i, column=3)
 		self.nb_modules = ttk.Notebook(self.master)	# here is the tk-notebook for the modules
 		self.nb_modules.pack(fill = X, expand = False)	# tk-stuff
 		self.tabs = [ ttk.Frame(self.nb_modules) for i in self.worker.mods ]	# notebook-tabs for the modules
