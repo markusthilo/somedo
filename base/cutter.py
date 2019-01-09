@@ -36,3 +36,7 @@ class Cutter:
 			return '.' + url.rsplit('/', 1)[-1].split('?', 1)[0].rsplit('.', 1)[1]
 		except:
 			return ''
+
+	def semicolons(self, string):
+		'Split string at semicolons and remove whitespaces'
+		return [ i.strip(' ') for i in string.split(';') if i.strip(' ') != '' ]

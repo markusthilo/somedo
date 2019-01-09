@@ -6,6 +6,7 @@ from random import uniform as runiform
 from re import sub as rsub
 from re import search as rsearch
 from re import findall as rfindall
+from base.chrometools import Chrome
 from base.cutter import Cutter
 from vis.netvis import NetVis
 
@@ -49,27 +50,20 @@ class Facebook:
 
 	ACCOUNT = ('type', 'id', 'name', 'path', 'link')
 
-	def __init__(self, target, options, login, chrome, storage):
+	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
-		self.ct = Cutter()
 		self.chrome = chrome
-		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
-		for i in range(3):	# try 3x to log into your facebbok account
-			self.sleep(1)
-			try:
-				self.chrome.insert_element_by_id('email', login['Email'])	# login with email
-				self.chrome.insert_element_by_id('pass', login['Password'])	# and password
-				self.chrome.click_element_by_id('loginbutton')	# click login
-			except:
-				continue
-			self.sleep(1)
-			if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
-				break
-			if i == 2:
-				self.chrome.visible_page_png(self.storage.modpath('login'))
-				raise Exception('Could not login to Facebook.')
-		if self.chrome.debug:	# abort on errors in debug mode
+		self.stop = stop
+		self.headless = headless
+		self.ct = Cutter()
+		self.emails = self.ct.semicolons(login['Email'])
+		self.passwords = self.ct.semicolons(login['Password'])
+		self.passwords += [ self.passwords[-1] for i in range(len(self.emails)-len(self.passwords)) ]	# same password
+		if self.emails == [] or self.passwords == []:
+			raise Exception('At least one login account is needed for the Facebook module.')
+		self.loginrevolver = 0
+		if debug:	# abort on errors in debug mode
 			accounts = [ self.get_landing(i) for i in self.extract_paths(target) ]	# get account infos with a first visit
 			if 'Network' in options:
 				self.get_network(
@@ -168,6 +162,7 @@ class Facebook:
 						)
 					except:
 						errors += ' %s/Timeline,' % i
+			self.chrome.close()
 			if errors != '':
 				raise Exception('The following Facebook account(s)/action(s) returned errors: %s' % errors[:-1])
 
@@ -178,8 +173,8 @@ class Facebook:
 	def extract_paths(self, target):
 		'Extract facebook paths from target that might be urls'
 		l= []	# list for the target users (id or path)
-		for i in target.split(';'):
-			i = rsub('^.*facebook.com/', '', i.strip().rstrip().rstrip('/'))
+		for i in self.ct.semicolons(target):
+			i = rsub('^.*facebook.com/', '', i.rstrip('/'))
 			i = rsub('&.*$', '', i)
 			if i != '':
 				l.append(i)
@@ -354,6 +349,7 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('pagelet_page_cover')
 		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
 		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
+		self.chrome.rm_outer_html_by_id('PageComposerPagelet_')
 
 	def rm_profile_cover(self):
 		'Remove fbProfileCover'
@@ -369,6 +365,10 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('entity_sidebar')
 		self.chrome.rm_outer_html_by_id('pages_side_column')
 		self.chrome.rm_outer_html_by_id('rightCol')
+
+	def rm_write_comment(self):
+		'Remove Write a comment...'
+		self.chrome.rm_outer_html('ClassName', 'UFIList')
 
 	def click_translations(self):
 		'Find the See Translation buttons and click'
@@ -439,10 +439,51 @@ class Facebook:
 		html += '</h2></br>\n\t<img src="./account.png" alt="" style="border: solid;"\>\n</body>\n</html>'
 		self.storage.write_xml(html, account['path'], 'account.html')
 
+	def login(self):
+		'Login to Facebook'
+		if self.chrome.chrome_proc != None:
+			self.chrome.close()
+		self.chrome.open(stop=self.stop, headless=self.headless)
+		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
+		try_cnt = 0
+		while try_cnt < 100:
+			if self.chrome.stop_check():
+				return
+			self.sleep(1)
+			try:
+				self.chrome.insert_element_by_id('email', self.emails[self.loginrevolver])	# login with email
+				self.chrome.insert_element_by_id('pass', self.passwords[self.loginrevolver])	# and password
+				self.chrome.click_element_by_id('loginbutton')	# click login
+			except:
+				pass
+			else:
+				self.sleep(1)
+				if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
+					return
+			self.loginrevolver += 1
+			if self.loginrevolver == len(self.emails):
+				self.loginrevolver = 0
+				try_cnt += 1
+		self.chrome.visible_page_png(self.storage.modpath('login'))
+		raise Exception('Could not login to Facebook.')
+
+	def navigate(self, url):
+		'Navigate to given URL. Open Chrome/Chromium and/or login if needed'
+		if self.chrome.chrome_proc == None:
+			self.login()
+		while True:
+			self.chrome.navigate(url)	# go to page
+			self.sleep(1)
+			try:
+				m = rsearch('<img', self.chrome.get_inner_html_by_id('content'))
+				if m != None:
+					return
+			except:
+				pass
+
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
-		self.chrome.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
-		self.sleep(1)
+		self.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		account = self.get_account(path)	# get account infos if not already done
 		dirname = self.dirname(account)	# generate a name for the account's subdirectory
 		self.storage.mksubdir(dirname)	# as landing is the first task to perform, generate the subdiroctory here
@@ -453,6 +494,8 @@ class Facebook:
 		except:
 			pass
 		self.rm_pagelets()	# remove bluebar etc.
+		if account['type'] == 'pg':
+			self.rm_write_comment()
 		path_no_ext = self.storage.modpath(dirname, 'account')	# generate a file path for screenshot and pdf
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
 		self.chrome.page_pdf(path_no_ext)	# and as pdf (when headless)
@@ -462,10 +505,10 @@ class Facebook:
 	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT, dontsave=False):
 		'Get timeline'
 		if account['type'] == 'pg':
-			self.chrome.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
+			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
 			path_no_ext = self.storage.modpath(self.dirname(account), 'posts')
 		else:
-			self.chrome.navigate(account['link'])
+			self.navigate(account['link'])
 			path_no_ext = self.storage.modpath(self.dirname(account), 'timeline')
 		if dontsave:
 			path_no_ext = ''
@@ -495,7 +538,7 @@ class Facebook:
 			if href != None:
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate('https://www.facebook.com' + href[6:])	# open reaction page
+				self.navigate('https://www.facebook.com' + href[6:])	# open reaction page
 				self.chrome.expand_page(terminator=self.terminator)	# scroll through page
 				self.rm_pagelets()	# remove bluebar etc.
 				html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
@@ -514,7 +557,7 @@ class Facebook:
 
 	def get_about(self, account):
 		'Get About'
-		self.chrome.navigate('%s/about' % account['link'])	# go to about
+		self.navigate('%s/about' % account['link'])	# go to about
 		path_no_ext=self.storage.modpath(self.dirname(account), 'about')
 		self.rm_pagelets()	# remove bluebar etc.
 		self.expand_page(path_no_ext=path_no_ext)
@@ -523,11 +566,11 @@ class Facebook:
 	def get_photos(self, account, expand=False, translate=False, limit=DEFAULT_PAGE_LIMIT):
 		'Get Photos'
 		if account['type'] == 'pg':
-			self.chrome.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
+			self.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
 		elif account['type'] == 'group':
-			self.chrome.navigate('https://www.facebook.com/groups/%s/photos' % account['path'])
+			self.navigate('https://www.facebook.com/groups/%s/photos' % account['path'])
 		else:
-			self.chrome.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
+			self.navigate('https://www.facebook.com/%s/photos_all' % account['path'])
 		dirname = self.dirname(account)
 		path_no_ext = self.storage.modpath(dirname, 'photos')
 		self.rm_pagelets()	# remove bluebar etc.
@@ -541,7 +584,7 @@ class Facebook:
 			for i in rfindall('<a href="https://www\.facebook\.com/[^"]+/photos/[^"]+" rel="theater">', html):
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[9:-16])
+				self.navigate(i[9:-16])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.
@@ -564,7 +607,7 @@ class Facebook:
 			for i in rfindall(' href="https://www.facebook.com/photo\.php\?[^"]+', html):
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[7:])
+				self.navigate(i[7:])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.
@@ -587,7 +630,7 @@ class Facebook:
 			for i in rfindall('ajaxify="https://www\.facebook\.com/photo\.php?[^"]*"', html):	# loop through photos
 				if self.chrome.stop_check():
 					return
-				self.chrome.navigate(i[9:-1])
+				self.navigate(i[9:-1])
 				self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 				path_no_ext = self.storage.modpath(dirname, '%05d_photo' % cnt)
 				self.rm_pagelets()	# remove bluebar etc.
@@ -610,7 +653,7 @@ class Facebook:
 		'Get friends list from given user (id or path)'
 		dirname = self.dirname(account)
 		if account['type'] == 'profile':
-			self.chrome.navigate('%s/friends' % account['link'])
+			self.navigate('%s/friends' % account['link'])
 			path_no_ext = self.storage.modpath(dirname, 'friends')
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_left()
@@ -628,7 +671,7 @@ class Facebook:
 			self.storage.write_json(flist, dirname, 'friends.json')
 			return { i['path'] for i in flist }	# return friends as set
 		if account['type'] == 'groups':
-			self.chrome.navigate('%s/members' % account['link'])
+			self.navigate('%s/members' % account['link'])
 			path_no_ext = self.storage.modpath(dirname, 'members')
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_right()

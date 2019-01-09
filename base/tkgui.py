@@ -9,16 +9,17 @@ from tkinter import filedialog
 from tkinter import messagebox
 from base.storage import Storage
 from base.worker import Worker
-from base.chrometools import ChromePath
+from base.chrometools import Chrome
 
 class GuiRoot(Tk):
 	'Graphic user interface using Tkinter.'
 
-	def __init__(self, master):
+	def __init__(self, master, debug=False):
 		'Generate object for main / root window.'
-		self.storage = Storage()# object for file system accesss
-
-		self.worker = Worker(self.storage)	# generate object for the worker (smd_worker.py)
+		self.debug = debug
+		self.storage = Storage()	# object for file system accesss
+		self.chrome = Chrome()	# object to work with chrome/chromium
+		self.worker = Worker(self.storage, self.chrome, debug=self.debug)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		self.master = master	# this is for tk - in basic usage this will be the root window
 		self.master.title('Social Media Downloader')	# window title for somedo
@@ -112,17 +113,13 @@ class GuiRoot(Tk):
 			).grid(row=1, column=0, sticky=W, padx=2, pady=1)
 		Button(self.frame_configuration, text='Chrome:', width=16, command=self.__chrome__
 			).grid(row=1, column=1, sticky=W, padx=2, pady=1)
-		try:
-			chrome = ChromePath()	# get possible path to chrome
-			self.chrome_tk = StringVar(self.frame_configuration, chrome.path)
-		except:
-			self.chrome_tk = StringVar(self.frame_configuration, '')
+		self.chrome_tk = StringVar(self.frame_configuration, self.chrome.path)
 		self.chrome_value = Entry(self.frame_configuration, textvariable=self.chrome_tk, width=120)
 		self.chrome_value.grid(row=1, column=2, sticky=W, padx=1, pady=1)
 		self.frame_main_buttons = Frame(self.master)
 		self.frame_main_buttons.pack(fill = X, expand = False)
 		Button(self.frame_main_buttons, text="Start jobs", width=16, command=self.__start_hidden__).pack(side=LEFT, padx=3, pady=1)
-		if self.worker.DEBUG:
+		if self.debug:
 			Button(self.frame_main_buttons, text="DEBUG: start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
 		self.__tk_running__ = StringVar()
 		self.__running_label__ = Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16, background='white')

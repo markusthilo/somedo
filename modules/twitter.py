@@ -18,11 +18,12 @@ class Twitter:
 		]
 	]
 
-	def __init__(self, target, options, login, chrome, storage):
+	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Twitter'
 		self.chrome = chrome
 		self.storage = storage
 		self.ct = Cutter()
+		self.chrome.open(stop=stop, headless=headless)
 		if 'User' in options and not 'Search' in options:	# target userss / twitter user
 			if 'Photos' in options['User']:
 				self.photos = options['User']['Photos']

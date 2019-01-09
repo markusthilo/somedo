@@ -11,9 +11,10 @@ class Instagram:
 
 	DEFINITION = ['Instagram', [], [ [['Landing', True]], [['Media', True], ['Limit', 200]] ] ]
 
-	def __init__(self, target, options, login, chrome, storage):
+	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Instagram'
 		self.storage = storage
+		self.chrome = chrome
 		self.ct = Cutter()
 		if 'Landing' in options:
 			self.landing = True
@@ -26,9 +27,11 @@ class Instagram:
 			self.media = False
 		if not self.landing and not self.media:
 			raise Exception('Nothing to do.')
-		self.chrome = chrome
+		self.chrome.open(stop=stop, headless=headless)
 		for i in self.extract_targets(target):
 			self.get_main(i)
+		if debug:
+			self.chrome.close()
 
 	def extract_targets(self, target):
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
@@ -48,6 +51,7 @@ class Instagram:
 
 	def get_main(self, path):
 		'Scroll through main page and get images'
+		self.chrome.open()
 		self.chrome.navigate('http://www.instagram.com/%s' % path)
 		sleep(0.5)
 		try:

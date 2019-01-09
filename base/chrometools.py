@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 
-import os, time, json, subprocess, requests
+from os import name as os_name
+from os import path as os_path
+from time import sleep
+from json import loads as jloads
+from json import dumps as jdumps
+from subprocess import Popen
+from requests import get as rq_get
+from requests import exceptions as rq_exceptions
 from websocket import create_connection
 from base64 import b64decode
 
@@ -10,67 +17,83 @@ class Chrome:
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
 	DEFAULT_PAGE_LIMIT = 200	# default limit for page expansion
 
-	def __init__(self, path=None, port=9222, headless=True, stop=None, window_width=1024, window_height=1280, debug=False):
-		'Open Chrome session'
-		self.debug = debug
-		if path == None or not os.path.isfile(path):
-			cp = ChromePath()	# find chrome browser
-			path = cp.path
+	def __init__(self, path=None):
+		'Create object. It is possible to give the path to the Chrome/Chromium.'
+		if path == None or path == '':
+			if os_name == 'nt':
+				self.path = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+			else:
+				self.path = ''
+				for i in [
+					'google-chrome',
+					'/usr/bin/chromium',
+					'/usr/bin/chromium-browser',
+					'/usr/bin/google-chrome'
+				]:
+					if os_path.isfile(i):
+						self.path = i
+						break
+		if not os_path.isfile(self.path):
+			self.path = None
+		self.chrome_proc = None
+
+	def open(self, port=9222, window_width=1024, window_height=1280, stop=None, headless=True):
+		'Open Chrome/Chromium session'
 		chrome_cmd = [	# chrome with parameters
-			path,
+			self.path,
 			'--window-size=%d,%d' % (window_width, window_height),	# try to set windows dimensions - might not work right now
 			'--remote-debugging-port=%d' % port,
 			'--incognito',
 			'--disable-gpu'	# might be needed for windows
 		]
+		self.stop = stop	# to abort if user hits the stop button
+		self.headless = headless
 		if headless:	# start invisble/headless if desired (default)
 			chrome_cmd.append('--headless')
-		self.headless = headless
-		self.stop = stop	# to abort if user hits the stop button
-		self.chrome_proc = subprocess.Popen(chrome_cmd)	# start chrome browser
+		self.chrome_proc = Popen(chrome_cmd)	# start chrome browser
 		wait_seconds = 10.0
 		while wait_seconds > 0:	# connect to chrome
 			try:
-				response = requests.get('http://127.0.0.1:%d/json' % port).json()
+				response = rq_get('http://127.0.0.1:%d/json' % port).json()
 				self.conn = create_connection(response[0]['webSocketDebuggerUrl'])
 				self.request_id = 0
 				self.x = 0
 				return
-			except requests.exceptions.ConnectionError:
-				time.sleep(0.25)
+			except rq_exceptions.ConnectionError:
+				sleep(0.25)
 				wait_seconds -= 0.25
 		raise Exception('Unable to connect to Chrome')
 
 	def send_cmd(self, method, **kwargs):
 		'Send command to Chrome'
 		self.request_id += 1
-		self.conn.send(json.dumps({'method': method, 'id': self.request_id, 'params': kwargs}))	# send command
+		self.conn.send(jdumps({'method': method, 'id': self.request_id, 'params': kwargs}))	# send command
 		for i in range(100000):	# wait for response
-			message = json.loads(self.conn.recv())
+			message = jloads(self.conn.recv())
 			if message.get('id') == self.request_id:
 				return message
 			if i > 1000:
-				time.sleep(0.1)
+				sleep(0.1)
 		return None
 
 	def runtime_eval(self, js):
 		'Send JavaScript code with method Runtume.evaluate to Chrome'
 		message = self.send_cmd('Runtime.evaluate', expression=js)
 		try:
-			return json.loads(message['result']['result']['value'])
+			return jloads(message['result']['result']['value'])
 		except:
 			return None
 
 	def navigate(self, url):
 		'Go to URL'
 		self.send_cmd('Page.navigate', url=url)
-		time.sleep(2)
+		sleep(2)
 		self.wait_expand_end()
 
 	def go_back(self):
 		'Go to previous page'
 		self.runtime_eval('window.history.go(-1)')
-		time.sleep(1)
+		sleep(1)
 		self.wait_expand_end()
 
 	def click_elements(self, element_type, selector):
@@ -167,7 +190,7 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(window.innerHeight)'))
 			except TypeError:
-				time.sleep(0.1)
+				sleep(0.1)
 		raise Exception('Could not get window height.')
 
 	def get_window_width(self):
@@ -176,7 +199,7 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(window.innerWidth)'))
 			except TypeError:
-				time.sleep(0.1)
+				sleep(0.1)
 		raise Exception('Could not get window width.')
 
 	def get_page_height(self):
@@ -185,7 +208,7 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollHeight)'))
 			except TypeError:
-				time.sleep(0.1)
+				sleep(0.1)
 		raise Exception('Could not get page height.')
 
 	def get_page_width(self):
@@ -194,7 +217,7 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollWidth)'))
 			except TypeError:
-				time.sleep(0.1)
+				sleep(0.1)
 		raise Exception('Could not get page width.')
 
 	def get_x_position(self):
@@ -203,7 +226,7 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollLeft)'))
 			except TypeError:
-				time.sleep(0.1)
+				sleep(0.1)
 		raise Exception('Could not get x position.')
 
 	def get_y_position(self):
@@ -212,7 +235,7 @@ class Chrome:
 			try:
 				return int(self.runtime_eval('JSON.stringify(document.body.scrollTop)'))
 			except TypeError:
-				time.sleep(0.1)
+				sleep(0.1)
 		raise Exception('Could not get page y position.')
 
 	def set_position(self, y):
@@ -279,10 +302,10 @@ class Chrome:
 
 	def wait_expand_end(self):
 		'Wait for page not expanding anymore'
-		time.sleep(0.2)
+		sleep(0.2)
 		old_height = self.get_page_height()
 		for i in range(5000):
-			time.sleep(0.1)
+			sleep(0.1)
 			new_height = self.get_page_height()
 			if new_height == old_height:
 				return new_height
@@ -349,7 +372,7 @@ class Chrome:
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over
 			y_bottom = old_y + view_height
 			if new_height <= old_height and y_bottom >= new_height:
-				time.sleep(2)	# wait 2 seconds - page might load some more
+				sleep(2)	# wait 2 seconds - page might load some more
 				new_height = self.wait_expand_end()
 				if new_height <= old_height and y_bottom >= new_height:	# check again
 					break	# exit
@@ -362,31 +385,3 @@ class Chrome:
 			if cnt > 1:
 				path_no_ext += '_%05d' % cnt
 			self.visible_page_png(path_no_ext) # store screenshot
-
-class ChromePath:
-	'Set the path to Chrome/Chromium'
-
-	def __init__(self, *args):
-		'Open web session. It is possible to give the path to the Chrome/Chromium.'
-		if len(args) == 1 and isinstance(args[0], str):
-			self.path = args[0]
-		elif len(args) == 0:
-			if os.name == 'nt':
-				self.path = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-				if not os.path.isfile(self.path):
-					raise FileNotFoundError('Did not find Chrome.')
-			else:
-				self.path = ''
-				for i in [
-					'google-chrome',
-					'/usr/bin/chromium',
-					'/usr/bin/chromium-browser',
-					'/usr/bin/google-chrome'
-				]:
-					if os.path.isfile(i):
-						self.path = i
-						break
-				if self.path == '':
-					raise FileNotFoundError('Did not find Chrome/Chromium.')
-		else:
-			raise Exception('The path to Chrome/Chromium is the only possible argument.')
