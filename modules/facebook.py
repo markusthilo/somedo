@@ -287,17 +287,19 @@ class Facebook:
 		if account == None:
 			account = self.extract_leftcolinfo()	# try to get account info from groups etc.
 		if account == None:
-			account = {'type': 'unknown', 'id': 'undetected', 'name': 'undetected', 'path': path.replace('/', '_'), 'link': 'https://www.facebook.com/%s' % path}
+			account = {
+				'type': 'unknown', 
+				'id': 'undetected',
+				'name': 'undetected',
+				'path': path.replace('/', '_'),
+				'link': 'https://www.facebook.com/%s' % path
+			}
 		return account
 
-	def get_profile_id(self, html):
-		'Extract id'
-		return self.ct.search('id=[0-9]+', html)[3:]
-
-	def get_profile_path(self, html):
-		'Extract path'
-		if self.ct.search(' href="', html) == '':
-			return 'undetected'
+	def link2account(self, html):
+		'Extract account infos from Facebook link, e.g. in friend lists'
+		if self.ct.search(' href="', html) == None:
+			return None
 		path = self.ct.search(' href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)
 		if path != None:
 			return path[47:]
@@ -310,10 +312,11 @@ class Facebook:
 		path = self.ct.search(' href="/[^?/"&]+', html)
 		if path != None:
 			return path[8:]
-		return 'undetected'
-
-	def get_profile(self, html):
-		'Extract profile'
+		return None
+		
+		return self.ct.search('id=[0-9]+', html)[3:]
+		
+		
 		fid = self.get_profile_id(html)
 		if fid == None:
 			return None
@@ -517,7 +520,7 @@ class Facebook:
 		items = self.chrome.get_outer_html('ClassName', 'commentable_item')	# get commentable items
 		for i in items:
 			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+</a>', i):	# get comment authors
-				visitor = self.get_profile(j)
+				visitor = self.link2account(j)
 				if not visitor['id'] in visitor_ids:	# uniq
 					visitors.append(visitor)
 					visitor_ids.add(visitor['id'])
@@ -533,7 +536,7 @@ class Facebook:
 					' href="https://www\.facebook\.com/[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" data-hovercard-prefer-more-content-show="1"[^<]+</a>',
 					html
 				):
-					visitor = self.get_profile(j)
+					visitor = self.link2account(j)
 					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
 						visitors.append(visitor)
 						visitor_ids.add(visitor['id'])
@@ -651,7 +654,7 @@ class Facebook:
 				return []	# return empty list if no visible friends
 			flist = []	# list to store friends
 			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+=friends_tab" [^<]+</a>', html):	# get the links to friends
-				friend = self.get_profile(i)
+				friend = self.link2account(i)
 				if friend != None:
 					flist.append(friend)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in flist ], account['path'], 'friends.csv')
@@ -670,7 +673,7 @@ class Facebook:
 				return []	# return empty list if no visible friends
 			mlist = []	# list to store friends
 			for i in rfindall(' href="https://www\.facebook\.com\/[^<]+location=group" [^<]+</a>', html):	# regex vs facebook
-				member = self.get_profile(i)
+				member = self.link2account(i)
 				if member != None:
 					mlist.append(member)	# append to friend list if info was extracted
 			self.storage.write_2d([ [ i[j] for j in self.ACCOUNT] for i in mlist ], account['path'], 'members.csv')
