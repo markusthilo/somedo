@@ -22,7 +22,7 @@ class NetVis:
 		if alt_image != '':
 			self.nodes_js += ", brokenImage: '%s'" % alt_image
 		if label != '':
-			self.nodes_js += ", label: '%s'" % label
+			self.nodes_js += ", label: '%s'" % label.replace("'", "\\'")
 			self.nodes_gexf += ' label="%s"' % label
 		else:
 			self.nodes_js += ", label: '%s'" % node_id
@@ -51,7 +51,7 @@ class NetVis:
 		html = sub('</nodes>', self.nodes_js.rstrip(','), html)
 		html = sub('</edges>', self.edges_js.rstrip(','), html)
 		html = sub('</doubleclick>', doubleclick, html)
-		self.storage.write_xml(html, 'Network', 'network.html')
+		self.storage.write_str(html, 'Network', 'network.html')
 		gexf = self.storage.read_static('vis', 'skeleton.gexf')
 		gexf = sub('#today#', self.storage.today(), gexf)
 		gexf = sub('#nodes#', self.nodes_gexf, gexf)
