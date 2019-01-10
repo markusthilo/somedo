@@ -287,8 +287,8 @@ class Facebook:
 		if account == None:
 			account = self.extract_leftcolinfo()	# try to get account info from groups etc.
 		if account == None:
-			account = {
-				'type': 'unknown', 
+			return {
+				'type': 'undetected', 
 				'id': 'undetected',
 				'name': 'undetected',
 				'path': path.replace('/', '_'),
@@ -300,33 +300,31 @@ class Facebook:
 		'Extract account infos from Facebook link, e.g. in friend lists'
 		if self.ct.search(' href="', html) == None:
 			return None
-		path = self.ct.search(' href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', html)
-		if path != None:
-			return path[47:]
-		path = self.ct.search(' href="https://www\.facebook\.com/[^?/"&]+', html)
-		if path != None:
-			return path[32:]
-		path = self.ct.search(' href="/profile\.php\?id=[0-9]+', html)
-		if path != None:
-			return path[23:]
-		path = self.ct.search(' href="/[^?/"&]+', html)
-		if path != None:
-			return path[8:]
-		return None
-		
-		return self.ct.search('id=[0-9]+', html)[3:]
-		
-		
-		fid = self.get_profile_id(html)
-		if fid == None:
-			return None
-		return {
-			'type': 'profile',
-			'id': fid,
-			'name': self.get_profile_name(html),
-			'path': self.get_profile_path(html),
-			'link': self.get_profile_link(html)
-		}
+		account = {'type': 'undetected'}
+		for i in (	#	(regex, offset for account, account type)
+			(' href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', 47, 'profile')
+			(' href="https://www\.facebook\.com/pg/[^"/?]+', 35, 'pg'),
+			(' href="https://www\.facebook\.com/groups/[^"/?]+', 39, 'groups'),
+			(' href="https://www\.facebook\.com/[^"/?]+', 32, 'profile'),
+			(' href="/profile\.php\?id=[0-9]+', 23, 'profile'),
+			(' href="/pg/[^"/?]+', 11, 'pg'),
+			(' href="/groups/[^"/?]+', 15, 'groups'),
+			(' href="/[^"/?]+', 8, 'profile')
+		):
+			href = self.ct.search(i[0], html)
+			if href != None:
+				account['path'] = href[i[1]:]
+				account['type'] = i[2]
+				break
+		if account['type'] == 'groups':
+			account['path'] = 'groups_' + account['path']
+		fid = self.ct.search('id=[0-9]+', html)[3:]
+		if fid != None:
+			account['id'] = fid
+		elif self.ct.search('[0-9]+', account['path']) == account['path']:	# path is facebook id?
+			account['id'] = account['path']
+		account['name'] = self.get_profile_name(html)
+		return account
 
 	def rm_pagelets(self):
 		'Remove bluebar and other unwanted pagelets'
