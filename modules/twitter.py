@@ -61,6 +61,7 @@ class Twitter:
 		self.chrome.rm_outer_html('ClassName', 'topbar js-topbar')
 		self.chrome.rm_outer_html('ClassName', 'topbar-spacer')
 		self.chrome.rm_outer_html('ClassName', 'BannnersContainer')
+		self.chrome.rm_outer_html('ClassName', 'Bannner eu-cookie-notice')
 		self.chrome.rm_outer_html('ClassName', 'MoveableModule')
 
 	def rm_profile_canopy(self):

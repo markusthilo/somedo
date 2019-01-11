@@ -162,9 +162,10 @@ class Facebook:
 						)
 					except:
 						errors += ' %s/Timeline,' % i
-			self.chrome.close()
 			if errors != '':
 				raise Exception('The following Facebook account(s)/action(s) returned errors: %s' % errors[:-1])
+		if headless:
+			self.chrome.close()
 
 	def sleep(self, t):
 		'Sleep a slightly ranomized time'
@@ -302,7 +303,7 @@ class Facebook:
 			return None
 		account = {'type': 'undetected'}
 		for i in (	#	(regex, offset for account, account type)
-			(' href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', 47, 'profile')
+			(' href="https://www\.facebook\.com/profile\.php\?id=[0-9]+', 47, 'profile'),
 			(' href="https://www\.facebook\.com/pg/[^"/?]+', 35, 'pg'),
 			(' href="https://www\.facebook\.com/groups/[^"/?]+', 39, 'groups'),
 			(' href="https://www\.facebook\.com/[^"/?]+', 32, 'profile'),
@@ -317,12 +318,17 @@ class Facebook:
 				account['type'] = i[2]
 				break
 		if account['type'] == 'groups':
+			account['link'] = 'https://www.facebook.com/groups/' + account['path']
 			account['path'] = 'groups_' + account['path']
+		else:
+			account['link'] = 'https://www.facebook.com/' + account['path']
 		fid = self.ct.search('id=[0-9]+', html)[3:]
 		if fid != None:
 			account['id'] = fid
 		elif self.ct.search('[0-9]+', account['path']) == account['path']:	# path is facebook id?
 			account['id'] = account['path']
+		else:
+			account['id'] = 'undetected'
 		account['name'] = self.get_profile_name(html)
 		return account
 
@@ -663,6 +669,7 @@ class Facebook:
 			path_no_ext = self.storage.modpath(account['path'], 'members')
 			self.rm_pagelets()	# remove bluebar etc.
 			self.rm_right()
+			self.chrome.set_x_left()
 			self.chrome.expand_page(path_no_ext=path_no_ext)	# no limit for friends - it makes no sense not getting all friends
 			self.rm_left()
 			self.chrome.page_pdf(path_no_ext)
