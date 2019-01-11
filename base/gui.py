@@ -15,15 +15,16 @@ class GuiRoot(Tk):
 	'Graphic user interface using Tkinter.'
 
 	JOBLISTLENGTH = 10
+	BUTTONWIDTH = 16
 
 	def __init__(self, master, debug=False):
 		'Generate object for main / root window.'
+		self.master = master
 		self.debug = debug
 		self.storage = Storage()	# object for file system accesss
 		self.chrome = Chrome()	# object to work with chrome/chromium
 		self.worker = Worker(self.storage, self.chrome, debug=self.debug)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
-		self.master = master	# this is for tk - in basic usage this will be the root window
 		self.master.title('Social Media Downloader')	# window title for somedo
 		try:
 			self.master.call('wm', 'iconphoto', self.master._w, PhotoImage(	# give the window manager an application icon
@@ -32,57 +33,105 @@ class GuiRoot(Tk):
 		except:
 			pass
 		self.frame_jobs = LabelFrame(self.master, text='Jobs')	# in this tk-frame the jobs will be displayed
-		self.frame_jobs.pack(fill = BOTH, expand = True)	# tk-stuff
+		self.frame_jobs.pack(fill=X, expand=True)	# tk-stuff
 		self.jobbuttons = []
 		for i in range(self.JOBLISTLENGTH):
-			self.jobbuttons.append(Button(self.frame_jobs, width=120,
-				command=partial(self.__job_check__, i)).grid(row=i, column=0))
-			Button(self.frame_jobs, text='\u2191', width=4,
-				command=partial(self.__job_up__, i)).grid(row=i, column=1)
-			Button(self.frame_jobs, text='\u2193', width=4,
-				command=partial(self.__job_down__, i)).grid(row=i, column=2)
-		Button(self.frame_jobs, text='Purge job list', width=16,
-			command=self.__purge_jobs__).grid(row=self.JOBLISTLENGTH+1, column=0, sticky=W)
-
-		self.frame_add = LabelFrame(self.master, text='Add jobs')	# add job frame
-		self.frame_add.pack(fill = BOTH, expand = True)
-		for i in self.worker.mods:	# generate buttons for the modules
-			Button(self.frame_add, text=i, width=16, command=partial(self.__add_job__, i)).pack(side=LEFT, padx=3, pady=1)
-
-		self.frame_configuration = LabelFrame(self.master, text = 'Configuration')
-		self.frame_configuration.pack(fill = X, expand = False, pady = 4)
-		Button(self.frame_configuration, text="Load configuration", width=16, command=self.__load_config__
-			).grid(row=0, column=0, sticky=W, padx=2, pady=1)
-		Button(self.frame_configuration, text='Output directory:', width=16, command=self.__output_dir__
-			).grid(row=0, column=1, sticky=W, padx=2, pady=1)
-		self.outdir_tk = StringVar(self.frame_configuration, self.storage.outdir)
-		self.outdir_value = Entry(self.frame_configuration, textvariable=self.outdir_tk, width=120)
-		self.outdir_value.grid(row=0, column=2, sticky=W, padx=1, pady=1)
-		Button(self.frame_configuration, text="Save configuration", width=16, command=self.__save_config__
-			).grid(row=1, column=0, sticky=W, padx=2, pady=1)
-		Button(self.frame_configuration, text='Chrome:', width=16, command=self.__chrome__
-			).grid(row=1, column=1, sticky=W, padx=2, pady=1)
-		self.chrome_tk = StringVar(self.frame_configuration, self.chrome.path)
-		self.chrome_value = Entry(self.frame_configuration, textvariable=self.chrome_tk, width=120)
-		self.chrome_value.grid(row=1, column=2, sticky=W, padx=1, pady=1)
-		self.frame_main_buttons = Frame(self.master)
-		self.frame_main_buttons.pack(fill = X, expand = False)
-		Button(self.frame_main_buttons, text="Start jobs", width=16, command=self.__start_hidden__).pack(side=LEFT, padx=3, pady=1)
+			self.frame_job = Frame(self.frame_jobs)
+			self.frame_job.pack(fill=X, expand=True)
+			self.jobbuttons.append(Button(self.frame_job,
+				command=partial(self.__job_check__, i)).pack(side=LEFT, fill=X, expand=True))
+			Button(self.frame_job, text='\u2191', command=partial(self.__job_up__, i)).pack(side=LEFT)
+			Button(self.frame_job, text='\u2193', command=partial(self.__job_down__, i)).pack(side=LEFT)
+		self.frame_jobctrl = LabelFrame(self.master)
+		self.frame_jobctrl.pack(fill=BOTH, expand=True)
+		
+		Button(self.frame_jobctrl, text="Start jobs", width=self.BUTTONWIDTH,
+			command=self.__start_hidden__).pack(side=LEFT)
 		if self.debug:
-			Button(self.frame_main_buttons, text="DEBUG: start visible", width=16, command=self.__start_visible__).pack(side=LEFT, padx=3, pady=1)
-		self.__tk_running__ = StringVar()
-		self.__running_label__ = Label(self.frame_main_buttons, textvariable=self.__tk_running__, width=16, background='white')
-		self.__running_label__.pack(side=LEFT, padx=3, pady=1)
-		Button(self.frame_main_buttons, text="Stop running task", width=16, command=self.__stop__).pack(side=LEFT, padx=3, pady=1)
+			Button(self.frame_jobctrl, text="DEBUG: start visible", width=self.BUTTONWIDTH,
+				command=self.__start_visible__).pack(side=LEFT)
+		Button(self.frame_jobctrl, text="Stop running task", width=self.BUTTONWIDTH,
+			command=self.__stop__).pack(side=RIGHT)
+
+		Button(self.frame_jobctrl, text='Purge job list', width=self.BUTTONWIDTH,
+			command=self.__purge_jobs__).pack(side=LEFT)
+		self.frame_add = LabelFrame(self.master, text='Add Job')	# add job frame
+		self.frame_add.pack(fill=BOTH, expand=True)
+		for i in self.worker.mods:	# generate buttons for the modules
+			Button(self.frame_add, text=i, width=self.BUTTONWIDTH,
+				command=partial(self.__add_job__, i)).pack(side=LEFT)
+		self.frame_config = LabelFrame(self.master, text='Configuration')
+		self.frame_config.pack(fill=X, expand=False)
+		self.nb_config = ttk.Notebook(self.frame_config)	# here is the tk-notebook for the modules
+		self.nb_config.pack(fill=X, expand=False)
+		self.frames_config = { 'General': ttk.Frame(self.nb_config) }
+		self.nb_config.add(self.frames_config['General'], text='General')
+
+		Label(self.frames_config['General'], text='Output directory:').grid(row=0, column=0, sticky=E)
+		self.outdir_tk = StringVar(self.frames_config['General'], self.storage.outdir)
+		self.outdir_value = Entry(self.frames_config['General'], textvariable=self.outdir_tk, width=120)
+		self.outdir_value.grid(row=0, column=1, sticky=W)
+		Button(self.frames_config['General'], text='Output directory:', width=self.BUTTONWIDTH,
+			command=self.__output_dir__).grid(row=0, column=2, sticky=W)
+
+		Label(self.frames_config['General'], text='Chrome path:').grid(row=1, column=0, sticky=E)
+
+		self.chrome_tk = StringVar(self.frames_config['General'], self.chrome.path)
+		self.chrome_value = Entry(self.frames_config['General'], textvariable=self.chrome_tk, width=120)
+		self.chrome_value.grid(row=1, column=1, sticky=W)
+		
+		Button(self.frames_config['General'], text='Chrome:', width=self.BUTTONWIDTH,
+			command=self.__chrome__).grid(row=1, column=2, sticky=W)
+		
+		self.tk_logins = dict()	# tkinter: login credentials
+		self.tk_logins_hide = dict()	# tkinter: hide login credentials
+		self.tk_logins_entry_fields = dict()	# tkinter: this is used for entry filds for login
+		for i in self.worker.mods:	# notebook tabs for the module configuration
+			
+			if self.worker.logins[i] != []:
+				self.frames_config[i] = ttk.Frame(self.nb_config)
+				self.nb_config.add(self.frames_config[i], text=i)
+				self.tk_logins[i] = dict()	# login credentials as email and password
+				self.tk_logins_hide[i] = dict()
+				self.tk_logins_entry_fields[i] = dict()
+				for j in self.worker.logins[i]:
+					self.tk_logins[i][j] = StringVar(frame_row, '')
+					self.tk_logins_hide[i][j] = BooleanVar(self.frames_config[i], True)
+					Label(self.frames_config[i], text=j + ':').pack(side=LEFT)
+					
+					self.tk_logins_entry_fields[i][j] = Entry(
+						self.frames_config[i],
+						textvariable=self.tk_logins[i][j],
+						show='*', width=120
+					)
+					self.tk_logins_entry_fields[i][j].pack(side=LEFT)
+					Checkbutton(self.frames_config[i], text='hide', variable=self.tk_logins_hide[i][j],
+						command=partial(self.__hide_login__, i, j)).pack(side=LEFT)
+					row += 1
+
+		self.frame_confbuttons = Frame(self.frame_config)
+		self.frame_confbuttons.pack(fill = X, expand = False)
+		Button(self.frame_confbuttons, text="Save configuration", width=self.BUTTONWIDTH,
+			command=self.__save_config__).pack(side=LEFT)
+		Button(self.frame_confbuttons, text="Load configuration", width=self.BUTTONWIDTH,
+			command=self.__load_config__).pack(side=LEFT)
+
+		self.frame_main_buttons = Frame(self.master)
+		self.frame_main_buttons.pack(fill=X, expand=False)
+
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
 				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
 					self.about_help = f.read()
-					Button(self.frame_main_buttons, text="About / Help", width=16, command=self.__help__).pack(side=LEFT, padx=3, pady=1)
+					Button(self.frame_main_buttons, text="About / Help", width=16,
+						command=self.__help__).pack(side=LEFT, padx=3, pady=1)
 					break
 			except:
 				continue
-		Button(self.frame_main_buttons, text="Quit", width=6, command=master.quit).pack(side=RIGHT, padx=3, pady=1)
+		Button(self.frame_main_buttons, text="Quit", width=self.BUTTONWIDTH,
+			command=self.master.quit).pack(side=RIGHT)
+
+
 
 
 	def __add_job__(self, module):
