@@ -12,7 +12,7 @@ from base.worker import Worker
 from base.chrometools import Chrome
 
 class GuiRoot(Tk):
-	'Graphic user interface using Tkinter.'
+	'Graphic user interface using Tkinter, main / root window'
 
 	JOBLISTLENGTH = 10
 	BUTTONWIDTH = 16
@@ -20,94 +20,68 @@ class GuiRoot(Tk):
 	PADX = 8
 	PADY = 8
 
-	def __init__(self, master, debug=False):
+	def __init__(self, master):
 		'Generate object for main / root window.'
-		self.debug = debug
 		self.storage = Storage()	# object for file system accesss
 		self.chrome = Chrome()	# object to work with chrome/chromium
-		self.worker = Worker(self.storage, self.chrome, debug=self.debug)	# generate object for the worker (smd_worker.py)
+		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		master.title('Social Media Downloader')	# window title for somedo
-		try:
-			master.call('wm', 'iconphoto', master._w, PhotoImage(	# give the window manager an application icon
-				file='%s%ssomedo.png' % (self.storage.icondir, self.storage.slash)
-			))
-		except:
-			pass
+		self.__set_icon__(master)	# give the window manager an application icon
 		frame_jobs = LabelFrame(master, text='Jobs')	# in this tk-frame the jobs will be displayed
 		frame_jobs.pack(fill=X, expand=True)	# tk-stuff
-		self.jobbuttons = []
+		self.tk_jobbuttons = []
 		for i in range(self.JOBLISTLENGTH):
 			frame_job = Frame(frame_jobs)
 			frame_job.pack(fill=X, expand=True)
-			self.jobbuttons.append(Button(frame_job,
-				command=partial(self.__job_check__, i)).pack(side=LEFT, fill=X, expand=True))
+			self.tk_jobbuttons.append(StringVar(frame_job))
+			Button(frame_job, textvariable=self.tk_jobbuttons[i], anchor=W,
+				command=partial(self.__job_edit__, i)).pack(side=LEFT, fill=X, expand=True)
 			Button(frame_job, text='\u2191', command=partial(self.__job_up__, i)).pack(side=LEFT)
 			Button(frame_job, text='\u2193', command=partial(self.__job_down__, i)).pack(side=LEFT)
 		frame_row = LabelFrame(master)
 		frame_row.pack(fill=BOTH, expand=True)
 		Button(frame_row, text="Start jobs", width=self.BUTTONWIDTH,
 			command=self.__start_hidden__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		if self.debug:
+		if self.worker.DEBUG:
 			Button(frame_row, text="DEBUG: start visible", width=self.BUTTONWIDTH,
-				command=self.__start_visible__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=self.__start__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Stop running task", width=self.BUTTONWIDTH,
 			command=self.__stop__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text='Purge job list', width=self.BUTTONWIDTH,
 			command=self.__purge_jobs__).pack(side=RIGHT, pady=self.PADY)
 		frame_row = LabelFrame(master, text='Add Job')	# add job frame
 		frame_row.pack(fill=BOTH, expand=True)
-		for i in self.worker.mods:	# generate buttons for the modules
-			Button(frame_row, text=i, width=self.BUTTONWIDTH,
-				command=partial(self.__add_job__, i)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		for i in self.worker.MODULES:	# generate buttons for the modules
+			Button(frame_row, text=i['name'], width=self.BUTTONWIDTH,
+				command=partial(self.__new_job__, i['name'])).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		frame_config = LabelFrame(master, text='Configuration')
-		frame_config.pack(fill=X, expand=False)
+		frame_config.pack(fill=BOTH, expand=True)
 		nb_config = ttk.Notebook(frame_config)	# here is the tk-notebook for the modules
-		nb_config.pack(fill=X, expand=False)
+		nb_config.pack(padx=self.PADX, pady=self.PADY)
 		frame_nb = ttk.Frame(nb_config)
 		nb_config.add(frame_nb, text='General')
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
 		Label(frame_row, text='Output directory:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX)
-		self.outdir_tk = StringVar(frame_row, self.storage.outdir)
-		self.outdir_value = Entry(frame_row, textvariable=self.outdir_tk, width=self.BIGENTRY)
-		self.outdir_value.pack(side=LEFT)
+		self.tk_outdir = StringVar(frame_row, self.storage.outdir)
+		self.tk_outdir_entry = Entry(frame_row, textvariable=self.tk_outdir, width=self.BIGENTRY)
+		self.tk_outdir_entry.pack(side=LEFT)
 		Button(frame_row, text='\u261a', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX)
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
 		Label(frame_row, text='Chrome path:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX)
-		self.chrome_tk = StringVar(frame_row, self.chrome.path)
-		self.chrome_value = Entry(frame_row, textvariable=self.chrome_tk, width=self.BIGENTRY)
-		self.chrome_value.pack(side=LEFT)
+		self.tk_chrome = StringVar(frame_row, self.chrome.path)
+		self.tk_chrome_entry = Entry(frame_row, textvariable=self.tk_chrome, width=self.BIGENTRY)
+		self.tk_chrome_entry.pack(side=LEFT)
 		Button(frame_row, text='\u261a', command=self.__chrome__).pack(side=LEFT, padx=self.PADX)
-
-		self.tk_logins = dict()	# tkinter: login credentials
-		self.tk_logins_hide = dict()	# tkinter: hide login credentials
-		self.tk_logins_entry_fields = dict()	# tkinter: this is used for entry filds for login
-		for i in self.worker.mods:	# notebook tabs for the module configuration
-
-			if self.worker.logins[i] != []:
+		self.tk_logins = dict()	# tkinter login credentials
+		self.tk_login_entries = dict()
+		for i in self.worker.MODULES:	# notebook tabs for the module configuration
+			if i['login'] != None:
 				frame_nb = ttk.Frame(nb_config)
-				nb_config.add(frame_nb, text=i)
-				self.tk_logins[i] = dict()	# login credentials as email and password
-				self.tk_logins_hide[i] = dict()
-				self.tk_logins_entry_fields[i] = dict()
-				for j in self.worker.logins[i]:
-					frame_row = Frame(frame_nb)
-					frame_row.pack(fill=BOTH, expand=True)
-					self.tk_logins[i][j] = StringVar(frame_row, '')
-					self.tk_logins_hide[i][j] = BooleanVar(frame_row, True)
-					Label(frame_row, text=j + ':', anchor=E, padx=self.PADX, width=self.BUTTONWIDTH, ).pack(side=LEFT)
-					
-					self.tk_logins_entry_fields[i][j] = Entry(
-						frame_row,
-						textvariable=self.tk_logins[i][j],
-						show='*',
-						width=self.BIGENTRY
-					)
-					self.tk_logins_entry_fields[i][j].pack(side=LEFT)
-					Checkbutton(frame_row, text='hide', variable=self.tk_logins_hide[i][j],
-						command=partial(self.__hide_login__, i, j)).pack(side=LEFT)
+				nb_config.add(frame_nb, text=i['name'])
+				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(frame_nb, i['name'])
 		frame_row = Frame(master)
 		frame_row.pack(fill=X, expand=False)
 		Button(frame_row, text="Save configuration", width=self.BUTTONWIDTH,
@@ -126,92 +100,116 @@ class GuiRoot(Tk):
 		Button(frame_row, text="Quit", width=self.BUTTONWIDTH,
 			command=master.quit).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
 
+	def __set_icon__(self, master):
+		'Try to Somedo icon for the window'
+		try:
+			master.call('wm', 'iconphoto', master._w, PhotoImage(
+				file='%s%ssomedo.png' % (self.storage.icondir, self.storage.slash)
+			))
+		except:
+			pass
 
+	def __login_frame__(self, frame, module, login=None):
+		'Create Tk Frame for login credentials'
+		tk_login = dict()
+		tk_login_entry = dict()
+		for i in self.worker.logins[module]:
+			frame_row = Frame(frame)
+			frame_row.pack(fill=BOTH, expand=True)
+			Label(frame_row, text=i, anchor=E, padx=self.PADX, width=self.BUTTONWIDTH).pack(side=LEFT)
+			tk_login[i] = StringVar(frame_row)
+			if login != None:
+				tk_login[i].set(login[i])
+			tk_login_entry[i] = Entry(frame_row, textvariable=tk_login[i], show='*', width=self.BIGENTRY)
+			tk_login_entry[i].pack(side=LEFT)
+			tk_hide = BooleanVar(frame_row, True)
+			Checkbutton(frame_row, text='hide', variable=tk_hide,
+					command=partial(self.__hide_entry__, tk_login_entry[i], tk_hide)).pack(side=LEFT)
+		return tk_login, tk_login_entry
 
-
-	def __add_job__(self, module):
-		'Generate dialog to add a job'
-		self.nb_modules = ttk.Notebook(self.master)	# here is the tk-notebook for the modules
-		self.nb_modules.pack(fill = X, expand = False)	# tk-stuff
-		self.tabs = [ ttk.Frame(self.nb_modules) for i in self.worker.mods ]	# notebook-tabs for the modules
-		self.tk_targets = dict()	# tkinter: targets
-		self.tk_targets_entry_fields = dict()	# tkinter: this is used for entry fields of targets
-		self.tk_options = dict()	# tkinter: options
-		self.tk_options_entry_fields = dict()	# tkinter: this is used for entry filds of options
-		self.tk_logins = dict()	# tkinter: login credentials
-		self.tk_logins_hide = dict()	# tkinter: hide login credentials
-		self.tk_logins_entry_fields = dict()	# tkinter: this is used for entry filds for login
-		tab_cnt = 0
-		for i in self.worker.mods:	# generate tabs for the modules
-			self.nb_modules.add(self.tabs[tab_cnt], text = i)	# add tab to tk-notebook
-			row = 0	# row for grid
-			self.tk_targets[i] = StringVar(self.tabs[tab_cnt], '')	# generate field for target(s)
-			Label(self.tabs[tab_cnt], text='Target(s):').grid(row=row, column=0, sticky=W, padx=24, pady=2)	# target entry
-			self.tk_targets_entry_fields[i] = Entry(self.tabs[tab_cnt], textvariable=self.tk_targets[i], width=144)
-			self.tk_targets_entry_fields[i].grid(row=row, column=1, columnspan=100, sticky=W, padx=1, pady=2)
-			self.tk_options[i] = dict()	# dicts in dict for the options in each module
-			self.tk_options_entry_fields[i] = dict()
-			row += 1
-			for j in self.worker.opts[i]:	# loop throught option's 1st dimension
-				self.tk_options[i][j[0][0]] = dict()
-				self.tk_options_entry_fields[i][j[0][0]] = dict()
-				column = 0
-				for k in j:	# loop throught option's 2nd dimension
-					if isinstance(k[1], bool):	# checkbutton for boolean
-						self.tk_options[i][j[0][0]][k[0]] = BooleanVar(self.tabs[tab_cnt], k[1])	# create tk-variable in subset (boolean)
-						Checkbutton(self.tabs[tab_cnt], text=k[0], variable=self.tk_options[i][j[0][0]][k[0]]).grid(row=row, column=column, sticky=W)
-					elif isinstance(k[1], int):	# entry field for integers
-						self.tk_options[i][j[0][0]][k[0]] = IntVar(self.tabs[tab_cnt], k[1])	# create tk-variable in subset (integer)
-						Label(self.tabs[tab_cnt], text=k[0]+':').grid(row=row, column=column)
-						column += 1
-						self.tk_options_entry_fields[i][j[0][0]][k[0]] = Entry(self.tabs[tab_cnt], textvariable=self.tk_options[i][j[0][0]][k[0]], width=8)
-						self.tk_options_entry_fields[i][j[0][0]][k[0]].grid(row=row, column=column, sticky=W, pady=1)
-					elif isinstance(k[1], str):	# entry field for strings
-						self.tk_options[i][j[0][0]][k[0]] = StringVar(self.tabs[tab_cnt], k[1])	# create tk-variable in subset (integer)
-						Label(self.tabs[tab_cnt], text=k[0]+':').grid(row=row, column=column)
-						column += 1
-						self.tk_options_entry_fields[i][j[0][0]][k[0]] = Entry(self.tabs[tab_cnt], textvariable=self.tk_options[i][j[0][0]][k[0]], width=len(k[1]))
-						self.tk_options_entry_fields[i][j[0][0]][k[0]].grid(row=row, column=column, sticky=W, pady=1)
-					column +=1
-				row += 1
-			Button(self.tabs[tab_cnt], text='Add job', width=16, command=partial(self.__add_job__, i)).grid(row=row, column=0, pady=2)
-			
-			row += 1
-			if self.worker.logins[i] != []:
-				Label(self.tabs[tab_cnt], text='Login').grid(row=row, column=0, sticky=W, padx=2, pady=2)
-				row += 1
-				self.tk_logins[i] = dict()	# login credentials as email and password
-				self.tk_logins_hide[i] = dict()
-				self.tk_logins_entry_fields[i] = dict()
-				for j in self.worker.logins[i]:
-					self.tk_logins[i][j] = StringVar(self.tabs[tab_cnt], '')
-					self.tk_logins_hide[i][j] = BooleanVar(self.tabs[tab_cnt], True)
-					Label(self.tabs[tab_cnt], text=j + ':').grid(row=row, column=0, sticky=E, padx=2, pady=2)
-					Checkbutton(self.tabs[tab_cnt], text='hide', variable=self.tk_logins_hide[i][j],
-						command=partial(self.__hide_login__, i, j)).grid(row=row, column=1,sticky=E,  pady=2)
-					self.tk_logins_entry_fields[i][j] = Entry(self.tabs[tab_cnt], textvariable=self.tk_logins[i][j], show='*', width=120)
-					self.tk_logins_entry_fields[i][j].grid(row=row, column=2, columnspan=100, sticky=W, padx=2, pady=2)
-					row += 1
-			tab_cnt += 1
-
-	def __hide_login__(self, module, item):
+	def __hide_entry__(self, entry, check):
 		'Toggle hidden login credentials'
-		if self.tk_logins_hide[module][item].get():
-			self.tk_logins_entry_fields[module][item].config(show='*')
+		if check.get():
+			entry.config(show='*')
 		else:
-			self.tk_logins_entry_fields[module][item].config(show='')
+			entry.config(show='')
 
-	def __add_job__(self, module):
+	def __job_dialog__(self, master, job, row):
+		'Open window to edit a job'
+		master.title(job['module'])
+		frame_row = LabelFrame(master, text='Target(s)')
+		frame_row.pack(fill=BOTH, expand=True)
+		tk_job = {'module': job['module'], 'target': StringVar(frame_row, job['target'])}	# tk variables for the job configuration
+		tk_target_entry = Entry(frame_row, textvariable=tk_job['target'], width=self.BIGENTRY)
+		tk_target_entry.pack(side=LEFT)
+		tk_job['options'] = dict()	# tk variables for the options
+		if job['options'] != None:
+			frame_grid = LabelFrame(master, text='Options')
+			frame_grid.pack(fill=BOTH, expand=True)
+			for i in self.worker.options[job['module']]:
+				definition = self.worker.options[job['module']][i]
+				value = job['options'][i]
+				Label(frame_grid, text=definition['name']).grid(row=definition['row'], column=definition['column']*2, sticky=E)
+				if isinstance(value, bool):	# checkbutton for boolean
+					tk_job['options'][i] = BooleanVar(frame_grid, value)
+					Checkbutton(frame_grid, variable=tk_job['options'][i]).grid(row=definition['row'], column=definition['column']*2+1, sticky=W)
+					continue
+				if isinstance(value, int):	# integer
+					tk_job['options'][i] = IntVar(frame_grid, value)
+				elif isinstance(value, str): # string
+					tk_job['options'][i] = StringVar(frame_grid, value)
+				Entry(frame_grid, textvariable=tk_job['options'][i]).grid(row=definition['row'], column=definition['column']*2+1, sticky=W)
+		if job['login'] != None:
+			frame_login = LabelFrame(master, text='Login')
+			frame_login.pack(fill=BOTH, expand=True)
+			tk_job['login'] = self.__login_frame__(frame_login, job['module'], login=job['login'])
+		frame_row = Frame(master)
+		frame_row.pack(fill=BOTH, expand=True)
+		if row == len(self.jobs):
+			Button(frame_row, text="Add job", width=self.BUTTONWIDTH,
+				command=partial(self.__add_job__, master, tk_job, )).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		else:
+			Button(frame_row, text="Remove job", width=self.BUTTONWIDTH,
+			command=partial(self.__job_remove__, master, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		Button(frame_row, text="Quit, do nothing", width=self.BUTTONWIDTH,
+			command=master.destroy).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+		return tk_job
+
+	def __get_login__(self, module):
+		'Get login credentials for a module from root window'
+		try:
+			return { i: self.tk_logins[module][i].get() for i in self.worker.logins[module] }
+		except TypeError:
+			return None
+
+	def __new_job__(self, module):
+		'Create new job to add to job list'
+		if len(self.jobs) == self.JOBLISTLENGTH - 1:	# check if free space in job list
+			return
+		job = self.worker.new_job(module)
+		job['login'] = self.__get_login__(module)
+		self.jobwindow = Tk()
+		self.__job_dialog__(self.jobwindow, job, len(self.jobs))
+
+	def __add_job__(self, master, tk_job):
 		'Add job to list'
-		if len(self.jobs) < 10 and self.tk_targets[module].get() != '':	# if free space in job list and target(s) are not empty
-			self.jobs.append([ module, self.tk_targets[module].get(), dict() ])	# append new job to the job list
-			for i in self.tk_options[module]:	# insert options
-				if self.tk_options[module][i][i].get():
-					self.jobs[-1][2][i] = dict()
-					for j in self.tk_options[module][i]:
-						if j != i:
-							self.jobs[-1][2][i][j] = self.tk_options[module][i][j].get()
-			self.__update_joblist__()
+		master.destroy()
+		job = {
+			'module': tk_job['module'],
+			'target': tk_job['target'].get(),
+			'options': { i: tk_job['options'][i].get() for i in tk_job['options'] }
+		}
+		try:
+			job['login'] = { i: tk_job['login'][i].get() for i in tk_job['login'] }
+		except:
+			job['login'] = None
+		self.jobs.append(job)	# append new job to the job list
+		self.__update_joblist__()
+
+	def __job_edit__(self, row):
+		'Edit or remove jobin job list'
+		self.jobwindow = Tk()
+		self.__job_dialog__(self.jobwindow, self.jobs[row], row)
 
 	def __purge_jobs__(self):
 		'Purge job list'
@@ -219,123 +217,88 @@ class GuiRoot(Tk):
 			self.jobs = []
 			self.__update_joblist__()
 
-	def __job_label__(self, row):
-		'Generate labes for the job list'
-		if row < len(self.jobs):
-			text = '%02d - %s' % ((row + 1), self.jobs[row][0])
-			for i in self.jobs[row][2]:
-				text += ' %s,' % i
-			self.__tk_labels__[row].set(text.rstrip(',') + ': %s' % self.jobs[row][1])
-		else:
-			self.__tk_labels__[row].set("")
-
-	def __job_info__(self, row):
+	def __job_text__(self, row):
+		'Generate string for one job button'
 		if row >= len(self.jobs):
-			return 'Empty / no job'
-		text = '%s\n' % self.jobs[row][0]
-		text += '%s\n' % self.jobs[row][1]
-		for i in self.jobs[row][2]:
-			text += i
-			for j in self.jobs[row][2][i]:
-				text += ' - %s' % j
-				if not isinstance(self.jobs[row][2][i][j], bool):
-					text += ': %s' % str(self.jobs[row][2][i][j])
-			text += '\n'
-		return text
+			return ''
+		return '%02d: %s - %s' % (row+1, self.jobs[row]['module'], self.jobs[row]['target'])
 
 	def __update_joblist__(self):
 		'Update the list of jobs'
-		for i in range(10):
-			self.__job_label__(i)
+		for i in range(self.JOBLISTLENGTH):
+			self.tk_jobbuttons[i].set(self.__job_text__(i))
 
-	def __job_up__(self, position):
+	def __job_up__(self, row):
 		'Move job up in list'
-		if position > 0:
-			self.jobs[position], self.jobs[position-1] = self.jobs[position-1], self.jobs[position]
+		if row > 0:
+			self.jobs[row], self.jobs[row-1] = self.jobs[row-1], self.jobs[row]
 			self.__update_joblist__()
 
-	def __job_down__(self, position):
+	def __job_down__(self, row):
 		'Move job down in list'
-		if position < ( len(self.jobs) - 1 ) :
-			self.jobs[position], self.jobs[position+1] = self.jobs[position+1], self.jobs[position]
+		if row < ( len(self.jobs) - 1 ) :
+			self.jobs[row], self.jobs[row+1] = self.jobs[row+1], self.jobs[row]
 			self.__update_joblist__()
 
-	def __job_check__(self, position):
-		'Check or maybe remove job'
-		if position < len(self.jobs):
-			self.job_win = Tk()
-			self.job_win.wm_title('Job %02d' % (position+1))
-			text = Text(self.job_win, padx=2, pady=2, height=20, width=80)
-			text.bind("<Key>", lambda e: "break")
-			text.insert(END, self.__job_info__(position))
-			text.pack(padx=2, pady=2)
-			Button(self.job_win, text="Remove job", width=10, command=partial(self.__job_remove__, position)).pack(padx=2, pady=2, side=LEFT)
-			Button(self.job_win, text="Close / Do not remove", width=20, command=self.job_win.destroy).pack(padx=2, pady=2, side=RIGHT)
-
-	def __job_remove__(self, position):
+	def __job_remove__(self, master, row):
 		'Remove job from list'
-		self.job_win.destroy()
-		if messagebox.askyesno('Job %02d' % (position+1), 'Remove job from list?'):
-			self.jobs.pop(position)
+		if messagebox.askyesno('Job %02d' % (row+1), 'Remove job from list?'):
+			master.destroy()
+			self.jobs.pop(row)
 			self.__update_joblist__()
-			self.__job_label__(len(self.jobs))
 
 	def __output_dir__(self):
 		'Set path to output directory.'
-		outdir = filedialog.askdirectory(initialdir="~/",title='Destination directory')
-		if outdir != ():
-			self.outdir_value.delete(0, END)
-			self.outdir_value.insert(0, outdir)
-			self.storage.outdir = outdir
+		path = filedialog.askdirectory(initialdir="~/",title='Destination directory')
+		if path != ():
+			self.tk_outdir_entry.delete(0, END)
+			self.tk_outdir_entry.insert(0, path)
+			self.storage.outdir = path
 
 	def __chrome__(self):
 		'Set path to chrome.'
-		filename = filedialog.askopenfilename(title = 'chrome', filetypes = [('All files', '*.*')])
-		if filename != () and filename !=  '':
-			self.chrome_value.delete(0, END)
-			self.chrome_value.insert(0, filename)
-
-	def __get_config__(self):
-		'Put configuration in a dict'
-		config = {'Output directory': self.outdir_value.get(), 'Chrome': self.chrome_value.get()}
-		for i in self.worker.mods:
-			config[i] = dict()
-			for j in self.worker.logins[i]:
-				config[i][j] = self.tk_logins[i][j].get()
-		return config
+		path = filedialog.askopenfilename(title = 'chrome', filetypes = [('All files', '*.*')])
+		if path != () and path !=  '':
+			self.tk_chrome_entry.delete(0, END)
+			self.tk_chrome_entry.insert(0, path)
+			self.chrome.path = path
 
 	def __save_config__(self):
 		'Save configuration to file.'
-		filename = filedialog.asksaveasfilename(title = 'Configuration file', filetypes = [('Somedo configuration files', '*.smdc')])
-		if filename[-5:] != '.smdc':
-			filename += '.smdc'
+		path = filedialog.asksaveasfilename(title = 'Configuration file', filetypes = [('Somedo configuration files', '*.smdc')])
+		if path[-5:] != '.smdc':
+			path += '.smdc'
 		try:
-			self.storage.json_dump(self.__get_config__(), filename)
+			self.storage.json_dump({
+				'Output': self.tk_outdir.get(),
+				'Chrome': self.tk_chrome.get(),
+				'Modules': { i['name']: self.__get_login__(i['name']) for i in self.worker.MODULES if i['login'] != None }
+			}, path)
 		except:
 			messagebox.showerror('Error', 'Could not save configuration file')
 
 	def __load_config__(self):
 		'Load configuration from file.'
-		filename = filedialog.askopenfilename(title = 'Configuration file', filetypes = [('Somedo configuration files', '*.smdc'), ('All files', '*.*')])
-		if filename != () and filename !=  '':
+		path = filedialog.askopenfilename(title = 'Configuration file', filetypes = [('Somedo configuration files', '*.smdc'), ('All files', '*.*')])
+		if path != () and path !=  '':
 			try:
-				config = self.storage.json_load(filename)
+				config = self.storage.json_load(path)
 			except:
 				messagebox.showerror('Error', 'Could not load configuration file')
 				return
-			self.outdir_value.delete(0, END)
-			self.outdir_value.insert(0, config['Output directory'])
-			self.chrome_value.delete(0, END)
-			self.chrome_value.insert(0, config['Chrome'])
-			self.storage.outdir = config['Output directory']
-			for i in self.worker.mods:
-				if i in config:
-					try:
-						for j in self.tk_logins_entry_fields[i]:
-							self.tk_logins_entry_fields[i][j].delete(0, END)
-							self.tk_logins_entry_fields[i][j].insert(0, config[i][j])
-					except:
-						pass
+			try:
+				self.tk_outdir_entry.delete(0, END)
+				self.tk_outdir_entry.insert(0, config['Output'])
+				self.storage.outdir = config['Output']
+				self.tk_chrome_entry.delete(0, END)
+				self.tk_chrome_entry.insert(0, config['Chrome'])
+				self.chrome.path = config['Chrome']
+				for i in config['Modules']:
+					for j in config['Modules'][i]:
+						self.tk_login_entries[i][j].delete(0, END)
+						self.tk_login_entries[i][j].insert(0, config['Modules'][i][j])
+			except:
+				messagebox.showerror('Error', 'Could not decode configuration file')
 
 	def __help__(self):
 		'Open window to show About / Help'
@@ -347,22 +310,20 @@ class GuiRoot(Tk):
 		text.pack(padx=2, pady=2)
 		Button(help_win, text="Close", width=6, command=help_win.destroy).pack(padx=2, pady=2, side=RIGHT)
 
-	def __start_visible__(self):
-		'Start working with Chrome'
-		if len(self.jobs) > 0:
-			try:	# check if task is running
-				if self.thread.isAlive():
-					return
-			except:
-				pass
-			self.__running_label__.config(background='green')
-			self.__tk_running__.set("Running...")
-			self.headless = False	# chrome will be visible
+	def __start__(self, headless=True):
+		'Start the jobs'
+		self.headless = headless
+		if len(self.jobs) < 1:
+			return
+		try:	# check if task is running
+			if self.thread.isAlive():
+				return
+		except:
 			self.stop = Event()	# to stop main thread
 			self.thread = Thread(target=self.__thread__)	# define main thread
 			self.thread.start()	# start thread
 		else:
-			messagebox.showerror('Error', 'Nothing to do')
+			messagebox.showerror('Error', 'Nothing to do. Add jobs.')
 
 	def __start_hidden__(self):
 		'Start working with Chrome in headless mode'

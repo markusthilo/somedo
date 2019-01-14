@@ -9,7 +9,7 @@ from base.cutter import Cutter
 class Instagram:
 	'Downloader for Instagram'
 
-	DEFINITION = ['Instagram', [], [ [['Landing', True]], [['Media', True], ['Limit', 200]] ] ]
+	DEFAULTPAGELIMIT = 100
 
 	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Instagram'

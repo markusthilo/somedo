@@ -13,42 +13,10 @@ from vis.netvis import NetVis
 class Facebook:
 	'Downloader for Facebook Accounts'
 
-	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
-	DEFAULT_PAGE_LIMIT = 100
-	DEFINITION = [
-		'Facebook',
-		['Email', 'Password'],
-		[
-			[
-				['Timeline', True],
-				['Expand', False],
-				['Translate', False],
-				['Visitors', False],
-				['Until', ONEYEARAGO],
-				['Limit', DEFAULT_PAGE_LIMIT]
-			],
-			[
-				['About', False]
-			],
-			[
-				['Photos', False],
-				['Expand', False],
-				['Translate', False],
-				['Limit', DEFAULT_PAGE_LIMIT]
-			],
-			[
-				['Friends', False]
-			],
-			[
-				['Network', False],
-				['Depth', 1],
-				['Visitors', False],
-				['Limit', DEFAULT_PAGE_LIMIT]
-			]
-		]
-	]
-
 	ACCOUNT = ('type', 'id', 'name', 'path', 'link')
+	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
+	DEFAULTPAGELIMIT = 100
+	DEFAULTNETWORKDEPTH = 1
 
 	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Facebook by giving the needed parameters'
@@ -496,7 +464,7 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULT_PAGE_LIMIT, dontsave=False):
+	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULTPAGELIMIT, dontsave=False):
 		'Get timeline'
 		if account['type'] == 'pg':
 			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
@@ -556,7 +524,7 @@ class Facebook:
 		self.expand_page(path_no_ext=path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
 
-	def get_photos(self, account, expand=False, translate=False, limit=DEFAULT_PAGE_LIMIT):
+	def get_photos(self, account, expand=False, translate=False, limit=DEFAULTPAGELIMIT):
 		'Get Photos'
 		if account['type'] == 'pg':
 			self.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
@@ -686,7 +654,7 @@ class Facebook:
 			return { i['path'] for i in mlist }	# return members as set
 		return set()
 
-	def get_network(self, accounts, depth, extended=False, limit=DEFAULT_PAGE_LIMIT):
+	def get_network(self, accounts, depth, extended=False, limit=DEFAULTPAGELIMIT):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
 		network = dict()	# dictionary to store friend lists
 		old_ids = set()	# set to store ids already got handled

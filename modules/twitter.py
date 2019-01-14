@@ -10,13 +10,7 @@ from base.cutter import Cutter
 class Twitter:
 	'Downloader for Twitter'
 
-	DEFINITION = ['Twitter',
-		[],
-		[
-			[['User', True], ['Photos', False], ['Limit', 200]],
-			[['Search', False], ['Photos', False], ['Limit', 200]]
-		]
-	]
+	DEFAULTPAGELIMIT = 100
 
 	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Twitter'
