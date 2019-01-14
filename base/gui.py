@@ -99,6 +99,11 @@ class GuiRoot(Tk):
 				continue
 		Button(frame_row, text="Quit", width=self.BUTTONWIDTH,
 			command=master.quit).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+		Button(frame_row, text="JOBS", width=self.BUTTONWIDTH,
+			command=self.printjobs).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+
+	def printjobs(self):
+		print(self.jobs)
 
 	def __set_icon__(self, master):
 		'Try to Somedo icon for the window'
@@ -167,20 +172,20 @@ class GuiRoot(Tk):
 		frame_row.pack(fill=BOTH, expand=True)
 		if row == len(self.jobs):
 			Button(frame_row, text="Add job", width=self.BUTTONWIDTH,
-				command=partial(self.__add_job__, master, tk_job, )).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=partial(self.__add_job__, master, tk_job)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		else:
+	#		Button(frame_row, text="Update job", width=self.BUTTONWIDTH,
+	#			command=partial(self.__job_update__, master, tk_job, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 			Button(frame_row, text="Remove job", width=self.BUTTONWIDTH,
-			command=partial(self.__job_remove__, master, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=partial(self.__job_remove__, master, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Quit, do nothing", width=self.BUTTONWIDTH,
 			command=master.destroy).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
-		return tk_job
 
 	def __get_login__(self, module):
 		'Get login credentials for a module from root window'
-		try:
-			return { i: self.tk_logins[module][i].get() for i in self.worker.logins[module] }
-		except TypeError:
+		if self.worker.logins[module] == None:
 			return None
+		return { i: self.tk_logins[module][i].get() for i in self.worker.logins[module] }
 
 	def __new_job__(self, module):
 		'Create new job to add to job list'
@@ -191,9 +196,14 @@ class GuiRoot(Tk):
 		self.jobwindow = Tk()
 		self.__job_dialog__(self.jobwindow, job, len(self.jobs))
 
-	def __add_job__(self, master, tk_job):
-		'Add job to list'
-		master.destroy()
+	def __job_edit__(self, row):
+		'Edit or remove jobin job list'
+		self.jobwindow = Tk()
+		print(self.jobs[row])
+		self.__job_dialog__(self.jobwindow, self.jobs[row], row)
+
+	def __tk2job__(self, tk_job):
+		'Get Tk values for a job'
 		job = {
 			'module': tk_job['module'],
 			'target': tk_job['target'].get(),
@@ -203,13 +213,20 @@ class GuiRoot(Tk):
 			job['login'] = { i: tk_job['login'][i].get() for i in tk_job['login'] }
 		except:
 			job['login'] = None
-		self.jobs.append(job)	# append new job to the job list
+		return job
+
+	def __add_job__(self, master, tk_job):
+		'Add job to list'
+		master.destroy()
+		print(tk_job)
+		self.jobs.append(self.__tk2job__(tk_job))
 		self.__update_joblist__()
 
-	def __job_edit__(self, row):
-		'Edit or remove jobin job list'
-		self.jobwindow = Tk()
-		self.__job_dialog__(self.jobwindow, self.jobs[row], row)
+	def __update_job__(self, master, tk_job, row):
+		'Add job to list'
+		master.destroy()
+		self.jobs[row] = self.__tk2job__(tk_job)
+		self.__update_joblist__()
 
 	def __purge_jobs__(self):
 		'Purge job list'
