@@ -16,6 +16,7 @@ class GuiRoot(Tk):
 
 	JOBLISTLENGTH = 10
 	BUTTONWIDTH = 16
+	BIGBUTTONWIDTH = 20
 	BIGENTRY = 120
 	PADX = 8
 	PADY = 8
@@ -37,8 +38,8 @@ class GuiRoot(Tk):
 			self.tk_jobbuttons.append(StringVar(frame_job))
 			Button(frame_job, textvariable=self.tk_jobbuttons[i], anchor=W,
 				command=partial(self.__job_edit__, i)).pack(side=LEFT, fill=X, expand=True)
-			Button(frame_job, text='\u2191', command=partial(self.__job_up__, i)).pack(side=LEFT)
-			Button(frame_job, text='\u2193', command=partial(self.__job_down__, i)).pack(side=LEFT)
+			Button(frame_job, text='\u2b06', command=partial(self.__job_up__, i)).pack(side=LEFT)
+			Button(frame_job, text='\u2b07', command=partial(self.__job_down__, i)).pack(side=LEFT)
 		frame_row = LabelFrame(master)
 		frame_row.pack(fill=BOTH, expand=True)
 		Button(frame_row, text="Start jobs", width=self.BUTTONWIDTH,
@@ -53,7 +54,7 @@ class GuiRoot(Tk):
 		frame_row = LabelFrame(master, text='Add Job')	# add job frame
 		frame_row.pack(fill=BOTH, expand=True)
 		for i in self.worker.MODULES:	# generate buttons for the modules
-			Button(frame_row, text=i['name'], width=self.BUTTONWIDTH,
+			Button(frame_row, text='\n\u2bc5\n%s\n' % i['name'], width=self.BIGBUTTONWIDTH, font='bold',
 				command=partial(self.__new_job__, i['name'])).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		frame_config = LabelFrame(master, text='Configuration')
 		frame_config.pack(fill=BOTH, expand=True)
