@@ -16,48 +16,49 @@ class GuiRoot(Tk):
 
 	JOBLISTLENGTH = 10
 	BUTTONWIDTH = 16
-	BIGBUTTONWIDTH = 20
+	BIGBUTTONWIDTH = 16
 	BIGENTRY = 120
 	PADX = 8
 	PADY = 8
 
 	def __init__(self, master):
 		'Generate object for main / root window.'
+		self.root = master
 		self.storage = Storage()	# object for file system accesss
 		self.chrome = Chrome()	# object to work with chrome/chromium
 		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		master.title('Social Media Downloader')	# window title for somedo
 		self.__set_icon__(master)	# give the window manager an application icon
-		frame_jobs = LabelFrame(master, text='Jobs')	# in this tk-frame the jobs will be displayed
-		frame_jobs.pack(fill=X, expand=True)	# tk-stuff
+		frame_jobs = LabelFrame(master, text=' \u26c1 Jobs ')	# in this tk-frame the jobs will be displayed
+		frame_jobs.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)	# tk-stuff
+		frame_jobs_inner = Frame(frame_jobs)
+		frame_jobs_inner.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		self.tk_jobbuttons = []
 		for i in range(self.JOBLISTLENGTH):
-			frame_job = Frame(frame_jobs)
-			frame_job.pack(fill=X, expand=True)
-			self.tk_jobbuttons.append(StringVar(frame_job))
-			Button(frame_job, textvariable=self.tk_jobbuttons[i], anchor=W,
+			frame_row = Frame(frame_jobs_inner)
+			frame_row.pack(fill=X, expand=True)
+			self.tk_jobbuttons.append(StringVar(frame_row))
+			Button(frame_row, textvariable=self.tk_jobbuttons[i], anchor=W,
 				command=partial(self.__job_edit__, i)).pack(side=LEFT, fill=X, expand=True)
-			Button(frame_job, text='\u2b06', command=partial(self.__job_up__, i)).pack(side=LEFT)
-			Button(frame_job, text='\u2b07', command=partial(self.__job_down__, i)).pack(side=LEFT)
-		frame_row = LabelFrame(master)
+			Button(frame_row, text='\u2191', command=partial(self.__job_up__, i)).pack(side=LEFT)
+			Button(frame_row, text='\u2193', command=partial(self.__job_down__, i)).pack(side=LEFT)
+		frame_row = Frame(frame_jobs_inner)
 		frame_row.pack(fill=BOTH, expand=True)
 		Button(frame_row, text="Start jobs", width=self.BUTTONWIDTH,
-			command=self.__start_hidden__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+			command=self.__start__).pack(side=LEFT, pady=self.PADY)
 		if self.worker.DEBUG:
 			Button(frame_row, text="DEBUG: start visible", width=self.BUTTONWIDTH,
-				command=self.__start__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		Button(frame_row, text="Stop running task", width=self.BUTTONWIDTH,
-			command=self.__stop__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=self.__start_hidden__).pack(side=LEFT, padx=self.PADX*2, pady=self.PADY)
 		Button(frame_row, text='Purge job list', width=self.BUTTONWIDTH,
 			command=self.__purge_jobs__).pack(side=RIGHT, pady=self.PADY)
-		frame_row = LabelFrame(master, text='Add Job')	# add job frame
-		frame_row.pack(fill=BOTH, expand=True)
+		frame_row = LabelFrame(master, text=' + Add Job ')	# add job frame
+		frame_row.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		for i in self.worker.MODULES:	# generate buttons for the modules
-			Button(frame_row, text='\n\u2bc5\n%s\n' % i['name'], width=self.BIGBUTTONWIDTH, font='bold',
+			Button(frame_row, text='\n%s\n' % i['name'], width=self.BIGBUTTONWIDTH, font='bold',
 				command=partial(self.__new_job__, i['name'])).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		frame_config = LabelFrame(master, text='Configuration')
-		frame_config.pack(fill=BOTH, expand=True)
+		frame_config = LabelFrame(master, text=' \u2737 Configuration ')
+		frame_config.pack(fill=BOTH, expand=True, padx=self.PADX)
 		nb_config = ttk.Notebook(frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
 		frame_nb = ttk.Frame(nb_config)
@@ -68,14 +69,14 @@ class GuiRoot(Tk):
 		self.tk_outdir = StringVar(frame_row, self.storage.outdir)
 		self.tk_outdir_entry = Entry(frame_row, textvariable=self.tk_outdir, width=self.BIGENTRY)
 		self.tk_outdir_entry.pack(side=LEFT)
-		Button(frame_row, text='\u261a', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX)
+		Button(frame_row, text='\u270d', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX)
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
 		Label(frame_row, text='Chrome path:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX)
 		self.tk_chrome = StringVar(frame_row, self.chrome.path)
 		self.tk_chrome_entry = Entry(frame_row, textvariable=self.tk_chrome, width=self.BIGENTRY)
 		self.tk_chrome_entry.pack(side=LEFT)
-		Button(frame_row, text='\u261a', command=self.__chrome__).pack(side=LEFT, padx=self.PADX)
+		Button(frame_row, text='\u270d', command=self.__chrome__).pack(side=LEFT, padx=self.PADX)
 		self.tk_logins = dict()	# tkinter login credentials
 		self.tk_login_entries = dict()
 		for i in self.worker.MODULES:	# notebook tabs for the module configuration
@@ -83,12 +84,16 @@ class GuiRoot(Tk):
 				frame_nb = ttk.Frame(nb_config)
 				nb_config.add(frame_nb, text=i['name'])
 				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(frame_nb, i['name'])
-		frame_row = Frame(master)
-		frame_row.pack(fill=X, expand=False)
+		frame_row = Frame(frame_config)
+		frame_row.pack(fill=BOTH, expand=True)
 		Button(frame_row, text="Save configuration", width=self.BUTTONWIDTH,
 			command=self.__save_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Load configuration", width=self.BUTTONWIDTH,
 			command=self.__load_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		frame_base = Frame(master)
+		frame_base.pack(fill=X, expand=False, padx=self.PADX)
+		frame_row = LabelFrame(frame_base, text=' \u2297 ')
+		frame_row.pack(fill=X, expand=False)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
 				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
@@ -99,12 +104,9 @@ class GuiRoot(Tk):
 			except:
 				continue
 		Button(frame_row, text="Quit", width=self.BUTTONWIDTH,
-			command=master.quit).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
-		Button(frame_row, text="JOBS", width=self.BUTTONWIDTH,
-			command=self.printjobs).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
-
-	def printjobs(self):
-		print(self.jobs)
+			command=self.__quit__).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+		Button(frame_row, text="Stop / Abort", width=self.BUTTONWIDTH,
+			command=self.__stop__).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
 
 	def __set_icon__(self, master):
 		'Try to Somedo icon for the window'
@@ -114,6 +116,10 @@ class GuiRoot(Tk):
 			))
 		except:
 			pass
+
+	def __quit__(self):
+		'Close the app'
+		self.root.quit()
 
 	def __login_frame__(self, frame, module, login=None):
 		'Create Tk Frame for login credentials'
@@ -131,7 +137,7 @@ class GuiRoot(Tk):
 			tk_hide = BooleanVar(frame_row, True)
 			Checkbutton(frame_row, text='hide', variable=tk_hide,
 					command=partial(self.__hide_entry__, tk_login_entry[i], tk_hide)).pack(side=LEFT)
-		return tk_login, tk_login_entry
+		return tk_login
 
 	def __hide_entry__(self, entry, check):
 		'Toggle hidden login credentials'
@@ -168,15 +174,15 @@ class GuiRoot(Tk):
 		if job['login'] != None:
 			frame_login = LabelFrame(master, text='Login')
 			frame_login.pack(fill=BOTH, expand=True)
-			tk_job['login'] = self.__login_frame__(frame_login, job['module'], login=job['login'])
+			tk_job['login'] = self.__login_frame__(frame_login, job['module'], job['login'])
 		frame_row = Frame(master)
 		frame_row.pack(fill=BOTH, expand=True)
 		if row == len(self.jobs):
 			Button(frame_row, text="Add job", width=self.BUTTONWIDTH,
 				command=partial(self.__add_job__, master, tk_job)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		else:
-	#		Button(frame_row, text="Update job", width=self.BUTTONWIDTH,
-	#			command=partial(self.__job_update__, master, tk_job, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+			Button(frame_row, text="Update job", width=self.BUTTONWIDTH,
+				command=partial(self.__update_job__, master, tk_job, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 			Button(frame_row, text="Remove job", width=self.BUTTONWIDTH,
 				command=partial(self.__job_remove__, master, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Quit, do nothing", width=self.BUTTONWIDTH,
@@ -193,7 +199,6 @@ class GuiRoot(Tk):
 		if len(self.jobs) == self.JOBLISTLENGTH - 1:	# check if free space in job list
 			return
 		job = self.worker.new_job(module)
-		job['login'] = self.__get_login__(module)
 		self.jobwindow = Tk()
 		self.__job_dialog__(self.jobwindow, job, len(self.jobs))
 
@@ -219,7 +224,6 @@ class GuiRoot(Tk):
 	def __add_job__(self, master, tk_job):
 		'Add job to list'
 		master.destroy()
-		print(tk_job)
 		self.jobs.append(self.__tk2job__(tk_job))
 		self.__update_joblist__()
 
@@ -239,7 +243,7 @@ class GuiRoot(Tk):
 		'Generate string for one job button'
 		if row >= len(self.jobs):
 			return ''
-		return '%02d: %s - %s' % (row+1, self.jobs[row]['module'], self.jobs[row]['target'])
+		return '%s - %s' % (self.jobs[row]['module'], self.jobs[row]['target'])
 
 	def __update_joblist__(self):
 		'Update the list of jobs'
