@@ -52,6 +52,7 @@ class Worker:
 		'Create object that works out the jobs'
 		self.storage = storage
 		self.chrome = chrome
+		self.modulenames = [ i['name'] for i in self.MODULES ]
 		self.logins = dict()
 		self.options = dict()
 		for i in self.MODULES:
@@ -78,18 +79,28 @@ class Worker:
 			job['login'] = None
 		return job
 
-	def execute(self, jobs, headless=True, stop=None):
+	def execute_job(self, job, headless=True, stop=None):
+		'Execute jobs'
+		message = ''
+		print(job)
+		self.directory = self.storage.mkmoddir(job['module'])
+
+		print(job)
+		return
+
+		if self.debug:
+			exec('%s(job,  self.storage, self.chrome, stop=stop, headless=headless, debug=self.debug)' % job['module'])
+		else:
+			try:
+				exec('%s(job,  self.storage, self.chrome, stop=stop, headless=headless, debug=self.debug)' % job['module'])
+			except Exception as error:
+				message += str(error) + '\n'
+		return message
+
+
+	def execute_jobs(self, jobs, headless=True, stop=None):
 		'Execute jobs'
 		message = ''
 		for i in jobs:
-			self.storage.mkmoddir(i)
-			if self.debug:
-				exec('%s(i[1], i[2], config[i[0]], self.storage, self.chrome, stop=stop, headless=headless, debug=self.debug)' % i[0])
-			else:
-				try:
-					exec('%s(i[1], i[2], config[i[0]], self.storage, stop=stop, headless=headless, debug=self.debug)' % i[0])
-				except Exception as error:
-					message += str(error) + '\n'
-		if message == '':
-			return 'All done'
-		return 'Errors occurred:\n' + message
+			message += execute_job
+		return message
