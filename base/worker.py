@@ -82,25 +82,20 @@ class Worker:
 	def execute_job(self, job, headless=True, stop=None):
 		'Execute jobs'
 		message = ''
-		print(job)
 		self.directory = self.storage.mkmoddir(job['module'])
-
-		print(job)
-		return
-
-		if self.debug:
-			exec('%s(job,  self.storage, self.chrome, stop=stop, headless=headless, debug=self.debug)' % job['module'])
+		cmd = '%s(job,  self.storage, self.chrome, stop=stop, headless=headless, debug=True)' % job['module']
+		if self.DEBUG:
+			exec(cmd)
 		else:
 			try:
-				exec('%s(job,  self.storage, self.chrome, stop=stop, headless=headless, debug=self.debug)' % job['module'])
+				exec(cmd)
 			except Exception as error:
 				message += str(error) + '\n'
 		return message
-
 
 	def execute_jobs(self, jobs, headless=True, stop=None):
 		'Execute jobs'
 		message = ''
 		for i in jobs:
-			message += execute_job
+			message += execute_job(i)
 		return message

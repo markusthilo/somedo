@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from time import sleep
 from threading import Event, Thread
 from functools import partial
 from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry, Text, PhotoImage, StringVar, BooleanVar, IntVar
@@ -28,9 +29,9 @@ class GuiRoot(Tk):
 		self.chrome = Chrome()	# object to work with chrome/chromium
 		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
-		master.title('Social Media Downloader')	# window title for somedo
-		self.__set_icon__(master)	# give the window manager an application icon
-		frame_jobs = LabelFrame(master, text=' \u26c1 Jobs ')	# in this tk-frame the jobs will be displayed
+		self.root.title('Social Media Downloader')	# window title for somedo
+		self.__set_icon__(self.root)	# give the window manager an application icon
+		frame_jobs = LabelFrame(self.root, text=' \u26c1 Jobs ')	# in this tk-frame the jobs will be displayed
 		frame_jobs.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)	# tk-stuff
 		frame_jobs_inner = Frame(frame_jobs)
 		frame_jobs_inner.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
@@ -64,14 +65,14 @@ class GuiRoot(Tk):
 		self.purgebutton = Button(frame_row, text='Purge job list', width=self.BUTTONWIDTH,
 			command=self.__purge_jobs__)
 		self.purgebutton.pack(side=RIGHT, pady=self.PADY)
-		frame_row = LabelFrame(master, text=' + Add Job ')	# add job frame
+		frame_row = LabelFrame(self.root, text=' + Add Job ')	# add job frame
 		frame_row.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		self.modulebuttons = dict()
 		for i in self.worker.modulenames:	# generate buttons for the modules
-			self.modulebuttons[i] = Button(frame_row, text='\n%s\n' % i, font='bold',
+			self.modulebuttons[i] = Button(frame_row, text=i, font='bold', height=3,
 				command=partial(self.__new_job__, i))
 			self.modulebuttons[i].pack(side=LEFT, fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
-		frame_config = LabelFrame(master, text=' \u2737 Configuration ')
+		frame_config = LabelFrame(self.root, text=' \u2737 Configuration ')
 		frame_config.pack(fill=BOTH, expand=True, padx=self.PADX)
 		nb_config = ttk.Notebook(frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
@@ -104,7 +105,7 @@ class GuiRoot(Tk):
 			command=self.__save_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Load configuration", width=self.BUTTONWIDTH,
 			command=self.__load_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		frame_row = Frame(master)
+		frame_row = Frame(self.root)
 		frame_row.pack(fill=X, expand=False, padx=self.PADX, pady=self.PADY)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
@@ -129,7 +130,10 @@ class GuiRoot(Tk):
 
 	def __quit__(self):
 		'Close the app'
-		self.root.quit()
+		if messagebox.askyesno('Quit',
+			'Close this Application?'
+		):
+			self.root.quit()
 
 	def __login_frame__(self, frame, module, login):
 		'Create Tk Frame for login credentials'
@@ -156,18 +160,18 @@ class GuiRoot(Tk):
 		else:
 			entry.config(show='')
 
-	def __job_dialog__(self, master, job, row):
+	def __job_dialog__(self, job, row):
 		'Open window to edit a job'
 		self.__disable_jobbuttons__()
-		master.title(job['module'])
-		frame_row = LabelFrame(master, text=' \u229a Target(s) ')
+		self.job_dialog_root.title(job['module'])
+		frame_row = LabelFrame(self.job_dialog_root, text=' \u229a Target(s) ')
 		frame_row.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		tk_job = {'module': job['module'], 'target': StringVar(frame_row, job['target'])}	# tk variables for the job configuration
 		tk_target_entry = Entry(frame_row, textvariable=tk_job['target'], width=self.TARGETWIDTH)
 		tk_target_entry.pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		tk_job['options'] = dict()	# tk variables for the options
 		if job['options'] != None:
-			frame_grid = LabelFrame(master, text=' \u2714 Options ')
+			frame_grid = LabelFrame(self.job_dialog_root, text=' \u2714 Options ')
 			frame_grid.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 			for i in self.worker.options[job['module']]:
 				definition = self.worker.options[job['module']][i]
@@ -183,21 +187,26 @@ class GuiRoot(Tk):
 					tk_job['options'][i] = StringVar(frame_grid, value)
 				Entry(frame_grid, textvariable=tk_job['options'][i]).grid(row=definition['row'], column=definition['column']*2+1, sticky=W)
 		if job['login'] != None:
-			frame_login = LabelFrame(master, text=' \u2737 Login')
+			frame_login = LabelFrame(self.job_dialog_root, text=' \u2737 Login')
 			frame_login.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 			tk_job['login'], dummy = self.__login_frame__(frame_login, job['module'], job['login'])
-		frame_row = Frame(master)
+		frame_row = Frame(self.job_dialog_root)
 		frame_row.pack(fill=BOTH, expand=True)
 		if row == len(self.jobs):
 			Button(frame_row, text="Add job", width=self.BUTTONWIDTH,
-				command=partial(self.__add_job__, master, tk_job)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=partial(self.__add_job__, tk_job)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		else:
 			Button(frame_row, text="Update job", width=self.BUTTONWIDTH,
-				command=partial(self.__update_job__, master, tk_job, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=partial(self.__update_job__, tk_job, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 			Button(frame_row, text="Remove job", width=self.BUTTONWIDTH,
-				command=partial(self.__job_remove__, master, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+				command=partial(self.__remove_job__, row)).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Quit, do nothing", width=self.BUTTONWIDTH,
-			command=master.destroy).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+			command=self.__quit_job_dialog__).pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+
+	def __quit_job_dialog__(self):
+		'Close the job configuration window'
+		self.job_dialog_root.destroy()
+		self.__enable_jobbuttons__()
 
 	def __get_login__(self, module):
 		'Get login credentials for a module from root window'
@@ -212,13 +221,13 @@ class GuiRoot(Tk):
 		job = self.worker.new_job(module)
 		if self.worker.logins[module] != None:
 			job['login'] = self.__get_login__(module)
-		self.jobwindow = Tk()
-		self.__job_dialog__(self.jobwindow, job, len(self.jobs))
+		self.job_dialog_root = Tk()
+		self.__job_dialog__(job, len(self.jobs))
 
 	def __job_edit__(self, row):
 		'Edit or remove jobin job list'
-		self.jobwindow = Tk()
-		self.__job_dialog__(self.jobwindow, self.jobs[row], row)
+		self.job_dialog_root = Tk()
+		self.__job_dialog__(self.jobs[row], row)
 
 	def __tk2job__(self, tk_job):
 		'Get Tk values for a job'
@@ -233,17 +242,17 @@ class GuiRoot(Tk):
 			job['login'] = None
 		return job
 
-	def __add_job__(self, master, tk_job):
+	def __add_job__(self, tk_job):
 		'Add job to list'
+		self.job_dialog_root.destroy()
 		self.__enable_jobbuttons__()
-		master.destroy()
 		self.jobs.append(self.__tk2job__(tk_job))
 		self.__update_joblist__()
 
-	def __update_job__(self, master, tk_job, row):
+	def __update_job__(self, tk_job, row):
 		'Add job to list'
+		self.job_dialog_root.destroy()
 		self.__enable_jobbuttons__()
-		master.destroy()
 		self.jobs[row] = self.__tk2job__(tk_job)
 		self.__update_joblist__()
 
@@ -276,10 +285,11 @@ class GuiRoot(Tk):
 			self.jobs[row], self.jobs[row+1] = self.jobs[row+1], self.jobs[row]
 			self.__update_joblist__()
 
-	def __job_remove__(self, master, row):
+	def __remove_job__(self, row):
 		'Remove job from list'
-		if messagebox.askyesno('Job %02d' % (row+1), 'Remove job from list?'):
-			master.destroy()
+		if messagebox.askyesno('Remove job', 'Are you sure?'):
+			self.job_dialog_root.destroy()
+			self.__enable_jobbuttons__()
 			self.jobs.pop(row)
 			self.__update_joblist__()
 
@@ -396,7 +406,7 @@ class GuiRoot(Tk):
 		'Start the jobs'
 		if len(self.jobs) > 0:
 			try:	# check if task is running
-				if self.worker.isAlive():
+				if self.thread_worker.isAlive():
 					return
 			except:
 				pass
@@ -413,15 +423,17 @@ class GuiRoot(Tk):
 	def __stop__(self):
 		'Stop running job but give results based on so far sucked data'
 		try:	# check if task is running
-			if self.worker.isAlive() and messagebox.askyesno('Somedo', 'Stop running task?'):
+			if self.thread_worker.isAlive() and messagebox.askyesno('Somedo', 'Stop running task?'):
 				self.stop.set()
 		except:
 			pass
 
 	def __worker__(self):
 		'Execute jobs'
-		message = self.worker.execute_job(self.jobs[0], headless=self.headless, stop=self.stop)
-		if message == '':
+		for self.running_job in range(len(self.jobs)):
+			message = self.worker.execute_job(self.jobs[self.running_job], headless=self.headless, stop=self.stop)
+		self.running_job = -1
+		if message == '' or message == '\n':
 			message = 'All done!'
 		messagebox.showinfo('Somedo', message)
 		self.__enable_jobbuttons__()
@@ -429,9 +441,17 @@ class GuiRoot(Tk):
 
 	def __showjob__(self):
 		'Show what the worker is doing'
-		pass
-
+		fg = self.jobbuttons[self.running_job].cget('fg')
+		bg = self.jobbuttons[self.running_job].cget('bg')
+		while self.running_job >= 0:
+			self.jobbuttons[self.running_job].config(fg=bg)
+			self.jobbuttons[self.running_job].config(bg=fg)
+			sleep(0.5)
+			self.jobbuttons[self.running_job].config(fg=fg)
+			self.jobbuttons[self.running_job].config(bg=bg)
+			sleep(0.5)
+		
 if __name__ == '__main__':	# start here if called as program / app
-	rootwindow = Tk()
-	GuiRoot(rootwindow)
-	rootwindow.mainloop()
+	root = Tk()
+	GuiRoot(root)
+	root.mainloop()

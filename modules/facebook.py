@@ -18,120 +18,57 @@ class Facebook:
 	DEFAULTPAGELIMIT = 100
 	DEFAULTNETWORKDEPTH = 1
 
-	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
+	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
 		self.chrome = chrome
 		self.stop = stop
 		self.headless = headless
+		self.options = job['options']
 		self.ct = Cutter()
-		self.emails = self.ct.semicolons(login['Email'])
-		self.passwords = self.ct.semicolons(login['Password'])
+		self.emails = self.ct.semicolons(job['login']['Email'])
+		self.passwords = self.ct.semicolons(job['login']['Password'])
 		self.passwords += [ self.passwords[-1] for i in range(len(self.emails)-len(self.passwords)) ]	# same password
 		if self.emails == [] or self.passwords == []:
 			raise Exception('At least one login account is needed for the Facebook module.')
 		self.loginrevolver = 0
+		errors = []	# to return error messages
+		print(job)
+
 		if debug:	# abort on errors in debug mode
-			accounts = [ self.get_landing(i) for i in self.extract_paths(target) ]	# get account infos with a first visit
-			if 'Network' in options:
-				self.get_network(
-					accounts,
-					options['Network']['Depth'],
-					extended = options['Network']['Visitors'],
-					limit = options['Network']['Limit']
-				)
-			for i in accounts:
-				if self.chrome.stop_check():
-					break
-				if 'About' in options:
-					self.get_about(i)
-				if self.chrome.stop_check():
-					break
-				if 'Photos' in options:
-					self.get_photos(
-						i,
-						expand = options['Photos']['Expand'],
-						translate = options['Photos']['Translate'],
-						limit = options['Photos']['Limit']
-					)
-				if self.chrome.stop_check():
-					break
-				if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
-					self.get_friends(i)
-				if self.chrome.stop_check():
-					break
-				if 'Timeline' in options:
-					self.stop_utc = self.get_utc(options['Timeline']['Until'])
-					self.get_timeline(
-						i,
-						expand = options['Timeline']['Expand'],
-						translate = options['Timeline']['Translate'],
-						visitors =  options['Timeline']['Visitors'],
-						until = self.get_utc(options['Timeline']['Until']),
-						limit = options['Timeline']['Limit']
-					)
-		else:	# error robust
-			errors = ''# to return errors that might help
-			accounts = []	# list of target accounts
-			for i in self.extract_paths(target):	# get account infos with a first visit
+			accounts = [ self.get_landing(i) for i in self.extract_paths(job['target']) ]	# get account infos with a first visit
+			if self.options['network']:
+				self.get_network(accounts)
+		else:	# be error robust on normal run
+			accounts = []
+			for i in self.extract_paths(job['target']):	# get account infos with a first visit
 				try:
 					account = self.get_landing(i)
 				except:
+					errors.append(' %s:Undetected' % i)
 					continue
 				accounts.append(account)
-			if 'Network' in options:
+			if accounts == []:
+				raise Exception('No valid target account(s) were detected.')
+			if self.options['network']:
 				try:
-					self.get_network(
-						accounts,
-						options['Network']['Depth'],
-						extended = options['Network']['Visitors'],
-						limit = options['Network']['Limit']
-					)
+					self.get_network(accounts)
 				except:
-					errors += ' Network,'
-			for i in accounts:
+					errors.append('Network')
+		for i in accounts:	# go account after account
+			for j in ('About', 'Photos', 'Timeline'):
 				if self.chrome.stop_check():
 					break
-				if 'About' in options:
+				cmd = '%s(i)' % j.lower()
+				if debug:
+					exec(cmd)
+				else:
 					try:
-						self.get_about(i)
+						exec(cmd)
 					except:
-						errors += ' %s/About,' % i
-				if self.chrome.stop_check():
-					break
-				if 'Photos' in options:
-					try:
-						self.get_photos(
-							i,
-							expand = options['Photos']['Expand'],
-							translate = options['Photos']['Translate'],
-							limit = options['Photos']['Limit']
-						)
-					except:
-						errors += ' %s/Photos,' % i
-				if self.chrome.stop_check():
-					break
-				if 'Friends' in options and not 'Network' in options:	# friend list download is included in network option
-					try:
-						self.get_friends(i)
-					except:
-						errors += ' %s/Friends,' % i
-				if self.chrome.stop_check():
-					break
-				if 'Timeline' in options:
-					try:
-						self.get_timeline(
-							i,
-							expand = options['Timeline']['Expand'],
-							translate = options['Timeline']['Translate'],
-							visitors = options['Timeline']['Visitors'],
-							until = self.get_utc(options['Timeline']['Until']),
-							limit = options['Timeline']['Limit']
-						)
-					except:
-						errors += ' %s/Timeline,' % i
-			if errors != '':
-				raise Exception('The following Facebook account(s)/action(s) returned errors: %s' % errors[:-1])
+						errors.append(' %s:%s' %(i, j))
+		if errors != []:
+			raise Exception('The following Facebook account(s)/action(s) returned errors:'.join(errors)) 
 		if headless:
 			self.chrome.close()
 
