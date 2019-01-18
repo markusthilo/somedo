@@ -13,37 +13,37 @@ class Worker:
 			'name': 'Facebook',
 			'login': ('Email', 'Password'),
 			'options': {
-				'timeline': {'name': 'Timeline', 'default': False, 'row': 0, 'column': 0},
-				'expand_timeline': {'name': 'Expand posts', 'default': False, 'row': 0, 'column': 1},
-				'translate_timeline': {'name': 'Translate posts', 'default': False, 'row': 0, 'column': 2},
-				'timeline_until': {'name': 'Until', 'default': Facebook.ONEYEARAGO, 'row': 0, 'column': 3},
-				'timeline_limit': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 0, 'column': 4},
-				'about': {'name': 'About', 'default': False, 'row': 1, 'column': 0},
-				'photos': {'name': 'Photos', 'default': False, 'row': 2, 'column': 0},
-				'expand_photos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
-				'translate_photos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
-				'photos_limit': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
-				'network': {'name': 'Network', 'default': False, 'row': 3, 'column': 0},
-				'network_depth': {'name': 'Depth', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
-				'network_visitors': {'name': 'include Timeline visitors', 'default': False, 'row': 3, 'column': 2},
-				'visitors_limit': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 3, 'column': 3}
+				'Timeline': {'name': 'Timeline', 'default': False, 'row': 0, 'column': 0},
+				'expandTimeline': {'name': 'Expand posts', 'default': False, 'row': 0, 'column': 1},
+				'translateTimeline': {'name': 'Translate posts', 'default': False, 'row': 0, 'column': 2},
+				'untilTimeline': {'name': 'Until', 'default': Facebook.ONEYEARAGO, 'row': 0, 'column': 3},
+				'limitTimeline': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 0, 'column': 4},
+				'About': {'name': 'About', 'default': False, 'row': 1, 'column': 0},
+				'Photos': {'name': 'Photos', 'default': False, 'row': 2, 'column': 0},
+				'expandPhotos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
+				'translatePhotos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
+				'limitPhotos': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
+				'Network': {'name': 'Network', 'default': False, 'row': 3, 'column': 0},
+				'depthNetwork': {'name': 'Depth', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
+				'visitorsNetwork': {'name': 'include Timeline visitors', 'default': False, 'row': 3, 'column': 2},
+				'limitVisitors': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 3, 'column': 3}
 			}
 		},
 		{
 			'name': 'Instagram',
 			'login': None,
 			'options': {
-				'media': {'name': 'Expand comments', 'default': False, 'row': 0, 'column': 0},
-				'limit': {'name': 'Limit', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
+				'Media': {'name': 'Download media', 'default': False, 'row': 0, 'column': 0},
+				'Limit': {'name': 'Limit', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
 			}
 		},
 		{
 			'name': 'Twitter',
 			'login': None,
 			'options': {
-				'search': {'name': 'Search', 'default': False, 'row': 0, 'column': 0},
-				'photos': {'name': 'Photos', 'default': False, 'row': 1, 'column': 0},
-				'limit': {'name': 'Limit', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
+				'Search': {'name': 'Search', 'default': False, 'row': 0, 'column': 0},
+				'Photos': {'name': 'Photos', 'default': False, 'row': 1, 'column': 0},
+				'Limit': {'name': 'Limit', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
 			}
 		}
 	)
@@ -91,11 +91,4 @@ class Worker:
 				exec(cmd)
 			except Exception as error:
 				message += str(error) + '\n'
-		return message
-
-	def execute_jobs(self, jobs, headless=True, stop=None):
-		'Execute jobs'
-		message = ''
-		for i in jobs:
-			message += execute_job(i)
 		return message

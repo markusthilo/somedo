@@ -1,2 +1,8 @@
 #!/bin/bash
-python3 somedo.py & disown
+
+if [ $# -eq 0 ]
+	then
+		python3 somedo.py & disown
+	else
+		python3 somedo.py $@
+fi

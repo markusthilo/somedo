@@ -12,7 +12,7 @@ from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
 
-class GuiRoot(Tk):
+class GUI(Tk):
 	'Graphic user interface using Tkinter, main / root window'
 
 	JOBLISTLENGTH = 10
@@ -450,8 +450,3 @@ class GuiRoot(Tk):
 			self.jobbuttons[self.running_job].config(fg=fg)
 			self.jobbuttons[self.running_job].config(bg=bg)
 			sleep(0.5)
-		
-if __name__ == '__main__':	# start here if called as program / app
-	root = Tk()
-	GuiRoot(root)
-	root.mainloop()
