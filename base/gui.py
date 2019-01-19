@@ -226,6 +226,8 @@ class GUI(Tk):
 
 	def __job_edit__(self, row):
 		'Edit or remove jobin job list'
+		if row >= len(self.jobs):
+			return
 		self.job_dialog_root = Tk()
 		self.__job_dialog__(self.jobs[row], row)
 
@@ -262,7 +264,9 @@ class GUI(Tk):
 
 	def __purge_jobs__(self):
 		'Purge job list'
-		if messagebox.askyesno('Purge job list', 'Are you sure?'):
+		if len(self.jobs) < 1:
+			return
+		if messagebox.askyesno('Purge job list', 'Are you sure to remove all jobs fromk list?'):
 			self.jobs = []
 			self.__update_joblist__()
 
@@ -431,6 +435,7 @@ class GUI(Tk):
 				self.stop.set()
 		except:
 			pass
+		self.running_job = -1
 
 	def __worker__(self):
 		'Execute jobs'

@@ -31,7 +31,7 @@ class Facebook:
 		self.passwords += [ self.passwords[-1] for i in range(len(self.emails)-len(self.passwords)) ]	# same password
 		if self.emails == [] or self.passwords == []:
 			raise RuntimeError('At least one login account is needed for the Facebook module.')
-		self.loginrevolver = 0
+		self.loginrevolver = -1	# for multiple investigator accounts
 		errors = []	# to return error messages
 		if debug:	# abort on errors in debug mode
 			accounts = [ self.get_landing(i) for i in self.extract_paths(job['target']) ]	# get account infos with a first visit
@@ -343,10 +343,13 @@ class Facebook:
 			self.chrome.close()
 		self.chrome.open(stop=self.stop, headless=self.headless)
 		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
+		if self.loginrevolver == -1:
+				self.loginrevolver = 0
 		for i in range(len(self.emails) * 10):	# try 10x all accounts
 			if self.chrome.stop_check():
 				return
 			self.sleep(1)
+
 			try:
 				self.chrome.insert_element_by_id('email', self.emails[self.loginrevolver])	# login with email
 				self.chrome.insert_element_by_id('pass', self.passwords[self.loginrevolver])	# and password
@@ -644,6 +647,7 @@ class Facebook:
 				break
 			for j in all_ids - old_ids:	# work on friend list which have not been handled so far
 				account = self.get_landing(j)
+				self.sleep(5)
 				network.update({account['path']: {	# add new account
 					'id': account['id'],
 					'type': account['type'],

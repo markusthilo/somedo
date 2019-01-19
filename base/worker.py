@@ -7,7 +7,12 @@ from modules.twitter import Twitter
 class Worker:
 	'Work through a list of jobs and execute modules'
 
-	DEBUG = True
+	DEBUG = False
+#	DEBUG = True	# do not continue on error
+
+	DRYRUN = False
+#	DRYRUN = True	# only print job(s) etc. to debug user interface
+
 
 	MODULES = (	# the modules with options
 		{
@@ -82,13 +87,21 @@ class Worker:
 	def execute_job(self, job, headless=True, stop=None):
 		'Execute jobs'
 		message = ''
-		self.directory = self.storage.mkmoddir(job['module'])
+		self.storage.mkmoddir(job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
-		if self.DEBUG:
-			exec(cmd)
+		if self.DRYRUN:
+			print('----------------------------------------')
+			print('job:', job)
+			print('chrome.path:', self.chrome.path)
+			print('output directory:', self.storage.moddir)
+			print('cmd:', cmd)
+			print('----------------------------------------')
 		else:
-			try:
+			if self.DEBUG:
 				exec(cmd)
-			except Exception as error:
-				message += str(error) + '\n'
+			else:
+				try:
+					exec(cmd)
+				except Exception as error:
+					message += str(error) + '\n'
 		return message
