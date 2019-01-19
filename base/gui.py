@@ -3,11 +3,10 @@
 from time import sleep
 from threading import Event, Thread
 from functools import partial
-from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry, Text, PhotoImage, StringVar, BooleanVar, IntVar
+from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry
+from tkinter import Text, PhotoImage, StringVar, BooleanVar, IntVar
 from tkinter import BOTH, GROOVE, END, W, E, X, LEFT, RIGHT, DISABLED
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter import messagebox
+from tkinter import ttk, filedialog, messagebox
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -15,17 +14,28 @@ from base.chrometools import Chrome
 class GUI(Tk):
 	'Graphic user interface using Tkinter, main / root window'
 
-	JOBLISTLENGTH = 10
-	BUTTONWIDTH = 16
-	BIGENTRYWIDTH = 96
-	TARGETWIDTH = 120
-	PADX = 8
-	PADY = 8
-
 	def __init__(self, master):
 		'Generate object for main / root window.'
 		self.root = master
 		self.storage = Storage()	# object for file system accesss
+		if self.storage.windows:
+			self.JOBLISTLENGTH = 10
+			self.BUTTONWIDTH = 16
+			self.BIGENTRYWIDTH = 96
+			self.INTWIDTH = 6
+			self.TARGETWIDTH = 120
+			self.PADX = 8
+			self.PADY = 8
+			self.OPTPADX = 6
+		else:
+			self.JOBLISTLENGTH = 10
+			self.BUTTONWIDTH = 16
+			self.BIGENTRYWIDTH = 96
+			self.INTWIDTH = 6
+			self.TARGETWIDTH = 120
+			self.PADX = 8
+			self.PADY = 8
+			self.OPTPADX = 6
 		self.chrome = Chrome()	# object to work with chrome/chromium
 		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
@@ -98,7 +108,9 @@ class GUI(Tk):
 			if i['login'] != None:
 				frame_nb = ttk.Frame(nb_config)
 				nb_config.add(frame_nb, text=i['name'])
-				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(frame_nb, i['name'], self.worker.logins[i['name']])
+				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(
+					frame_nb, i['name'], self.worker.logins[i['name']]
+				)
 		frame_row = Frame(frame_config)
 		frame_row.pack(fill=BOTH, expand=True)
 		Button(frame_row, text="Save configuration", width=self.BUTTONWIDTH,
@@ -176,16 +188,25 @@ class GUI(Tk):
 			for i in self.worker.options[job['module']]:
 				definition = self.worker.options[job['module']][i]
 				value = job['options'][i]
-				Label(frame_grid, text=definition['name']).grid(row=definition['row'], column=definition['column']*2, sticky=E)
+				Label(frame_grid, text=definition['name']).grid(
+					row=definition['row'], column=definition['column']*2, sticky=E, pady=self.PADY
+				)
 				if isinstance(value, bool):	# checkbutton for boolean
 					tk_job['options'][i] = BooleanVar(frame_grid, value)
-					Checkbutton(frame_grid, variable=tk_job['options'][i]).grid(row=definition['row'], column=definition['column']*2+1, sticky=W)
-					continue
-				if isinstance(value, int):	# integer
+					Checkbutton(frame_grid, variable=tk_job['options'][i]).grid(
+						row=definition['row'], column=definition['column']*2+1, sticky=W
+					)
+					width = 0
+				elif isinstance(value, int):	# integer
 					tk_job['options'][i] = IntVar(frame_grid, value)
+					width = self.INTWIDTH
 				elif isinstance(value, str): # string
 					tk_job['options'][i] = StringVar(frame_grid, value)
-				Entry(frame_grid, textvariable=tk_job['options'][i]).grid(row=definition['row'], column=definition['column']*2+1, sticky=W)
+					width = self.BUTTONWIDTH
+				if width != 0:
+					Entry(frame_grid, textvariable=tk_job['options'][i], width=width).grid(
+						row=definition['row'], column=definition['column']*2+1, sticky=W, padx=self.OPTPADX
+					)
 		if job['login'] != None:
 			frame_login = LabelFrame(self.job_dialog_root, text=' \u2737 Login')
 			frame_login.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)

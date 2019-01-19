@@ -10,8 +10,8 @@ class Worker:
 	DEBUG = False
 #	DEBUG = True	# do not continue on error
 
-	DRYRUN = False
-#	DRYRUN = True	# only print job(s) etc. to debug user interface
+	UITEST = False
+#	UITEST = True	# only print job(s) etc. to debug user interface
 
 
 	MODULES = (	# the modules with options
@@ -19,36 +19,36 @@ class Worker:
 			'name': 'Facebook',
 			'login': ('Email', 'Password'),
 			'options': {
-				'Timeline': {'name': 'Timeline', 'default': False, 'row': 0, 'column': 0},
+				'Timeline': {'name': 'Get Timeline', 'default': False, 'row': 0, 'column': 0},
 				'expandTimeline': {'name': 'Expand posts', 'default': False, 'row': 0, 'column': 1},
 				'translateTimeline': {'name': 'Translate posts', 'default': False, 'row': 0, 'column': 2},
-				'untilTimeline': {'name': 'Until', 'default': Facebook.ONEYEARAGO, 'row': 0, 'column': 3},
-				'limitTimeline': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 0, 'column': 4},
-				'About': {'name': 'About', 'default': False, 'row': 1, 'column': 0},
-				'Photos': {'name': 'Photos', 'default': False, 'row': 2, 'column': 0},
+				'untilTimeline': {'name': 'Stop on date', 'default': Facebook.ONEYEARAGO, 'row': 0, 'column': 3},
+				'limitTimeline': {'name': 'Max. Screenshots', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 0, 'column': 4},
+				'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
+				'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
 				'expandPhotos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
 				'translatePhotos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
-				'limitPhotos': {'name': 'Max. number of pages of photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
-				'Network': {'name': 'Network', 'default': False, 'row': 3, 'column': 0},
+				'limitPhotos': {'name': 'Max. Screeshots in Photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
+				'Network': {'name': 'Network of Friends', 'default': False, 'row': 3, 'column': 0},
 				'depthNetwork': {'name': 'Depth of recursion', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
-				'extendNetwork': {'name': 'include Timeline commentors/likers', 'default': False, 'row': 3, 'column': 2}
+				'extendNetwork': {'name': 'inc. Timeline responses', 'default': False, 'row': 3, 'column': 2}
 			}
 		},
 		{
 			'name': 'Instagram',
 			'login': None,
 			'options': {
-				'Media': {'name': 'Download media', 'default': False, 'row': 0, 'column': 0},
-				'limitPages': {'name': 'Maximal pages', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
+				'Media': {'name': 'Download media files', 'default': False, 'row': 0, 'column': 0},
+				'limitPages': {'name': 'Max. Screenshots', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
 			}
 		},
 		{
 			'name': 'Twitter',
 			'login': None,
 			'options': {
-				'Search': {'name': 'Perform Twitter Search\ninstead of targetting accounts', 'default': False, 'row': 0, 'column': 0},
-				'Photos': {'name': 'Photos', 'default': False, 'row': 1, 'column': 0},
-				'limitPages': {'name': 'Limit', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
+				'Search': {'name': 'Target as search argument', 'default': False, 'row': 0, 'column': 0},
+				'Photos': {'name': 'Download photos', 'default': False, 'row': 1, 'column': 0},
+				'limitPages': {'name': 'Max. Screenshots', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
 			}
 		}
 	)
@@ -89,13 +89,13 @@ class Worker:
 		message = ''
 		self.storage.mkmoddir(job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
-		if self.DRYRUN:
-			print('----------------------------------------')
+		if self.UITEST:
+			print()
 			print('job:', job)
 			print('chrome.path:', self.chrome.path)
 			print('output directory:', self.storage.moddir)
 			print('cmd:', cmd)
-			print('----------------------------------------')
+			print()
 		else:
 			if self.DEBUG:
 				exec(cmd)
