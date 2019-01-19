@@ -33,14 +33,6 @@ class Facebook:
 			raise RuntimeError('At least one login account is needed for the Facebook module.')
 		self.loginrevolver = 0
 		errors = []	# to return error messages
-
-		print('__________________')	######################################################### DEBUG
-		print(job)
-		print(self.storage.outdir)
-		print(self.chrome.path)
-		print(debug, headless)
-		print('__________________')
-
 		if debug:	# abort on errors in debug mode
 			accounts = [ self.get_landing(i) for i in self.extract_paths(job['target']) ]	# get account infos with a first visit
 			if self.options['Network']:
@@ -351,8 +343,7 @@ class Facebook:
 			self.chrome.close()
 		self.chrome.open(stop=self.stop, headless=self.headless)
 		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
-		try_cnt = 0
-		while try_cnt < 100:
+		for i in range(len(self.emails) * 10):	# try 10x all accounts
 			if self.chrome.stop_check():
 				return
 			self.sleep(1)
@@ -369,7 +360,6 @@ class Facebook:
 			self.loginrevolver += 1
 			if self.loginrevolver == len(self.emails):
 				self.loginrevolver = 0
-				try_cnt += 1
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
 
@@ -377,15 +367,18 @@ class Facebook:
 		'Navigate to given URL. Open Chrome/Chromium and/or login if needed'
 		if self.chrome.chrome_proc == None:
 			self.login()
-		while True:
-			self.chrome.navigate(url)	# go to page
-			self.sleep(1)
-			try:
-				m = rsearch('<img', self.chrome.get_inner_html_by_id('content'))
-				if m != None:
-					return
-			except:
-				pass
+		for i in range(10):
+			for j in range(3):
+				self.chrome.navigate(url)	# go to page
+				self.sleep(1)
+				try:
+					m = rsearch('<img', self.chrome.get_inner_html_by_id('content'))
+					if m != None:
+						return
+				except:
+					pass
+			self.login()
+		raise Exception('Facebook might have blocked all given accounts.')
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
@@ -427,7 +420,7 @@ class Facebook:
 			translate=self.options['translateTimeline']
 		)
 		self.chrome.page_pdf(path_no_ext)
-		if self.options['Network'] and aelf.options['visitorsNetwork']:
+		if self.options['Network'] and self.options['depthNetwork']:
 			return self.get_visitors(account)
 		else:
 			return None

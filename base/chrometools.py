@@ -278,11 +278,12 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		try:
-			with open('%s.pdf' % path_no_ext, 'wb') as f:
-				f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
-		except:
-			pass
+		if self.headless:
+			try:
+				with open('%s.pdf' % path_no_ext, 'wb') as f:
+					f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
+			except:
+				pass
 
 	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'

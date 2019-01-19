@@ -46,7 +46,7 @@ class CLI:
 		'Run one job'
 		self.args = args
 		if not self.args[0] in self.worker.modulenames:
-			msg = 'First argument has to be the module name. Available: '
+			msg = 'First argument has to be -h, -f or the module name. Available: '
 			for i in self.worker.modulenames:
 				msg += i + ', '
 			self.__error__(msg[:-2])
