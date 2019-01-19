@@ -244,13 +244,17 @@ class GUI(Tk):
 
 	def __add_job__(self, tk_job):
 		'Add job to list'
+		if tk_job['target'].get() == '':	# no target, no job
+			return
 		self.job_dialog_root.destroy()
 		self.__enable_jobbuttons__()
 		self.jobs.append(self.__tk2job__(tk_job))
 		self.__update_joblist__()
 
 	def __update_job__(self, tk_job, row):
-		'Add job to list'
+		'Update job in list'
+		if tk_job['target'].get() == '':	# no target, no job
+			return
 		self.job_dialog_root.destroy()
 		self.__enable_jobbuttons__()
 		self.jobs[row] = self.__tk2job__(tk_job)

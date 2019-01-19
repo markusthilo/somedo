@@ -37,6 +37,6 @@ class Cutter:
 		except:
 			return ''
 
-	def semicolons(self, string):
+	def split(self, string):
 		'Split string at semicolons and remove whitespaces'
-		return [ i.strip(' ') for i in string.split(';') if i.strip(' ') != '' ]
+		return [ i.strip(' ') for i in string.replace(',', ';').split(';') if i.strip(' ') != '' ]

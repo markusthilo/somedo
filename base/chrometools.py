@@ -278,13 +278,11 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		if not self.headless or path_no_ext == '':	# only works with --headless according to the google developers
-			return
 		try:
 			with open('%s.pdf' % path_no_ext, 'wb') as f:
 				f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))
 		except:
-			raise Exception('Unable to save page as PDF')
+			pass
 
 	def stop_check(self, terminator=None):
 		'Check if User wants to abort running task'
@@ -359,14 +357,20 @@ class Chrome:
 		view_height = self.get_window_height()
 		old_y = 0	# vertical position
 		old_height = self.get_page_height()	# to check if page is still expanding
-		cnt = 1
-		for cnt in range(1, limit+1):
-			self.set_position(old_y)
+		if limit < 1:
+			limit = 1
+		cnt = 0
+		while True:
+			cnt += 1
 			if self.stop_check() or self.__terminator_check__():
 				break
+			self.set_position(old_y)
 			self.click_page(click_elements_by)	# expand page by clicking on elments
 			self.__per_page__(per_page_action)	# execute per page action
 			self.wait_expand_end()
+			if cnt == limit:
+				self.set_position(old_y)
+				break
 			new_y = old_y + scroll_height
 			self.set_position(new_y) 	# scroll down
 			new_height = self.wait_expand_end()	# get new height of page when expanding is over

@@ -15,7 +15,7 @@ class Facebook:
 
 	ACCOUNT = ('type', 'id', 'name', 'path', 'link')
 	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
-	DEFAULTPAGELIMIT = 100
+	DEFAULTPAGELIMIT = 50
 	DEFAULTNETWORKDEPTH = 1
 
 	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
@@ -26,18 +26,24 @@ class Facebook:
 		self.headless = headless
 		self.options = job['options']
 		self.ct = Cutter()
-		self.emails = self.ct.semicolons(job['login']['Email'])
-		self.passwords = self.ct.semicolons(job['login']['Password'])
+		self.emails = self.ct.split(job['login']['Email'])
+		self.passwords = self.ct.split(job['login']['Password'])
 		self.passwords += [ self.passwords[-1] for i in range(len(self.emails)-len(self.passwords)) ]	# same password
 		if self.emails == [] or self.passwords == []:
-			raise Exception('At least one login account is needed for the Facebook module.')
+			raise RuntimeError('At least one login account is needed for the Facebook module.')
 		self.loginrevolver = 0
 		errors = []	# to return error messages
+
+		print('__________________')	######################################################### DEBUG
 		print(job)
+		print(self.storage.outdir)
+		print(self.chrome.path)
+		print(debug, headless)
+		print('__________________')
 
 		if debug:	# abort on errors in debug mode
 			accounts = [ self.get_landing(i) for i in self.extract_paths(job['target']) ]	# get account infos with a first visit
-			if self.options['network']:
+			if self.options['Network']:
 				self.get_network(accounts)
 		else:	# be error robust on normal run
 			accounts = []
@@ -45,12 +51,12 @@ class Facebook:
 				try:
 					account = self.get_landing(i)
 				except:
-					errors.append(' %s:Undetected' % i)
+					errors.append('Could not detect account "%s"' % i)
 					continue
 				accounts.append(account)
 			if accounts == []:
 				raise Exception('No valid target account(s) were detected.')
-			if self.options['network']:
+			if self.options['Network']:
 				try:
 					self.get_network(accounts)
 				except:
@@ -59,18 +65,18 @@ class Facebook:
 			for j in ('About', 'Photos', 'Timeline'):
 				if self.chrome.stop_check():
 					break
-				cmd = '%s(i)' % j.lower()
-				if debug:
-					exec(cmd)
-				else:
-					try:
+				if self.options[j]:
+					cmd = 'self.get_%s(i)' % j.lower()
+					if debug:
 						exec(cmd)
-					except:
-						errors.append(' %s:%s' %(i, j))
+					else:
+						try:
+							exec(cmd)
+						except:
+							errors.append(' %s:%s' %(i, j))
+		self.chrome.close()
 		if errors != []:
 			raise Exception('The following Facebook account(s)/action(s) returned errors:'.join(errors)) 
-		if headless:
-			self.chrome.close()
 
 	def sleep(self, t):
 		'Sleep a slightly ranomized time'
@@ -79,7 +85,7 @@ class Facebook:
 	def extract_paths(self, target):
 		'Extract facebook paths from target that might be urls'
 		l= []	# list for the target users (id or path)
-		for i in self.ct.semicolons(target):
+		for i in self.ct.split(target):
 			i = rsub('^.*facebook.com/', '', i.rstrip('/'))
 			i = rsub('&.*$', '', i)
 			if i != '':
@@ -401,7 +407,7 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def get_timeline(self, account, expand=False, translate=False, visitors=False, until=ONEYEARAGO, limit=DEFAULTPAGELIMIT, dontsave=False):
+	def get_timeline(self, account):
 		'Get timeline'
 		if account['type'] == 'pg':
 			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
@@ -409,15 +415,19 @@ class Facebook:
 		else:
 			self.navigate(account['link'])
 			path_no_ext = self.storage.modpath(account['path'], 'timeline')
-		if dontsave:
-			path_no_ext = ''
 		self.rm_profile_cover()
 		self.rm_pagelets()
 		self.rm_left()
 		self.rm_right()
-		self.expand_page(path_no_ext=path_no_ext, expand=expand, translate=translate, until=until, limit=limit)	# go through timeline
+		self.expand_page(	# go through timeline
+			path_no_ext=path_no_ext,
+			limit=self.options['limitTimeline'],
+			until=self.options['untilTimeline'],
+			expand=self.options['expandTimeline'],
+			translate=self.options['translateTimeline']
+		)
 		self.chrome.page_pdf(path_no_ext)
-		if visitors:
+		if self.options['Network'] and aelf.options['visitorsNetwork']:
 			return self.get_visitors(account)
 		else:
 			return None
@@ -461,7 +471,7 @@ class Facebook:
 		self.expand_page(path_no_ext=path_no_ext)
 		self.chrome.page_pdf(path_no_ext)
 
-	def get_photos(self, account, expand=False, translate=False, limit=DEFAULTPAGELIMIT):
+	def get_photos(self, account):
 		'Get Photos'
 		if account['type'] == 'pg':
 			self.navigate('https://www.facebook.com/pg/%s/photos' % account['path'])
@@ -472,7 +482,7 @@ class Facebook:
 		path_no_ext = self.storage.modpath(account['path'], 'photos')
 		self.rm_pagelets()	# remove bluebar etc.
 		self.rm_right()
-		self.expand_page(path_no_ext=path_no_ext, limit=limit)
+		self.expand_page(path_no_ext=path_no_ext, limit=self.options['limitPhotos'])
 		self.rm_left()
 		self.chrome.page_pdf(path_no_ext)
 		cnt = 1	# to number screenshots
@@ -486,7 +496,12 @@ class Facebook:
 					self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 					path_no_ext = self.storage.modpath(account['path'], '%05d_photo' % cnt)
 					self.rm_pagelets()	# remove bluebar etc.
-					self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
+					self.expand_page(
+						path_no_ext=path_no_ext,
+						limit=self.options['limitPhotos'],
+						expand=self.options['expandPhotos'],
+						translate=self.options['translatePhotos']
+					)
 					self.chrome.page_pdf(path_no_ext)
 					try:
 						self.storage.download(
@@ -510,7 +525,12 @@ class Facebook:
 					self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 					path_no_ext = self.storage.modpath(account['path'], '%05d_photo' % cnt)
 					self.rm_pagelets()	# remove bluebar etc.
-					self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
+					self.expand_page(
+						path_no_ext=path_no_ext,
+						limit=self.options['limitPhotos'],
+						expand=self.options['expandPhotos'],
+						translate=self.options['translatePhotos']
+					)
 					self.chrome.page_pdf(path_no_ext)
 					try:
 						self.storage.download(
@@ -534,7 +554,12 @@ class Facebook:
 					self.chrome.rm_outer_html_by_id('photos_snowlift')	# show page with comments
 					path_no_ext = self.storage.modpath(account['path'], '%05d_photo' % cnt)
 					self.rm_pagelets()	# remove bluebar etc.
-					self.expand_page(path_no_ext=path_no_ext, limit=limit, expand=expand, translate=translate)	# expand photo comments
+					self.expand_page(
+						path_no_ext=path_no_ext,
+						limit=self.options['limitPhotos'],
+						expand=self.options['expandPhotos'],
+						translate=self.options['translatePhotos']
+					)
 					self.chrome.page_pdf(path_no_ext)
 					try:
 						self.storage.download(
@@ -591,7 +616,7 @@ class Facebook:
 			return { i['path'] for i in mlist }	# return members as set
 		return set()
 
-	def get_network(self, accounts, depth, extended=False, limit=DEFAULTPAGELIMIT):
+	def get_network(self, accounts):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
 		network = dict()	# dictionary to store friend lists
 		old_ids = set()	# set to store ids already got handled
@@ -610,22 +635,17 @@ class Facebook:
 			old_ids.add(i['path'])	# remember already handled accounts
 			all_ids.add(i['path'])	# update set of all ids
 			all_ids |= friends
-			if extended:	# also add visitors to network if desired
-				visitors = self.get_timeline(
-					i,
-					expand=True,
-					translate=False,
-					visitors=True,
-					until=0,
-					limit=limit,
-					dontsave=True
-				)
+			if self.options['extendNetwork']:	# also add visitors to network if desired
+				visitors = self.get_timeline(i)
+				self.options['Timeline'] = False	# on extendNetwork no extra Timeline visit is needed
 				network[i['path']]['visitors'] = visitors
 				all_ids |= visitors
 			else:
 				network[i['path']]['visitors'] = set()	# empty set if extended option is false
-		if depth < 1:	# less than 1 makes no sense
-			depth = 1
+		if self.options['depthNetwork'] > 0:	# on 0 only get friend list(s)
+			depth = self.options['depthNetwork']
+		else:
+			return
 		for i in range(depth):	# stay in depth limit and go through friend lists
 			if self.chrome.stop_check():
 				break

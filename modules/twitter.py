@@ -10,42 +10,28 @@ from base.cutter import Cutter
 class Twitter:
 	'Downloader for Twitter'
 
-	DEFAULTPAGELIMIT = 100
+	DEFAULTPAGELIMIT = 20
 
-	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
+	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Twitter'
 		self.chrome = chrome
 		self.storage = storage
 		self.ct = Cutter()
+		self.options = job['options']
 		self.chrome.open(stop=stop, headless=headless)
-		if 'User' in options and not 'Search' in options:	# target userss / twitter user
-			if 'Photos' in options['User']:
-				self.photos = options['User']['Photos']
-			else:
-				self.photos = None
-			self.limit = options['User']['Limit']
-			self.rm_banner()
-			for i in self.extract_targets(target):				
+		if self.options['Search']:	# twitter search
+			self.get_search(job['target'])
+		else:	# target userss / twitter user
+			for i in self.extract_targets(job['target']):				
 				self.get_account(i)
-		elif not 'User' in options and 'Search' in options:	# twitter search
-			if 'Photos' in options['Search']:
-				self.photos = options['Search']['Photos']
-			else:
-				self.photos = None
-			self.limit = options['Search']['Limit']
-			self.get_search(target)
-		elif 'User' in options and 'Search' in options:	# either account or search, not both
-			raise Exception('Targetting a Twitter user does not work together with the Twitter search option.')
-		else:
-			raise Exception('Nothing to do an Twitter.')
+		self.chrome.close()
 
 	def extract_targets(self, target):
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
 		l= []	# list for the target users (id or path)
-		for i in target.split(';'):
+		for i in self.ct.split(target):
 			i = rsub('^.*twitter\.com/', '', i)
 			i = rsub('\?.*$', '', i)
-			i = i.lstrip(' ').rstrip(' ')
 			if i != '':
 				l.append(i)
 		return l
@@ -73,9 +59,9 @@ class Twitter:
 	def get_tweets(self, path):
 		'Get Tweets by scrolling down.'
 		path_no_ext = self.storage.modpath(path, 'tweets')
-		self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.limit)
+		self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.options['limitPages'])
 		self.chrome.page_pdf(path_no_ext)
-		if self.photos:
+		if self.options['Photos']:
 			cnt = 1
 			pinfo = []	# to store urls
 			for html in self.chrome.get_outer_html('TagName', 'img'):	# get all embeded media
@@ -99,29 +85,18 @@ class Twitter:
 	def get_account(self, path):
 		'Get tweets of an account / Twitter user'
 		self.chrome.navigate('http://twitter.com/%s' % path)
-		for i in range(3):
-			sleep(1)
-			if self.chrome.get_inner_html_by_id('timeline') != None:
-				break
-			if i == 2:
-				raise Exception('Could not open Twitter Timeline.')
+		sleep(1)
 		self.rm_banner()
 		self.storage.mksubdir(path)
-		path_no_ext = self.storage.modpath(path, 'landing')
+		path_no_ext = self.storage.modpath(path, 'account')
 		self.chrome.page_pdf(path_no_ext)
-		self.chrome.visible_page_png(path_no_ext)
 		self.rm_profile_canopy()
 		self.get_tweets(path)
 
 	def get_search(self, target):
 		'On Search the target is handled as Twitter search string'
 		self.chrome.navigate('https://twitter.com/search?f=tweets&vertical=news&q=%s&src=typd' % target)
-		for i in range(3):
-			sleep(1)
-			if self.chrome.get_inner_html_by_id('timeline') != None:
-				break
-			if i == 2:
-				raise Exception('Could not open Twitter Search.')
+		sleep(1)
 		path = 'search_'	# handable directory name
 		if len(target) > 23:
 			path += target.replace(' ', '_')[:23]

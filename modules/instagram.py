@@ -9,37 +9,25 @@ from base.cutter import Cutter
 class Instagram:
 	'Downloader for Instagram'
 
-	DEFAULTPAGELIMIT = 100
+	DEFAULTPAGELIMIT = 20
 
-	def __init__(self, target, options, login, storage, chrome, stop=None, headless=True, debug=False):
+	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
 		'Generate object for Instagram'
 		self.storage = storage
 		self.chrome = chrome
 		self.ct = Cutter()
-		if 'Landing' in options:
-			self.landing = True
-		else:
-			self.landing = False
-		if 'Media' in options:
-			self.limit = options['Media']['Limit']
-			self.media = True
-		else:
-			self.media = False
-		if not self.landing and not self.media:
-			raise Exception('Nothing to do.')
+		self.options = job['options']
 		self.chrome.open(stop=stop, headless=headless)
-		for i in self.extract_targets(target):
+		for i in self.extract_targets(job['target']):
 			self.get_main(i)
-		if debug:
-			self.chrome.close()
+		self.chrome.close()
 
 	def extract_targets(self, target):
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
 		l= []	# list for the target users (id or path)
-		for i in target.split(';'):
+		for i in self.ct.split(target):
 			i = rsub('^.*instagram\.com/', '', i)
 			i = rsub('/.*$', '', i)
-			i = i.lstrip(' ').rstrip(' ')
 			if i != '' and i != 'p':
 				l.append(i)
 		return l
@@ -51,16 +39,15 @@ class Instagram:
 
 	def get_main(self, path):
 		'Scroll through main page and get images'
-		self.chrome.open()
 		self.chrome.navigate('http://www.instagram.com/%s' % path)
 		sleep(0.5)
 		try:
 			name = self.chrome.get_inner_html('TagName', 'h1')[0]
 		except:
-			name = 'UNKNOWN'
+			name = 'Undetected'
 		self.storage.mksubdir(path)
-		self.storage.write_str('%s\t%s\thttp://www.instagram.com/%s' % (path, name, path), path, 'profile.csv')	# write information as file
-		self.storage.write_json({'path': path, 'name': name, 'link': 'http://www.instagram.com/%s' % path}, path, 'profile.json')	# write as json file
+		self.storage.write_str('%s\thttp://www.instagram.com/%s' % (name, path), path, 'account.csv')	# write information as file
+		self.storage.write_json({'name': name, 'link': 'http://www.instagram.com/%s' % path}, path, 'account.json')	# write as json file
 		try:	# try to download profile picture
 			url = self.ct.src(self.chrome.get_outer_html('TagName', 'img')[0])
 			self.storage.download(url, path, 'profile' + self.ct.ext(url))	# download media file using the right file extension
@@ -68,18 +55,12 @@ class Instagram:
 			pass
 		self.rm_banner()
 		self.chrome.set_x_center()
-		path_no_ext = self.storage.modpath(path, 'landing')
-		if self.landing:
-			self.chrome.page_pdf(path_no_ext)
-			if not self.media:
-				self.chrome.visible_page_png(path_no_ext)
-				return
 		self.links = []
 		path_no_ext = self.storage.modpath(path, 'main')
 		self.chrome.expand_page(	# scroll through page and take screenshots
 			path_no_ext = path_no_ext,
 			per_page_action = self.get_links,
-			limit = self.limit
+			limit = self.options['limitPages']
 		)
 		minfo = []	# list for media info
 		cnt = 1	# counter for the images/videos
@@ -93,7 +74,7 @@ class Instagram:
 			self.chrome.visible_page_png(store_path)	# save page as png
 			self.chrome.page_pdf(store_path)	# save as pdf
 			self.storage.write_text(self.chrome.get_inner_html('TagName', 'article')[0], path, '%05d_page.txt' % cnt)	# write comments
-			if self.media:
+			if self.options['Media']:
 				tags = self.chrome.get_outer_html('TagName', 'video')
 				if tags != []:
 					url = self.ct.src(tags[0])

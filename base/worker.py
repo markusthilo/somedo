@@ -8,7 +8,8 @@ class Worker:
 	'Work through a list of jobs and execute modules'
 
 	DEBUG = True
-	MODULES = (
+
+	MODULES = (	# the modules with options
 		{
 			'name': 'Facebook',
 			'login': ('Email', 'Password'),
@@ -22,11 +23,10 @@ class Worker:
 				'Photos': {'name': 'Photos', 'default': False, 'row': 2, 'column': 0},
 				'expandPhotos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
 				'translatePhotos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
-				'limitPhotos': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
+				'limitPhotos': {'name': 'Max. number of pages of photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
 				'Network': {'name': 'Network', 'default': False, 'row': 3, 'column': 0},
-				'depthNetwork': {'name': 'Depth', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
-				'visitorsNetwork': {'name': 'include Timeline visitors', 'default': False, 'row': 3, 'column': 2},
-				'limitVisitors': {'name': 'Limit', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 3, 'column': 3}
+				'depthNetwork': {'name': 'Depth of recursion', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
+				'extendNetwork': {'name': 'include Timeline commentors/likers', 'default': False, 'row': 3, 'column': 2}
 			}
 		},
 		{
@@ -34,16 +34,16 @@ class Worker:
 			'login': None,
 			'options': {
 				'Media': {'name': 'Download media', 'default': False, 'row': 0, 'column': 0},
-				'Limit': {'name': 'Limit', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
+				'limitPages': {'name': 'Maximal pages', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
 			}
 		},
 		{
 			'name': 'Twitter',
 			'login': None,
 			'options': {
-				'Search': {'name': 'Search', 'default': False, 'row': 0, 'column': 0},
+				'Search': {'name': 'Perform Twitter Search\ninstead of targetting accounts', 'default': False, 'row': 0, 'column': 0},
 				'Photos': {'name': 'Photos', 'default': False, 'row': 1, 'column': 0},
-				'Limit': {'name': 'Limit', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
+				'limitPages': {'name': 'Limit', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
 			}
 		}
 	)
@@ -83,7 +83,7 @@ class Worker:
 		'Execute jobs'
 		message = ''
 		self.directory = self.storage.mkmoddir(job['module'])
-		cmd = '%s(job,  self.storage, self.chrome, stop=stop, headless=headless, debug=True)' % job['module']
+		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
 		if self.DEBUG:
 			exec(cmd)
 		else:

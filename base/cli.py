@@ -12,7 +12,7 @@ class CLI:
 	def __init__(self, clargs):
 		'Generate object to parse the command line arguments and execute a job'
 		self.storage = Storage()	# object for file system accesss
-		if clargs[1].lower() in ('-h', '-help', 'h', 'help'):
+		if len(clargs) < 2 or clargs[1].lower() in ('-h', '-help', 'h', 'help'):
 			for i in ('README.md', 'README.txt', 'README.md.txt', 'README.txt.md', 'README'):
 				try:
 					with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
@@ -22,18 +22,19 @@ class CLI:
 				except:
 					sys_exit(0)
 			self.__error__('Go to https://github.com/markusthilo/somedo or https://sourceforge.net/p/somedo/wiki/Somedo/ for Infos.')
+		self.chrome = Chrome()	# object to work with chrome/chromium
+		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		if clargs[1] in ('-f', '-file', '--file', '-r', '-read', '--read'):
 			try:
 				with open(clargs[2], 'r', encoding='utf-8') as f:
 					jobfile = f.read()
 			except:
 				self.__error__('Could not open file to read job(s).')
-			for i in jobfile.split('\n'):
-				print(i.split(' '))
-				continue
-				self.__job__(i.split(' '))
+			jobs = [ self.__job__([ j for j in i.split(' ') if j != '' ]) for i in jobfile.split('\n') if i != '' ]
+			self.__execute_jobs__(jobs=jobs)
+			sys_exit(0)
 		self.__job__(clargs[1:])
-		self.__execute_jobs__([self.job])
+		self.__execute_jobs__()
 		sys_exit(0)
 
 	def __error__(self, msg):
@@ -44,11 +45,6 @@ class CLI:
 	def __job__(self, args):
 		'Run one job'
 		self.args = args
-		self.chrome = Chrome()	# object to work with chrome/chromium
-		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
-
-		print(self.args)	###################################################### DEBUG
-
 		if not self.args[0] in self.worker.modulenames:
 			msg = 'First argument has to be the module name. Available: '
 			for i in self.worker.modulenames:
@@ -56,6 +52,7 @@ class CLI:
 			self.__error__(msg[:-2])
 			return True
 		self.job = self.worker.new_job(self.args.pop(0))
+		self.headless = True
 		self.chrome_set = False
 		self.outdir_set = False
 		self.target_set = False
@@ -63,6 +60,9 @@ class CLI:
 		self.options_set = False
 		while len(self.args) > 0:
 			opt = self.args.pop(0)
+			if opt in ('-v', '-verbose', '--verbose'):
+				self.headless = False
+				continue
 			if len(self.args) < 1:
 				self.__error__('Undecodable argument "%s".' % opt)
 			if opt in ('-c', '-chrome', '--chrome'):
@@ -77,10 +77,9 @@ class CLI:
 				self.__options__()
 			else:
 				self.__error__('Unknown option "%s".' % opt)
-
-		print(self.job)	######################################################### DEBUG
-		print(self.storage.outdir)
-		print(self.chrome.path)
+		if self.job['target'] == '':
+			self.__error__('Job without target will not work')
+		return(self.job)
 
 	def __2margs__(self):
 		'Too many arguments'
@@ -153,12 +152,32 @@ class CLI:
 			if len(arg) < 2:
 				return
 			if arg[0] in self.job['options']:
-				self.job['options'][arg[0]] = arg[1]
+				if isinstance(self.job['options'][arg[0]], bool):
+					if arg[1] in ('True', 'T', 'true', 't', '+', '1'):
+						self.job['options'][arg[0]] = True
+					else:
+						self.job['options'][arg[0]] = False
+				elif isinstance(self.job['options'][arg[0]], int):
+					self.job['options'][arg[0]] = int(arg[1])
+				else:
+					self.job['options'][arg[0]] = arg[1]
 			else:
 				self.__error__('Unknown option "%s".' % arg[0])
 			self.args.pop(0)
 
-	def __execute_jobs__(self, jobs):
+	def __execute_jobs__(self, jobs=None):
 		'Execute/start job or jobs'
-		print('__________________')
-		print(jobs)
+		if jobs == None:
+			jobs = [self.job]
+		errors = ''
+		for i in jobs:
+			if self.worker.DEBUG:
+				self.worker.execute_job(i, headless=self.headless)
+			else:
+				try:
+					self.worker.execute_job(i, headless=self.headless)
+				except Exception as error:
+					errors += str(error) + '\n'
+		if errors!= '': 
+			self.__error__(errors)
+		sys_exit(0)
