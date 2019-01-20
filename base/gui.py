@@ -21,9 +21,9 @@ class GUI(Tk):
 		if self.storage.windows:
 			self.JOBLISTLENGTH = 10
 			self.BUTTONWIDTH = 16
-			self.BIGENTRYWIDTH = 96
+			self.BIGENTRYWIDTH = 128
 			self.INTWIDTH = 6
-			self.TARGETWIDTH = 120
+			self.TARGETWIDTH = 160
 			self.PADX = 8
 			self.PADY = 8
 			self.OPTPADX = 6

@@ -28,10 +28,10 @@ class Worker:
 				'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
 				'expandPhotos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
 				'translatePhotos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
-				'limitPhotos': {'name': 'Max. Screeshots in Photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
+				'limitPhotos': {'name': 'Max. Screenhots in Photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
 				'Network': {'name': 'Network of Friends', 'default': False, 'row': 3, 'column': 0},
 				'depthNetwork': {'name': 'Depth of recursion', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
-				'extendNetwork': {'name': 'inc. Timeline responses', 'default': False, 'row': 3, 'column': 2}
+				'extendNetwork': {'name': 'incl. Timeline responses', 'default': False, 'row': 3, 'column': 2}
 			}
 		},
 		{

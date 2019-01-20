@@ -1,115 +1,194 @@
+Somedo Version 0.6.0 Alpha 2019-01-20
+
+
 1 Introduction
 
-Somedo is a downloader for Social Media Platforms such as Facebook.
-The downloaded sites/profiles are mainly stored as screenshots (PNG) and PDF files.
-Additional data can also be found in other files such as CSV, JSON etc.
-The goal is to provide an usable tool to download open content from social media
-platforms. Somedo has a modular structure. So far, Somedo is usable for Facebook,
-Instagram an Twitter. Somedo ist in alpha state and might never leave beta.
+Somedo is a downloader for social media platforms such as Facebook. The
+downloaded sites/profiles are mainly stored as screenshots (PNG) and PDF files.
+Additional data can also be found in other files such as CSV, JSON, HTML etc.
+
+Somedo is designed for open source intelligence and law enforcement but it might be
+helpful in other fileds too. Somedo has a modular structure. Modules for Facebook,
+Instagram an Twitter are implemented so far.
+
+Somedo ist in alpha state and might never leave beta due to constant development of
+the social media platforms.
+
+There are socialmedia platforms that require an account for the investigator to see
+anything. Facebook is one of them. Register one or more accounts avoiding giving
+away any real personal data. Set the privacy level and options for the accounts to
+the maximum. The accepted accounts can then be used to optain data.
+
+Make sure this is leagel for you in your country/state etc. I, Markus Thilo, the
+developer of this open source software, is and will never be responsable for any
+use of my tiny one man show development. Somedo is intended to protect the law
+and may help aquiring information for journalistic or other goals that do
+not interfere with legislation or human rights.
 
 
-2 Quick Start Guide
+2 Use
 
-Install EXE on Windows
+You need Googel Chrome or Chromium to be installed.
 
-Download somedo_win_v*.zip from https://sourceforge.net/projects/somedo/files/
-and unzip it in some folder. To run Somedo Google Chrome or Chromium has to be
-installed. Before running Somedo, you should close all Chrome/Chromium instances.
-Start Somedo by double clicking somedo.exe. Do not remove directories or files that
-come within the zip file.
+As the downloads might take a while the idea is to add jobs to a list and start the
+execution when you know what you want. The investigator can use the browser of his
+choice to detect the targeted account(s) or criterias to download.
 
+The modules should by default take several accounts as targets. Seperate them with
+am comma or semicolon in the target(s) field.
 
-Install on Linux
+You can add jobs hitting the large Buttons for Facebook, Instagram or Twitter. To
+edit click the job in the list. The job list can be resetted usind "Purge jobs". Make
+shure that in Configuration is the correct path of Google's Chrome or the open
+version Chromium. You can change the file path (write it into the field or use the
+hand symbol button). In addition you might want to change to directory where the
+optained data will be stored by setting "Output directory".
 
-Download somedo_v*.zip from https://sourceforge.net/projects/somedo/files/
-and unzip it in some folder. For Somedo the Chromium Browser or Google Chrome has
-to be installed. The code should work on any current Python 3 which should come
-with your distro. You should manually install the following libraries:
+Before launching make sure the used browser (Chrome/Chromium) is not running. Somedo
+will hide the Google browser (in DEBUG mode you are able to see the browser working
+but no PDF files will be created due to limitations of the browser's abilities -
+info for developers only).
 
-TkInter library
-(e.g. pip install tkinter or apt install python3-tk)
+The jobs are execute by hitting "Start jobs". At this point the browser used by
+Somedo has to be closes (if you use Chromium for Somedo, you can still work with
+Chrome).
 
-Requests library
-(e.g. pip install requests or apt install python3-requests)
-
-WebSocket client library
-(e.g. pip install websocket-client or apt install python3-websocket)
-
-Htm2text library
-(e.g. pip install html2text or apt install python3-html2text)
-
-The easiest way ist to start somedo is by executing the file (bash script) somedo
-by clicking in a file browser or start from a terminal with:
-
-$./somedo
-
-Using Python directly also works:
-$ python3 somedo.py
-
-
-Use
-
-The GUI allows to add jobs that can be executed with Start jobs. If Chrome/Chromium
-was not fount automatically, hit the Chrome button. You can save the configuration
-such as the output directory, path to Chrome/Chromium, user names, passwords etc. to
-a config file to load it after a new launch of Somedo using Load configuration.
 A running task can be aborted by the user hitting Stop running task (as the already
 obtained data is stored, it might take a while before All done is reported).
-You have to create jobs and add them to the jobs list with Add job. In general more
-than one Target account per job can be set (exception e.g.: Twitter Search ).
-Limit counts the screenshots. The number of PDF pages may differ. If the limit is set
-too high, Chrome/Chromium might not be able to handle the page.
+
 It might be a good idea to observer the progress by looking into the target directories.
 Chrome/Chromium ist started headless so you will not see anything while Somedo is
 executing the given jobs. As Somedo does not use APIs but opens the pages as a human
 user would do, it does not work very fast.
 
+The login credentials can set in the Options field. These and the paths to Chrome/
+Chromium and the output directory can be saved to file an loaded to avoid typing
+marathons.
+
+You can save the configuration
+such as the output directory, path to Chrome/Chromium, user names, passwords etc. to
+a config file to load it after a new launch of Somedo using Load configuration.
+
 
 3 Modules
 
-Facebook
+3.1 Facebook
 
-A Facebook account is needed to login. Several target Facebook accounts can be specified.
-In the GUI these are separated by semicolon. For example, Target account(s): might look like
-this:
+At least one valid Facebook account is needed to login. You can use several accounts.
+Especially with the Network option, it is likely that Facebook will block an account.
+Somedo then will switch to the next geven credentials. In the fields Email and Password
+you have to seperate email addresses (or phone numbers) are seperated by comma or
+semicolon (e.g. "hans.gruber@mail.de, johnmclane@lapd.gov" / "hecklerandkoch, beretta").
+If all investigator accounts have the same password, it does not to be repeated.
 
-1000023456789; holly.gennaro
+Targets might look like this: "1000023456789; holly.gennaro". It is recommended to use
+Facebook IDs. From complete URLs, Somedo tries to filter out the ID. The displayed
+Facebook name is not individual and does not indicate a certain account. Somedo is NOT a
+tool to search for an individual account.
 
-It is recommended to use Facebook IDs. From complete URLs, Somedo tries to filter
-out the ID. The displayed Facebook name of a Facebook account is not individual and does
-not indicate a certain account.
-A target directory is automatically proposed, in which the obtained screenshots are stored.
-The screenshots should be printable on letter size or DIN A4. In addition, text files are
-generated (for most actions).
-The Option Timeline downloads the Facebook timeline on personal profiles or Facebook groups.
-If target is a rpfessional account ("pg"), the posts are downloaded instead. With this option
-you can specify, if you want to unfold comments etc. and/or translations. It is also possible
-to get the Visitors (Facebook users that left comments, likes. etc.) as a CSV and a JSON file.
-Until sets a date (year-month-day) when to abort expanding the timeline (default is 1 year in
-the past). Facebook uses UTC, so somedo does too.
-The option About downloads the About section of the targeted Facebook account. Photos tries
-to take screenshots from the pictures in the Photop section. For the comments Expand and
-Translate and is available like in Timeline.
-The option Friends should store friend lists to as CSV and JSON (or members on Group of group
-accounts) and create in addition to screenshots. Network gets friends of friends and so on.
-The recursion is limited by Recursion depth (default is 1 = friends of targets, 2 = friends of
-friends). It seems Facebook does not like unlicensed data mining, so while using Network your
-investigator account might get blocked for a while. Open Facebook/Network/network.html to show
-the visualisation.
+Somedo might download data from your targeted accounts including befriendet or related
+accounts. 
 
+Limits are set as a lot of accounts are to large to get completely. A directory to store
+the obtained data (creenshots, PDF, CSV, HTML etc.) is proposed but can be set (klick on
+the hand symbol right to entry field. The screenshots are designed to fit on letter size
+or DIN A4. Data is only obtained on the number screenshotted pages so the max. number of
+screenshots also limits downloaded photos and the Extend Network option.
 
-Instagram
+The Network option will try to get the Facebook Friends and on Extend Network accounts
+that left comments or likes. Network Depth 0 downloads the Friend lists of the targets.
+Depth 1 will should you a network visualisation. Look in the directory "Facebook/Network".
+"Facebook/Network/network.html" will show Facebook Friendships with solid lines and
+commentors/likers with dashed arrows. You can click on the nodes to get account infos.
 
-Landing gets the head of an Instagrm Web page. Media downloads Ohotos and Videos.
+If target is a Page ("pg") or a Facebook Group ("groups"), Somedo tries to aquire data but
+this does not work very relieable. E.g. getting all members of large Facebook groups is
+impossible. The possible number of screenshots is not only limited by Chrome/Chromium but
+also by the Facebook servers. If there is no response from server Somedo will just abort
+and go on to the next task.
 
 
-Twitter
+3.2 Instagram
 
-User targets Twitter Accounts. Search takes Target(s) as search pattern. You cannot use both
+Landing gets the head of an Instagrm Web page. Media downloads photos and Videos. The
+Max. number of screenshots will also limit the downloaded files (be aware that the max.
+number of screenshots is NOT the number of files to download)
+
+
+3.3 Twitter
+
+By default the targets are Twitter accounts. the Search option takes Target(s) as search pattern. You cannot use both
 in one job.
 
 
-4 Development and License
+4. CLI
+
+Examples:
+
+"./somedo Facebook -l Email=hans.gruber@mail.de,johnmclane@lapd.gov Password=nakatomi -o Timeline=True"
+
+"python somedo.py -f jobfile.txt"
+jobfile:
+Facebook -l Email=hans.gruber@mail.de,johnmclane@lapd.gov Password=nakatomi -o Timeline=True
+Instagram -t diehard1,diehard2 -o Media=True
+
+
+
+	MODULES = (	# the modules with options
+		{
+			'name': 'Facebook',
+			'login': ('Email', 'Password'),
+			'options': {
+				'Timeline': {'name': 'Get Timeline', 'default': False, 'row': 0, 'column': 0},
+				'expandTimeline': {'name': 'Expand posts', 'default': False, 'row': 0, 'column': 1},
+				'translateTimeline': {'name': 'Translate posts', 'default': False, 'row': 0, 'column': 2},
+				'untilTimeline': {'name': 'Stop on date', 'default': Facebook.ONEYEARAGO, 'row': 0, 'column': 3},
+				'limitTimeline': {'name': 'Max. Screenshots', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 0, 'column': 4},
+				'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
+				'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
+				'expandPhotos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
+				'translatePhotos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
+				'limitPhotos': {'name': 'Max. Screeshots in Photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
+				'Network': {'name': 'Network of Friends', 'default': False, 'row': 3, 'column': 0},
+				'depthNetwork': {'name': 'Depth of recursion', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
+				'extendNetwork': {'name': 'inc. Timeline responses', 'default': False, 'row': 3, 'column': 2}
+			}
+		},
+		{
+			'name': 'Instagram',
+			'login': None,
+			'options': {
+				'Media': {'name': 'Download media files', 'default': False, 'row': 0, 'column': 0},
+				'limitPages': {'name': 'Max. Screenshots', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
+			}
+		},
+		{
+			'name': 'Twitter',
+			'login': None,
+			'options': {
+				'Search': {'name': 'Target as search argument', 'default': False, 'row': 0, 'column': 0},
+				'Photos': {'name': 'Download photos', 'default': False, 'row': 1, 'column': 0},
+				'limitPages': {'name': 'Max. Screenshots', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
+			}
+		}
+	)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5 Development and License
 
 The use, development, distribution, etc. of the script is subject to the restrictions of
 GPL Version 3.
