@@ -59,7 +59,8 @@ obtained data is stored, it might take a while before All done is reported).
 It might be a good idea to observer the progress by looking into the target directories.
 Chrome/Chromium ist started headless so you will not see anything while Somedo is
 executing the given jobs. As Somedo does not use APIs but opens the pages as a human
-user would do, it does not work very fast.
+user would do, it does not work very fast. The job which is currently executed is
+shown by flashing of the list entry.
 
 The login credentials can set in the Options field. These and the paths to Chrome/
 Chromium and the output directory can be saved to file an loaded to avoid typing
@@ -81,7 +82,7 @@ you have to seperate email addresses (or phone numbers) are seperated by comma o
 semicolon (e.g. "hans.gruber@mail.de, johnmclane@lapd.gov" / "hecklerandkoch, beretta").
 If all investigator accounts have the same password, it does not to be repeated.
 
-Targets might look like this: "1000023456789; holly.gennaro". It is recommended to use
+Targets might look like this: "1000023456789; holly.gennero". It is recommended to use
 Facebook IDs. From complete URLs, Somedo tries to filter out the ID. The displayed
 Facebook name is not individual and does not indicate a certain account. Somedo is NOT a
 tool to search for an individual account.
@@ -128,14 +129,14 @@ install Python on your machine and also run the GUI with "python somedo.py".
 
 Examples of commmand line use:
 
-"./somedo Facebook -l Email=gruber@mail.de,mclane@lapd.gov Password=nakatomi -o Timeline=True"
+"python somedo.py Facebook -t holly.gennero -l Email=gruber@mail.de,mclane@lapd.gov Password=nakatomi -o Timeline=True"
 
 It is possible to use a file which defines the jobs:
 
 jobfile.txt
 
 Facebook -l Email=hans.gruber@mail.de,johnmclane@lapd.gov Password=nakatomi -o Photos=True
-Instagram -t ,diehard2 -o Media=True
+Instagram -t karl,tony,theo -o Media=True
 
 Start the jobs with "python somedo.py -f jobfile.txt".
 
