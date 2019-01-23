@@ -6,7 +6,7 @@ from functools import partial
 from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry
 from tkinter import Text, PhotoImage, StringVar, BooleanVar, IntVar
 from tkinter import BOTH, GROOVE, END, W, E, X, LEFT, RIGHT, DISABLED
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, scrolledtext
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -379,11 +379,12 @@ class GUI(Tk):
 		'Open window to show About / Help'
 		help_win = Tk()
 		help_win.wm_title('About / Help')
-		text = Text(help_win, padx=2, pady=2, height=35, width=160)
+		text = scrolledtext.ScrolledText(help_win, padx=self.PADX, pady=self.PADY, width=self.TARGETWIDTH)
 		text.bind("<Key>", lambda e: "break")
 		text.insert(END, self.about_help)
-		text.pack(padx=2, pady=2)
-		Button(help_win, text="Close", width=6, command=help_win.destroy).pack(padx=2, pady=2, side=RIGHT)
+		text.pack()
+		Button(help_win, text="Close", width=self.BUTTONWIDTH,
+			command=help_win.destroy).pack(padx=self.PADX, pady=self.PADY, side=RIGHT)
 
 	def __start_visible__(self):
 		'Start the jobs visible in DEBUG mode'
@@ -433,24 +434,35 @@ class GUI(Tk):
 
 	def __start__(self):
 		'Start the jobs'
-		if len(self.jobs) > 0:
-			try:	# check if task is running
-				if self.thread_worker.isAlive():
-					return
-			except:
-				pass
-			self.__disable_jobbuttons__()
-			self.__disable_quitbutton__()
-			self.stop = Event()	# to stop working thread
-			self.thread_worker = Thread(target=self.__worker__)
-			self.thread_worker.start()	# start work
-			self.thread_showjob = Thread(target=self.__showjob__)
-			self.thread_showjob.start()	# start work
-		else:
+		if len(self.jobs) < 1:
 			messagebox.showerror('Error', 'Nothing to do')
+		try:	# check if task is running
+			if self.thread_worker.isAlive():
+				return
+		except:
+			pass
+		self.__disable_jobbuttons__()
+		self.__disable_quitbutton__()
+		msgbox_root = Tk()
+		msgbox_root.wm_title('Somedo is executing job(s)')
+		self.msgbox_text = scrolledtext.ScrolledText(msgbox_root, padx=self.PADX, pady=self.PADY, width=self.BIGENTRYWIDTH)
+		self.msgbox_text.bind("<Key>", lambda e: "break")
+		self.msgbox_text.pack()
+		frame_row = Frame(msgbox_root)
+		frame_row.pack(fill=BOTH, expand=True)
+		self.msgbox_stop = Button(frame_row, text="Stop / Abort", width=self.BUTTONWIDTH, command=self.__stop__)
+		self.msgbox_stop.pack(padx=self.PADX, pady=self.PADY, side=LEFT)
+		self.msgbox_close = Button(frame_row, text="Close", width=self.BUTTONWIDTH, state=DISABLED,
+			command=msgbox_root.destroy)
+		self.msgbox_close.pack(padx=self.PADX, pady=self.PADY, side=RIGHT)
+		self.stop = Event()	# to stop working thread
+		self.thread_worker = Thread(target=self.__worker__)
+		self.thread_worker.start()	# start work
+		self.thread_showjob = Thread(target=self.__showjob__)
+		self.thread_showjob.start()	# start work
 
 	def __stop__(self):
-		'Stop running job but give results based on so far sucked data'
+		'Stop running job but give results based on already optained data'
 		try:	# check if task is running
 			if self.thread_worker.isAlive() and messagebox.askyesno('Somedo', 'Stop running task?'):
 				self.stop.set()
@@ -461,27 +473,20 @@ class GUI(Tk):
 	def __worker__(self):
 		'Execute jobs'
 		for self.running_job in range(len(self.jobs)):
-			self.infobox = False
-			self.running_info = None
-			message = self.worker.execute_job(self.jobs[self.running_job], headless=self.headless, stop=self.stop)
+			self.worker.execute_job(
+				self.jobs[self.running_job],
+				headless=self.headless,
+				stop=self.stop,
+				message=self.__msgbox_insert__)
 		self.running_job = -1
-		if message == '' or message == '\n':
-			message = 'All done!'
-		messagebox.showinfo('Somedo', message)
+		self.msgbox_stop.config(state=DISABLED)
+		self.msgbox_close.config(state='normal')
 		self.__enable_jobbuttons__()
 		self.__enable_quitbutton__()
 
-	def __infobox__(self):
-		'Open window to show About / Help'
-		help_win = Tk()
-		help_win.wm_title('About / Help')
-		self.tk_infobox_msg = Text(help_win, padx=self.PADX, pady=self.PADY, height=35, width=160)
-		self.tk_infobox_msg.bind("<Key>", lambda e: "break")
-		self.tk_infobox_msg.insert(END, self.about_help)
-		self.tk_infobox_msg.pack(padx=2, pady=2)
-		Button(help_win, text="Close", width=6, command=help_win.destroy).pack(padx=2, pady=2, side=RIGHT)
-		self.infobox = True
-
+	def __msgbox_insert__(self, text):
+		'Give this to the worker for messages'
+		self.msgbox_text.insert(END, text)
 
 	def __showjob__(self):
 		'Show what the worker is doing'
@@ -489,8 +494,6 @@ class GUI(Tk):
 		bg = self.jobbuttons[self.running_job].cget('bg')
 		while self.running_job >= 0:
 			running = self.running_job
-			if self.running_info != None and not self.infobox:
-				__infobox__()
 			self.jobbuttons[running].config(fg=bg)
 			self.jobbuttons[running].config(bg=fg)
 			sleep(0.5)

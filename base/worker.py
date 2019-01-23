@@ -84,8 +84,9 @@ class Worker:
 			job['login'] = None
 		return job
 
-	def execute_job(self, job, headless=True, stop=None):
+	def execute_job(self, job, headless=True, stop=None, message=None):
 		'Execute jobs'
+		self.msg = message
 		message = ''
 		self.storage.mkmoddir(job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
