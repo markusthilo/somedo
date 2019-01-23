@@ -8,10 +8,10 @@ class Worker:
 	'Work through a list of jobs and execute modules'
 
 	DEBUG = False
-#	DEBUG = True	# do not continue on error
+	DEBUG = True	# do not continue on error
 
 	UITEST = False
-#	UITEST = True	# only print job(s) etc. to debug user interface
+	UITEST = True	# only print job(s) etc. to debug user interface
 
 
 	MODULES = (	# the modules with options
@@ -96,6 +96,10 @@ class Worker:
 			print('output directory:', self.storage.moddir)
 			print('cmd:', cmd)
 			print()
+			from time import sleep
+			for i in range(10):
+				print(i, stop.isSet())
+				sleep(1)
 		else:
 			if self.DEBUG:
 				exec(cmd)

@@ -461,6 +461,8 @@ class GUI(Tk):
 	def __worker__(self):
 		'Execute jobs'
 		for self.running_job in range(len(self.jobs)):
+			self.infobox = False
+			self.running_info = None
 			message = self.worker.execute_job(self.jobs[self.running_job], headless=self.headless, stop=self.stop)
 		self.running_job = -1
 		if message == '' or message == '\n':
@@ -469,14 +471,29 @@ class GUI(Tk):
 		self.__enable_jobbuttons__()
 		self.__enable_quitbutton__()
 
+	def __infobox__(self):
+		'Open window to show About / Help'
+		help_win = Tk()
+		help_win.wm_title('About / Help')
+		self.tk_infobox_msg = Text(help_win, padx=self.PADX, pady=self.PADY, height=35, width=160)
+		self.tk_infobox_msg.bind("<Key>", lambda e: "break")
+		self.tk_infobox_msg.insert(END, self.about_help)
+		self.tk_infobox_msg.pack(padx=2, pady=2)
+		Button(help_win, text="Close", width=6, command=help_win.destroy).pack(padx=2, pady=2, side=RIGHT)
+		self.infobox = True
+
+
 	def __showjob__(self):
 		'Show what the worker is doing'
 		fg = self.jobbuttons[self.running_job].cget('fg')
 		bg = self.jobbuttons[self.running_job].cget('bg')
 		while self.running_job >= 0:
-			self.jobbuttons[self.running_job].config(fg=bg)
-			self.jobbuttons[self.running_job].config(bg=fg)
+			running = self.running_job
+			if self.running_info != None and not self.infobox:
+				__infobox__()
+			self.jobbuttons[running].config(fg=bg)
+			self.jobbuttons[running].config(bg=fg)
 			sleep(0.5)
-			self.jobbuttons[self.running_job].config(fg=fg)
-			self.jobbuttons[self.running_job].config(bg=bg)
+			self.jobbuttons[running].config(fg=fg)
+			self.jobbuttons[running].config(bg=bg)
 			sleep(0.5)
