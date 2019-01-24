@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from logging import basicConfig as LogBasicConfig
+from logging import INFO
 from modules.facebook import Facebook
 from modules.instagram import Instagram
 from modules.twitter import Twitter
@@ -12,7 +14,6 @@ class Worker:
 
 	UITEST = False
 	UITEST = True	# only print job(s) etc. to debug user interface
-
 
 	MODULES = (	# the modules with options
 		{
@@ -84,9 +85,8 @@ class Worker:
 			job['login'] = None
 		return job
 
-	def execute_job(self, job, headless=True, stop=None, message=None):
+	def execute_job(self, job, headless=True, stop=None, logger=None):
 		'Execute jobs'
-		self.msg = message
 		message = ''
 		self.storage.mkmoddir(job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
@@ -97,12 +97,12 @@ class Worker:
 			print('output directory:', self.storage.moddir)
 			print('cmd:', cmd)
 			print()
+#			logger.info('TEST')
 			from time import sleep
 			for i in range(10):
 				print(i, stop.isSet())
 				sleep(1)
-				if message != None:
-					message('Test - %d' % i)
+
 		else:
 			if self.DEBUG:
 				exec(cmd)

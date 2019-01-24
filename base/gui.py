@@ -7,6 +7,7 @@ from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry
 from tkinter import Text, PhotoImage, StringVar, BooleanVar, IntVar
 from tkinter import BOTH, GROOVE, END, W, E, N, S, X, LEFT, RIGHT, DISABLED
 from tkinter import ttk, filedialog, messagebox, scrolledtext
+from logging import Handler, getLogger, basicConfig, INFO
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -18,6 +19,7 @@ class GUI(Tk):
 		'Generate object for main / root window.'
 		self.root = master
 		self.storage = Storage()	# object for file system accesss
+		### "constants" for the gui ###
 		if self.storage.windows:
 			self.JOBLISTLENGTH = 10
 			self.BUTTONWIDTH = 16
@@ -40,14 +42,15 @@ class GUI(Tk):
 			self.PADY = 8
 			self.OPTPADX = 6
 			self.CHNGWIDTH = 123
-			self.CHNGHEIGHT = 10
+			self.CHNGHEIGHT = 14
 			self.MSGHEIGHT = 8
+		###############################
 		self.chrome = Chrome()	# object to work with chrome/chromium
 		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		self.root.title('Social Media Downloader')	# window title for somedo
 		self.__set_icon__(self.root)	# give the window manager an application icon
-		frame_jobs = LabelFrame(self.root, text=' \u26c1 Jobs ')	# in this tk-frame the jobs will be displayed
+		frame_jobs = LabelFrame(self.root, text=' \u25a4 Jobs ')	# in this tk-frame the jobs will be displayed
 		frame_jobs.pack(fill=X, expand=True)
 		frame_jobs_inner = Frame(frame_jobs)
 		frame_jobs_inner.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
@@ -99,6 +102,19 @@ class GUI(Tk):
 		)
 		self.text_messages.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		self.text_messages.bind("<Key>", lambda e: "break")
+		
+		loghandler = Messages(self.text_messages)
+		self.logger = getLogger()
+		self.logger.addHandler(loghandler)
+		
+		
+		basicConfig(
+			level=INFO, 
+			format='%(asctime)s - %(levelname)s - %(message)s'
+		)    
+		
+		
+ 		
 		self.frame_config = Frame(self.frame_changeling)	# config frame
 		nb_config = ttk.Notebook(self.frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
@@ -110,15 +126,15 @@ class GUI(Tk):
 		self.tk_outdir = StringVar(frame_row, self.storage.outdir)
 		self.tk_outdir_entry = Entry(frame_row, textvariable=self.tk_outdir, width=self.BIGENTRYWIDTH)
 		self.tk_outdir_entry.pack(side=LEFT)
-		Button(frame_row, text='\u270d', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		Button(frame_row, text='...', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
 		Label(frame_row, text='Chrome path:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		self.tk_chrome = StringVar(frame_row, self.chrome.path)
 		self.tk_chrome_entry = Entry(frame_row, textvariable=self.tk_chrome, width=self.BIGENTRYWIDTH)
 		self.tk_chrome_entry.pack(side=LEFT)
-		Button(frame_row, text='\u270d', command=self.__chrome__).pack(side=LEFT, padx=self.PADX)
-		self.tk_logins = dict()	# tkinter login credentials
+		Button(frame_row, text='...', command=self.__chrome__).pack(side=LEFT, padx=self.PADX)
+		self.tk_logins = dict()	# login credentials
 		self.tk_login_entries = dict()
 		for i in self.worker.MODULES:	# notebook tabs for the module configuration
 			if i['login'] != None:
@@ -127,8 +143,8 @@ class GUI(Tk):
 				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(
 					frame_nb, i['name'], self.worker.logins[i['name']]
 				)
-		frame_row = Frame(self.frame_config)
-		frame_row.pack(fill=BOTH, expand=True)
+		frame_row = LabelFrame(self.frame_config, text=' \u2196\u2198 ')
+		frame_row.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Save configuration", width=self.BUTTONWIDTH,
 			command=self.__save_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Load configuration", width=self.BUTTONWIDTH,
@@ -143,12 +159,13 @@ class GUI(Tk):
 				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
 					self.about_help = f.read()
 					Button(frame_row, text="About / Help", width=self.BUTTONWIDTH,
-						command=self.__help__).pack(side=LEFT)
+						command=self.__help__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 					break
 			except:
 				continue
 		self.quitbutton = Button(frame_row, text="Quit", width=self.BUTTONWIDTH, command=self.__quit__)
-		self.quitbutton.pack(side=RIGHT)
+		self.quitbutton.pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
+		self.__close2quit__()
 
 	def __set_icon__(self, master):
 		'Try to Somedo icon for the window'
@@ -165,6 +182,18 @@ class GUI(Tk):
 			'Close this Application?'
 		):
 			self.root.quit()
+
+	def __close2quit__(self):
+		'Ask to quit on close windows by "X"'
+		self.root.protocol("WM_DELETE_WINDOW", self.__quit__)
+
+	def __close2stop__(self):
+		'Ask to stop job(s) on close windows by "X"'
+		self.root.protocol("WM_DELETE_WINDOW", self.__stop__)
+
+	def __close2kill__(self):
+		'Ask to kill Somedo immediatly on close windows by "X"'
+		self.root.protocol("WM_DELETE_WINDOW", self.__kill__)
 
 	def __login_frame__(self, frame, module, login):
 		'Create Tk Frame for login credentials'
@@ -475,7 +504,9 @@ class GUI(Tk):
 		self.__disable_jobbuttons__()
 		self.__disable_quitbutton__()
 		self.__enable_messages__()
+		self.__close2stop__()
 		self.stop = Event()	# to stop working thread
+		self.stop_set = False
 		self.thread_worker = Thread(target=self.__worker__)
 		self.thread_worker.start()	# start work
 		self.thread_showjob = Thread(target=self.__showjob__)
@@ -483,12 +514,22 @@ class GUI(Tk):
 
 	def __stop__(self):
 		'Stop running job but give results based on already optained data'
+		if self.stop_set:
+			self.__kill__()
+			return
 		try:	# check if task is running
 			if self.thread_worker.isAlive() and messagebox.askyesno('Somedo', 'Stop running task?'):
 				self.stop.set()
 		except:
 			pass
 		self.running_job = -1
+		self.stop_set = True
+		self.__close2kill__()
+
+	def __kill__(self):
+		'Kill Somedo immediatly'
+		if messagebox.askyesno('Somedo', 'Kill Somedo as fast as possible?\n\nAlready downloaded data mightbe lost!'):
+			self.root.quit()
 
 	def __worker__(self):
 		'Execute jobs'
@@ -497,15 +538,14 @@ class GUI(Tk):
 				self.jobs[self.running_job],
 				headless=self.headless,
 				stop=self.stop,
-				message=self.__insert_message__)
+				logger = self.logger
+			)
 		self.running_job = -1
+		self.__close2quit____()
+		messagebox.showinfo('Somedo', 'Done!\n\nCheck \u2709 Messages!')
 		self.__enable_config__()
 		self.__enable_jobbuttons__()
 		self.__enable_quitbutton__()
-
-	def __insert_message__(self, text):
-		'Give this to the worker for messages'
-		self.text_messages.insert(END, text)
 
 	def __showjob__(self):
 		'Show what the worker is doing'
@@ -515,7 +555,25 @@ class GUI(Tk):
 			running = self.running_job
 			self.jobbuttons[running].config(fg=bg)
 			self.jobbuttons[running].config(bg=fg)
-			sleep(0.5)
+			sleep(0.75)
 			self.jobbuttons[running].config(fg=fg)
 			self.jobbuttons[running].config(bg=bg)
-			sleep(0.5)
+			sleep(0.75)
+
+class Messages(Handler):
+	'Logging to GUI'
+
+	def __init__(self, text_msg):
+		'Generate Handler from logging.Handler'
+		super().__init__()
+		self.text_msg = text_msg
+
+	def emit(self, msg):
+		'Overload logging.emit'
+		msg = self.format(msg)
+		def append():
+			self.text_msg.configure(state='normal')
+			self.text_msg.insert(END, msg + '\n')
+			self.text_msg.configure(state='disabled')
+			self.text_msg.yview(END)
+		self.text_msg.after(0, append)
