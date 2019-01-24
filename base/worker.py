@@ -101,6 +101,8 @@ class Worker:
 			for i in range(10):
 				print(i, stop.isSet())
 				sleep(1)
+				if message != None:
+					message('Test - %d' % i)
 		else:
 			if self.DEBUG:
 				exec(cmd)

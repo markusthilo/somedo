@@ -5,7 +5,7 @@ from threading import Event, Thread
 from functools import partial
 from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry
 from tkinter import Text, PhotoImage, StringVar, BooleanVar, IntVar
-from tkinter import BOTH, GROOVE, END, W, E, X, LEFT, RIGHT, DISABLED
+from tkinter import BOTH, GROOVE, END, W, E, N, S, X, LEFT, RIGHT, DISABLED
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 from base.storage import Storage
 from base.worker import Worker
@@ -27,6 +27,9 @@ class GUI(Tk):
 			self.PADX = 8
 			self.PADY = 8
 			self.OPTPADX = 6
+			self.CHNGWIDTH = 160
+			self.CHNGHEIGHT = 10
+			self.MSGHEIGHT = 8
 		else:
 			self.JOBLISTLENGTH = 10
 			self.BUTTONWIDTH = 16
@@ -36,13 +39,16 @@ class GUI(Tk):
 			self.PADX = 8
 			self.PADY = 8
 			self.OPTPADX = 6
+			self.CHNGWIDTH = 123
+			self.CHNGHEIGHT = 10
+			self.MSGHEIGHT = 8
 		self.chrome = Chrome()	# object to work with chrome/chromium
 		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
 		self.jobs = []	# start with empty list for the jobs
 		self.root.title('Social Media Downloader')	# window title for somedo
 		self.__set_icon__(self.root)	# give the window manager an application icon
 		frame_jobs = LabelFrame(self.root, text=' \u26c1 Jobs ')	# in this tk-frame the jobs will be displayed
-		frame_jobs.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)	# tk-stuff
+		frame_jobs.pack(fill=X, expand=True)
 		frame_jobs_inner = Frame(frame_jobs)
 		frame_jobs_inner.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		self.tk_jobbuttons = []
@@ -76,15 +82,25 @@ class GUI(Tk):
 			command=self.__purge_jobs__)
 		self.purgebutton.pack(side=RIGHT, pady=self.PADY)
 		frame_row = LabelFrame(self.root, text=' + Add Job ')	# add job frame
-		frame_row.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
+		frame_row.pack(fill=X, expand=True)
 		self.modulebuttons = dict()
 		for i in self.worker.modulenames:	# generate buttons for the modules
 			self.modulebuttons[i] = Button(frame_row, text=i, font='bold', height=3,
 				command=partial(self.__new_job__, i))
 			self.modulebuttons[i].pack(side=LEFT, fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
-		frame_config = LabelFrame(self.root, text=' \u2737 Configuration ')
-		frame_config.pack(fill=BOTH, expand=True, padx=self.PADX)
-		nb_config = ttk.Notebook(frame_config)	# here is the tk-notebook for the modules
+		self.frame_changeling = LabelFrame(self.root)	# frame for configuration or messages
+		self.frame_changeling.pack(fill=BOTH, expand=True)
+		self.frame_messages = Frame(self.frame_changeling)	# message frame
+		self.text_messages = scrolledtext.ScrolledText(
+			self.frame_messages,
+			padx = self.PADX,
+			pady = self.PADY,
+			height = self.MSGHEIGHT
+		)
+		self.text_messages.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
+		self.text_messages.bind("<Key>", lambda e: "break")
+		self.frame_config = Frame(self.frame_changeling)	# config frame
+		nb_config = ttk.Notebook(self.frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
 		frame_nb = ttk.Frame(nb_config)
 		nb_config.add(frame_nb, text='General')
@@ -94,10 +110,10 @@ class GUI(Tk):
 		self.tk_outdir = StringVar(frame_row, self.storage.outdir)
 		self.tk_outdir_entry = Entry(frame_row, textvariable=self.tk_outdir, width=self.BIGENTRYWIDTH)
 		self.tk_outdir_entry.pack(side=LEFT)
-		Button(frame_row, text='\u270d', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX)
+		Button(frame_row, text='\u270d', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
-		Label(frame_row, text='Chrome path:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX)
+		Label(frame_row, text='Chrome path:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		self.tk_chrome = StringVar(frame_row, self.chrome.path)
 		self.tk_chrome_entry = Entry(frame_row, textvariable=self.tk_chrome, width=self.BIGENTRYWIDTH)
 		self.tk_chrome_entry.pack(side=LEFT)
@@ -111,14 +127,17 @@ class GUI(Tk):
 				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(
 					frame_nb, i['name'], self.worker.logins[i['name']]
 				)
-		frame_row = Frame(frame_config)
+		frame_row = Frame(self.frame_config)
 		frame_row.pack(fill=BOTH, expand=True)
 		Button(frame_row, text="Save configuration", width=self.BUTTONWIDTH,
 			command=self.__save_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Load configuration", width=self.BUTTONWIDTH,
 			command=self.__load_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		self.__enable_config__()
+		Label(self.frame_changeling, width=self.CHNGWIDTH).grid(row=1, column=0)
+		Label(self.frame_changeling, height=self.CHNGHEIGHT).grid(row=0, column=1)
 		frame_row = Frame(self.root)
-		frame_row.pack(fill=X, expand=False, padx=self.PADX, pady=self.PADY)
+		frame_row.pack(fill=X, expand=True)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
 				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
@@ -432,6 +451,18 @@ class GUI(Tk):
 		self.quitbutton.config(state='normal')
 		self.stopbutton.config(state=DISABLED)
 
+	def __enable_config__(self):
+		'Enable configuration frame'
+		self.frame_changeling.config(text=' \u2737 Configuration ')
+		self.frame_config.grid(row=0, column=0, sticky=W+E+N+S)
+		self.frame_messages.grid_remove()
+
+	def __enable_messages__(self):
+		'Enable configuration frame'
+		self.frame_changeling.config(text=' \u2709 Messages')
+		self.frame_config.grid_remove()
+		self.frame_messages.grid(row=0, column=0, sticky=W+E+N+S)
+
 	def __start__(self):
 		'Start the jobs'
 		if len(self.jobs) < 1:
@@ -443,18 +474,7 @@ class GUI(Tk):
 			pass
 		self.__disable_jobbuttons__()
 		self.__disable_quitbutton__()
-		msgbox_root = Tk()
-		msgbox_root.wm_title('Somedo is executing job(s)')
-		self.msgbox_text = scrolledtext.ScrolledText(msgbox_root, padx=self.PADX, pady=self.PADY, width=self.BIGENTRYWIDTH)
-		self.msgbox_text.bind("<Key>", lambda e: "break")
-		self.msgbox_text.pack()
-		frame_row = Frame(msgbox_root)
-		frame_row.pack(fill=BOTH, expand=True)
-		self.msgbox_stop = Button(frame_row, text="Stop / Abort", width=self.BUTTONWIDTH, command=self.__stop__)
-		self.msgbox_stop.pack(padx=self.PADX, pady=self.PADY, side=LEFT)
-		self.msgbox_close = Button(frame_row, text="Close", width=self.BUTTONWIDTH, state=DISABLED,
-			command=msgbox_root.destroy)
-		self.msgbox_close.pack(padx=self.PADX, pady=self.PADY, side=RIGHT)
+		self.__enable_messages__()
 		self.stop = Event()	# to stop working thread
 		self.thread_worker = Thread(target=self.__worker__)
 		self.thread_worker.start()	# start work
@@ -477,16 +497,15 @@ class GUI(Tk):
 				self.jobs[self.running_job],
 				headless=self.headless,
 				stop=self.stop,
-				message=self.__msgbox_insert__)
+				message=self.__insert_message__)
 		self.running_job = -1
-		self.msgbox_stop.config(state=DISABLED)
-		self.msgbox_close.config(state='normal')
+		self.__enable_config__()
 		self.__enable_jobbuttons__()
 		self.__enable_quitbutton__()
 
-	def __msgbox_insert__(self, text):
+	def __insert_message__(self, text):
 		'Give this to the worker for messages'
-		self.msgbox_text.insert(END, text)
+		self.text_messages.insert(END, text)
 
 	def __showjob__(self):
 		'Show what the worker is doing'
