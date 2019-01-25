@@ -7,7 +7,7 @@ from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry
 from tkinter import Text, PhotoImage, StringVar, BooleanVar, IntVar
 from tkinter import BOTH, GROOVE, END, W, E, N, S, X, LEFT, RIGHT, DISABLED
 from tkinter import ttk, filedialog, messagebox, scrolledtext
-from logging import Handler, getLogger, basicConfig, INFO
+from logging import Handler, DEBUG
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -15,9 +15,10 @@ from base.chrometools import Chrome
 class GUI(Tk):
 	'Graphic user interface using Tkinter, main / root window'
 
-	def __init__(self, master):
+	def __init__(self, root, logger):
 		'Generate object for main / root window.'
-		self.root = master
+		self.root = root
+		self.logger = logger
 		self.storage = Storage()	# object for file system accesss
 		### "constants" for the gui ###
 		if self.storage.windows:
@@ -46,7 +47,8 @@ class GUI(Tk):
 			self.MSGHEIGHT = 8
 		###############################
 		self.chrome = Chrome()	# object to work with chrome/chromium
-		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
+		self.worker = Worker(self.storage, self.chrome, self.logger)	# generate object for the worker (smd_worker.py)
+		self.__close2quit__()	# handle closing of root window
 		self.jobs = []	# start with empty list for the jobs
 		self.root.title('Social Media Downloader')	# window title for somedo
 		self.__set_icon__(self.root)	# give the window manager an application icon
@@ -74,7 +76,7 @@ class GUI(Tk):
 		self.startbutton = Button(frame_row, text="Start jobs", width=self.BUTTONWIDTH,
 			command=self.__start_hidden__)
 		self.startbutton.pack(side=LEFT, pady=self.PADY)
-		if self.worker.DEBUG:
+		if self.logger.level <= DEBUG:
 			self.startbutton_hidden = Button(frame_row, text="DEBUG: start visible", width=self.BUTTONWIDTH,
 				command=self.__start_visible__)
 			self.startbutton_hidden.pack(side=LEFT, padx=self.PADX*2, pady=self.PADY)
@@ -102,19 +104,7 @@ class GUI(Tk):
 		)
 		self.text_messages.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		self.text_messages.bind("<Key>", lambda e: "break")
-		
-		loghandler = Messages(self.text_messages)
-		self.logger = getLogger()
-		self.logger.addHandler(loghandler)
-		
-		
-		basicConfig(
-			level=INFO, 
-			format='%(asctime)s - %(levelname)s - %(message)s'
-		)    
-		
-		
- 		
+		self.worker.loghandler = LogHandler(self.text_messages)	# give tk loghandler to worker
 		self.frame_config = Frame(self.frame_changeling)	# config frame
 		nb_config = ttk.Notebook(self.frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
@@ -149,9 +139,12 @@ class GUI(Tk):
 			command=self.__save_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Button(frame_row, text="Load configuration", width=self.BUTTONWIDTH,
 			command=self.__load_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		self.__enable_config__()
 		Label(self.frame_changeling, width=self.CHNGWIDTH).grid(row=1, column=0)
 		Label(self.frame_changeling, height=self.CHNGHEIGHT).grid(row=0, column=1)
+		self.button_toggle = Button(self.frame_changeling,
+			command=self.__toggle_config__, width=self.BUTTONWIDTH)
+		self.button_toggle.grid(row=2, column=0, padx=self.PADX, pady=self.PADY, sticky=W)
+		self.__enable_config__()
 		frame_row = Frame(self.root)
 		frame_row.pack(fill=X, expand=True)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
@@ -165,7 +158,6 @@ class GUI(Tk):
 				continue
 		self.quitbutton = Button(frame_row, text="Quit", width=self.BUTTONWIDTH, command=self.__quit__)
 		self.quitbutton.pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
-		self.__close2quit__()
 
 	def __set_icon__(self, master):
 		'Try to Somedo icon for the window'
@@ -178,9 +170,7 @@ class GUI(Tk):
 
 	def __quit__(self):
 		'Close the app'
-		if messagebox.askyesno('Quit',
-			'Close this Application?'
-		):
+		if messagebox.askyesno('Quit', 'Close this Application?'):
 			self.root.quit()
 
 	def __close2quit__(self):
@@ -451,7 +441,7 @@ class GUI(Tk):
 			self.upbuttons[i].config(state=DISABLED)
 			self.downbuttons[i].config(state=DISABLED)
 		self.startbutton.config(state=DISABLED)
-		if self.worker.DEBUG:
+		if self.logger.level <= DEBUG:
 			self.startbutton_hidden.config(state=DISABLED)
 		self.purgebutton.config(state=DISABLED)
 		for i in self.worker.modulenames:
@@ -464,7 +454,7 @@ class GUI(Tk):
 			self.upbuttons[i].config(state='normal')
 			self.downbuttons[i].config(state='normal')
 		self.startbutton.config(state='normal')
-		if self.worker.DEBUG:
+		if self.logger.level <= DEBUG:
 			self.startbutton_hidden.config(state='normal')
 		self.purgebutton.config(state='normal')
 		for i in self.worker.modulenames:
@@ -482,20 +472,32 @@ class GUI(Tk):
 
 	def __enable_config__(self):
 		'Enable configuration frame'
+		self.config_visible = True
 		self.frame_changeling.config(text=' \u2737 Configuration ')
 		self.frame_config.grid(row=0, column=0, sticky=W+E+N+S)
 		self.frame_messages.grid_remove()
+		self.button_toggle.config(text='Show Messages')
 
 	def __enable_messages__(self):
 		'Enable configuration frame'
+		self.config_visible = False
 		self.frame_changeling.config(text=' \u2709 Messages')
 		self.frame_config.grid_remove()
 		self.frame_messages.grid(row=0, column=0, sticky=W+E+N+S)
+		self.button_toggle.config(text='Show Configuration')
+
+	def __toggle_config__(self):
+		'Toggle Configuration / Messages'
+		if self.config_visible:
+			self.__enable_messages__()
+		else:
+			self.__enable_config__()
 
 	def __start__(self):
 		'Start the jobs'
 		if len(self.jobs) < 1:
 			messagebox.showerror('Error', 'Nothing to do')
+			return
 		try:	# check if task is running
 			if self.thread_worker.isAlive():
 				return
@@ -524,7 +526,6 @@ class GUI(Tk):
 			pass
 		self.running_job = -1
 		self.stop_set = True
-		self.__close2kill__()
 
 	def __kill__(self):
 		'Kill Somedo immediatly'
@@ -537,13 +538,10 @@ class GUI(Tk):
 			self.worker.execute_job(
 				self.jobs[self.running_job],
 				headless=self.headless,
-				stop=self.stop,
-				logger = self.logger
+				stop=self.stop
 			)
 		self.running_job = -1
-		self.__close2quit____()
-		messagebox.showinfo('Somedo', 'Done!\n\nCheck \u2709 Messages!')
-		self.__enable_config__()
+		self.__close2quit__()
 		self.__enable_jobbuttons__()
 		self.__enable_quitbutton__()
 
@@ -560,7 +558,7 @@ class GUI(Tk):
 			self.jobbuttons[running].config(bg=bg)
 			sleep(0.75)
 
-class Messages(Handler):
+class LogHandler(Handler):
 	'Logging to GUI'
 
 	def __init__(self, text_msg):
@@ -574,6 +572,6 @@ class Messages(Handler):
 		def append():
 			self.text_msg.configure(state='normal')
 			self.text_msg.insert(END, msg + '\n')
-			self.text_msg.configure(state='disabled')
+#			self.text_msg.configure(state='disabled')
 			self.text_msg.yview(END)
 		self.text_msg.after(0, append)

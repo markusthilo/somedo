@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-from sys import stderr as sys_stderr
 from sys import exit as sys_exit
+from logging import DEBUG
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -9,37 +9,41 @@ from base.chrometools import Chrome
 class CLI:
 	'Command Line Interface for Somedo'
 
-	def __init__(self, clargs):
+	def __init__(self, params, logger):
 		'Generate object to parse the command line arguments and execute a job'
+		self.logger = logger
 		self.storage = Storage()	# object for file system accesss
-		if len(clargs) < 2 or clargs[1].lower() in ('-h', '-help', 'h', 'help'):
+		if len(params) < 1 or params[0].lower() in ('-h', '-help', 'h', 'help'):
 			for i in ('README.md', 'README.txt', 'README.md.txt', 'README.txt.md', 'README'):
 				try:
 					with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
 						about_help = f.read()
-					print(about_help)
-					sys_exit(0)
+					break
 				except:
-					sys_exit(0)
-			self.__error__('Go to https://github.com/markusthilo/somedo or https://sourceforge.net/p/somedo/wiki/Somedo/ for Infos.')
-		self.chrome = Chrome()	# object to work with chrome/chromium
-		self.worker = Worker(self.storage, self.chrome)	# generate object for the worker (smd_worker.py)
-		if clargs[1] in ('-f', '-file', '--file', '-r', '-read', '--read'):
+					pass
 			try:
-				with open(clargs[2], 'r', encoding='utf-8') as f:
+				print(about_help)
+				sys_exit(0)
+			except NameError:
+				self.__error__('Go to https://github.com/markusthilo/somedo or https://sourceforge.net/p/somedo/wiki/Somedo/ for Infos.')
+		self.chrome = Chrome()	# object to work with chrome/chromium
+		self.worker = Worker(self.storage, self.chrome, self.logger)	# generate object for the worker (smd_worker.py)
+		if params[0] in ('-f', '-file', '--file', '-r', '-read', '--read'):
+			try:
+				with open(params[1], 'r', encoding='utf-8') as f:
 					jobfile = f.read()
 			except:
-				self.__error__('Could not open file to read job(s).')
+				self.__error__('Could not read jobs from file: %s' % params[1])
 			jobs = [ self.__job__([ j for j in i.split(' ') if j != '' ]) for i in jobfile.split('\n') if i != '' ]
 			self.__execute_jobs__(jobs=jobs)
 			sys_exit(0)
-		self.__job__(clargs[1:])
+		self.__job__(params)
 		self.__execute_jobs__()
 		sys_exit(0)
 
 	def __error__(self, msg):
-		'Print error message to stderr and quit application returning 1 to Shell'
-		sys_stderr.write('ERROR: ' + msg)
+		'Error to Logger and exit'
+		self.logger.error(msg)
 		sys_exit(1)
 
 	def __job__(self, args):
@@ -171,7 +175,7 @@ class CLI:
 			jobs = [self.job]
 		errors = ''
 		for i in jobs:
-			if self.worker.DEBUG:
+			if self.logger.level <= DEBUG:
 				self.worker.execute_job(i, headless=self.headless)
 			else:
 				try:

@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 
-from logging import basicConfig as LogBasicConfig
-from logging import INFO
+from logging import getLogger, basicConfig, DEBUG, Handler
+
 from modules.facebook import Facebook
 from modules.instagram import Instagram
 from modules.twitter import Twitter
 
 class Worker:
 	'Work through a list of jobs and execute modules'
-
-	DEBUG = False
-	DEBUG = True	# do not continue on error
-
-	UITEST = False
-	UITEST = True	# only print job(s) etc. to debug user interface
 
 	MODULES = (	# the modules with options
 		{
@@ -54,10 +48,12 @@ class Worker:
 		}
 	)
 
-	def __init__(self, storage, chrome):
+	def __init__(self, storage, chrome, logger):
 		'Create object that works out the jobs'
 		self.storage = storage
 		self.chrome = chrome
+		self.logger = logger	
+		self.loghandler = None
 		self.modulenames = [ i['name'] for i in self.MODULES ]
 		self.logins = dict()
 		self.options = dict()
@@ -85,24 +81,24 @@ class Worker:
 			job['login'] = None
 		return job
 
-	def execute_job(self, job, headless=True, stop=None, logger=None):
+	def execute_job(self, job, headless=True, stop=None):
 		'Execute jobs'
-		message = ''
+		if self.loghandler != None:
+			self.logger.addHandler(self.loghandler)
 		self.storage.mkmoddir(job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
-		if self.UITEST:
+		if True:	################ TEST GUI or CLI
 			print()
 			print('job:', job)
 			print('chrome.path:', self.chrome.path)
 			print('output directory:', self.storage.moddir)
 			print('cmd:', cmd)
+			print('loglevel:', self.logger.level)
 			print()
-#			logger.info('TEST')
 			from time import sleep
-			for i in range(10):
-				print(i, stop.isSet())
-				sleep(1)
-
+			for i in range(25):
+				self.logger.info('logger: %d' % i)
+				sleep(0.2)
 		else:
 			if self.DEBUG:
 				exec(cmd)
@@ -110,5 +106,4 @@ class Worker:
 				try:
 					exec(cmd)
 				except Exception as error:
-					message += str(error) + '\n'
-		return message
+					pass
