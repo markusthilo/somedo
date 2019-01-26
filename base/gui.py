@@ -42,7 +42,7 @@ class GUI(Tk):
 			self.PADX = 8
 			self.PADY = 8
 			self.OPTPADX = 6
-			self.CHNGWIDTH = 123
+			self.CHNGWIDTH = 132
 			self.CHNGHEIGHT = 14
 			self.MSGHEIGHT = 8
 		###############################
@@ -53,7 +53,7 @@ class GUI(Tk):
 		self.root.title('Social Media Downloader')	# window title for somedo
 		self.__set_icon__(self.root)	# give the window manager an application icon
 		frame_jobs = LabelFrame(self.root, text=' \u25a4 Jobs ')	# in this tk-frame the jobs will be displayed
-		frame_jobs.pack(fill=X, expand=True)
+		frame_jobs.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		frame_jobs_inner = Frame(frame_jobs)
 		frame_jobs_inner.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		self.tk_jobbuttons = []
@@ -73,28 +73,29 @@ class GUI(Tk):
 			self.downbuttons[i].pack(side=LEFT)
 		frame_row = Frame(frame_jobs_inner)
 		frame_row.pack(fill=BOTH, expand=True)
-		self.startbutton = Button(frame_row, text="Start jobs", width=self.BUTTONWIDTH,
+		self.startbutton = Button(frame_row, text="\u25b9 Start jobs", width=self.BUTTONWIDTH,
 			command=self.__start_hidden__)
 		self.startbutton.pack(side=LEFT, pady=self.PADY)
 		if self.logger.level <= DEBUG:
-			self.startbutton_hidden = Button(frame_row, text="DEBUG: start visible", width=self.BUTTONWIDTH,
+			self.startbutton_hidden = Button(frame_row, text="\u25b8 Start visible", width=self.BUTTONWIDTH,
 				command=self.__start_visible__)
 			self.startbutton_hidden.pack(side=LEFT, padx=self.PADX*2, pady=self.PADY)
-		self.stopbutton = Button(frame_row, text="Stop / Abort", width=self.BUTTONWIDTH, state = DISABLED,
+		Label(frame_row, text=' ').pack(side=LEFT)
+		self.stopbutton = Button(frame_row, text="\u25ad Stop / Abort", width=self.BUTTONWIDTH, state = DISABLED,
 			command=self.__stop__)
 		self.stopbutton.pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		self.purgebutton = Button(frame_row, text='Purge job list', width=self.BUTTONWIDTH,
+		self.purgebutton = Button(frame_row, text='\u2672 Purge job list', width=self.BUTTONWIDTH,
 			command=self.__purge_jobs__)
 		self.purgebutton.pack(side=RIGHT, pady=self.PADY)
 		frame_row = LabelFrame(self.root, text=' + Add Job ')	# add job frame
-		frame_row.pack(fill=X, expand=True)
+		frame_row.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		self.modulebuttons = dict()
 		for i in self.worker.modulenames:	# generate buttons for the modules
-			self.modulebuttons[i] = Button(frame_row, text=i, font='bold', height=3,
+			self.modulebuttons[i] = Button(frame_row, text='\u271a %s'% i, font='bold', height=3,
 				command=partial(self.__new_job__, i))
 			self.modulebuttons[i].pack(side=LEFT, fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		self.frame_changeling = LabelFrame(self.root)	# frame for configuration or messages
-		self.frame_changeling.pack(fill=BOTH, expand=True)
+		self.frame_changeling.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
 		self.frame_messages = Frame(self.frame_changeling)	# message frame
 		self.text_messages = scrolledtext.ScrolledText(
 			self.frame_messages,
@@ -133,17 +134,20 @@ class GUI(Tk):
 				self.tk_logins[i['name']], self.tk_login_entries[i['name']] = self.__login_frame__(
 					frame_nb, i['name'], self.worker.logins[i['name']]
 				)
-		frame_row = LabelFrame(self.frame_config, text=' \u2196\u2198 ')
-		frame_row.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
-		Button(frame_row, text="Save configuration", width=self.BUTTONWIDTH,
+		frame_row = Frame(self.frame_config)
+		frame_row.pack(side=LEFT, anchor=N)
+		Button(frame_row, text="\u2912 Save configuration", width=self.BUTTONWIDTH,
 			command=self.__save_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		Button(frame_row, text="Load configuration", width=self.BUTTONWIDTH,
+		Button(frame_row, text="\u2913 Load configuration", width=self.BUTTONWIDTH,
 			command=self.__load_config__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		Label(self.frame_changeling, width=self.CHNGWIDTH).grid(row=1, column=0)
 		Label(self.frame_changeling, height=self.CHNGHEIGHT).grid(row=0, column=1)
-		self.button_toggle = Button(self.frame_changeling,
-			command=self.__toggle_config__, width=self.BUTTONWIDTH)
-		self.button_toggle.grid(row=2, column=0, padx=self.PADX, pady=self.PADY, sticky=W)
+		frame_row = LabelFrame(self.root, text=' \u2191\u2193 ')
+		frame_row.pack(fill=X, expand=True, padx=self.PADX, pady=self.PADY)
+		self.button_toggle = Button(frame_row, command=self.__toggle_config__, width=self.BUTTONWIDTH)
+		self.button_toggle.pack(side=LEFT, padx=self.PADX, pady=self.PADY)
+		self.button_clear = Button(frame_row, text='\u2610 Clear messages', command=self.__clear_messages__, width=self.BUTTONWIDTH)
+		self.button_clear.pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		self.__enable_config__()
 		frame_row = Frame(self.root)
 		frame_row.pack(fill=X, expand=True)
@@ -151,12 +155,12 @@ class GUI(Tk):
 			try:
 				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
 					self.about_help = f.read()
-					Button(frame_row, text="About / Help", width=self.BUTTONWIDTH,
+					Button(frame_row, text="\u2370 About / Help", width=self.BUTTONWIDTH,
 						command=self.__help__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 					break
 			except:
 				continue
-		self.quitbutton = Button(frame_row, text="Quit", width=self.BUTTONWIDTH, command=self.__quit__)
+		self.quitbutton = Button(frame_row, text="\u2297 Quit", width=self.BUTTONWIDTH, command=self.__quit__)
 		self.quitbutton.pack(side=RIGHT, padx=self.PADX, pady=self.PADY)
 
 	def __set_icon__(self, master):
@@ -476,7 +480,8 @@ class GUI(Tk):
 		self.frame_changeling.config(text=' \u2737 Configuration ')
 		self.frame_config.grid(row=0, column=0, sticky=W+E+N+S)
 		self.frame_messages.grid_remove()
-		self.button_toggle.config(text='Show Messages')
+		self.button_toggle.config(text='\u2609 Show Messages')
+		self.button_clear.config(state=DISABLED)
 
 	def __enable_messages__(self):
 		'Enable configuration frame'
@@ -484,7 +489,8 @@ class GUI(Tk):
 		self.frame_changeling.config(text=' \u2709 Messages')
 		self.frame_config.grid_remove()
 		self.frame_messages.grid(row=0, column=0, sticky=W+E+N+S)
-		self.button_toggle.config(text='Show Configuration')
+		self.button_toggle.config(text='\u2609 Show Configuration')
+		self.button_clear.config(state='normal')
 
 	def __toggle_config__(self):
 		'Toggle Configuration / Messages'
@@ -492,6 +498,16 @@ class GUI(Tk):
 			self.__enable_messages__()
 		else:
 			self.__enable_config__()
+
+	def __clear_messages__(self):
+		'Clear message / logging output fild'
+		if messagebox.askyesno('Somedo', 'Clear messages?'):
+			self.text_messages.delete('1.0', END)
+
+	def __write_message__(self, msg):
+		'Write to message fiels'
+		self.text_messages.insert(END, msg + '\n')
+		self.text_messages.yview(END)
 
 	def __start__(self):
 		'Start the jobs'
@@ -534,6 +550,7 @@ class GUI(Tk):
 
 	def __worker__(self):
 		'Execute jobs'
+		self.__write_message__('\n--- Executing job(s) ---\n')
 		for self.running_job in range(len(self.jobs)):
 			self.worker.execute_job(
 				self.jobs[self.running_job],
@@ -541,6 +558,7 @@ class GUI(Tk):
 				stop=self.stop
 			)
 		self.running_job = -1
+		self.__write_message__('\n--- Done ---\n')
 		self.__close2quit__()
 		self.__enable_jobbuttons__()
 		self.__enable_quitbutton__()
@@ -570,8 +588,6 @@ class LogHandler(Handler):
 		'Overload logging.emit'
 		msg = self.format(msg)
 		def append():
-			self.text_msg.configure(state='normal')
 			self.text_msg.insert(END, msg + '\n')
-#			self.text_msg.configure(state='disabled')
 			self.text_msg.yview(END)
 		self.text_msg.after(0, append)
