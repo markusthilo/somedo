@@ -3,6 +3,7 @@
 from re import search as rsearch
 from re import sub as rsub
 from re import sub as rfindall
+from logging import DEBUG
 from time import sleep
 from datetime import datetime
 from base.cutter import Cutter
@@ -12,10 +13,11 @@ class Twitter:
 
 	DEFAULTPAGELIMIT = 20
 
-	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
+	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Twitter'
 		self.chrome = chrome
 		self.storage = storage
+		self.logger = self.chrome.logger
 		self.ct = Cutter()
 		self.options = job['options']
 		self.chrome.open(stop=stop, headless=headless)

@@ -9,14 +9,13 @@ from base.chrometools import Chrome
 class CLI:
 	'Command Line Interface for Somedo'
 
-	def __init__(self, params, logger):
+	def __init__(self, params, worker):
 		'Generate object to parse the command line arguments and execute a job'
-		self.logger = logger
-		self.storage = Storage()	# object for file system accesss
+		self.worker = worker
 		if len(params) < 1 or params[0].lower() in ('-h', '-help', 'h', 'help'):
 			for i in ('README.md', 'README.txt', 'README.md.txt', 'README.txt.md', 'README'):
 				try:
-					with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
+					with open(self.worker.storage.rootdir + self.worker.storage.slash + i, 'r', encoding='utf-8') as f:
 						about_help = f.read()
 					break
 				except:
@@ -26,8 +25,6 @@ class CLI:
 				sys_exit(0)
 			except NameError:
 				self.__error__('Go to https://github.com/markusthilo/somedo or https://sourceforge.net/p/somedo/wiki/Somedo/ for Infos.')
-		self.chrome = Chrome()	# object to work with chrome/chromium
-		self.worker = Worker(self.storage, self.chrome, self.logger)	# generate object for the worker (smd_worker.py)
 		if params[0] in ('-f', '-file', '--file', '-r', '-read', '--read'):
 			try:
 				with open(params[1], 'r', encoding='utf-8') as f:
@@ -43,7 +40,7 @@ class CLI:
 
 	def __error__(self, msg):
 		'Error to Logger and exit'
-		self.logger.error(msg)
+		self.worker.logger.error(msg)
 		sys_exit(1)
 
 	def __job__(self, args):
@@ -56,7 +53,6 @@ class CLI:
 			self.__error__(msg[:-2])
 			return True
 		self.job = self.worker.new_job(self.args.pop(0))
-		self.headless = True
 		self.chrome_set = False
 		self.outdir_set = False
 		self.target_set = False
@@ -64,9 +60,6 @@ class CLI:
 		self.options_set = False
 		while len(self.args) > 0:
 			opt = self.args.pop(0)
-			if opt in ('-v', '-verbose', '--verbose'):
-				self.headless = False
-				continue
 			if len(self.args) < 1:
 				self.__error__('Undecodable argument "%s".' % opt)
 			if opt in ('-c', '-chrome', '--chrome'):
@@ -175,11 +168,11 @@ class CLI:
 			jobs = [self.job]
 		errors = ''
 		for i in jobs:
-			if self.logger.level <= DEBUG:
-				self.worker.execute_job(i, headless=self.headless)
+			if self.worker.logger.level <= self.worker.DEBUG:
+				self.worker.execute_job(i)
 			else:
 				try:
-					self.worker.execute_job(i, headless=self.headless)
+					self.worker.execute_job(i)
 				except Exception as error:
 					errors += str(error) + '\n'
 		if errors!= '': 

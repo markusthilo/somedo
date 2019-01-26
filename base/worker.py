@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from logging import getLogger, basicConfig, DEBUG, Handler
-
+from logging import getLogger, basicConfig, addLevelName, INFO, DEBUG
+from base.storage import Storage
+from base.chrometools import Chrome
 from modules.facebook import Facebook
 from modules.instagram import Instagram
 from modules.twitter import Twitter
@@ -48,12 +49,20 @@ class Worker:
 		}
 	)
 
-	def __init__(self, storage, chrome, logger):
+	def __init__(self, loglevel):
 		'Create object that works out the jobs'
-		self.storage = storage
-		self.chrome = chrome
-		self.logger = logger	
-		self.loghandler = None
+		self.INFO = INFO
+		self.DEBUG = DEBUG
+		self.VISIBLE = DEBUG - 1	# loglevel to start chrome in visible mode
+		addLevelName(self.VISIBLE, "VISIBLE")
+		try:
+			level = {'info': self.INFO, 'debug': self.DEBUG, 'visible': self.VISIBLE}[loglevel]
+		except KeyError:
+			level = INFO
+		basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
+		self.logger = getLogger()
+		self.storage = Storage(self.logger)	# object for file system accesss
+		self.chrome = Chrome(self.logger)	# object to work with chrome/chromium
 		self.modulenames = [ i['name'] for i in self.MODULES ]
 		self.logins = dict()
 		self.options = dict()
@@ -81,29 +90,19 @@ class Worker:
 			job['login'] = None
 		return job
 
-	def execute_job(self, job, headless=True, stop=None):
+	def execute_job(self, job, stop=None):
 		'Execute jobs'
-		if self.loghandler != None:
-			self.logger.addHandler(self.loghandler)
 		self.storage.mkmoddir(job['module'])
-		cmd = '%s(job, self.storage, self.chrome, stop=stop, headless=headless, debug=self.DEBUG)' % job['module']
-		if True:	################ TEST GUI or CLI
-			print()
-			print('job:', job)
-			print('chrome.path:', self.chrome.path)
-			print('output directory:', self.storage.moddir)
-			print('cmd:', cmd)
-			print('loglevel:', self.logger.level)
-			print()
-			from time import sleep
-			for i in range(25):
-				self.logger.info('logger: %d' % i)
-				sleep(0.2)
+		cmd = '%s(job, self.storage, self.chrome, stop=stop)' % job['module']
+		self.logger.debug('job: %s' % job)
+		self.logger.debug('chrome.path: %s' % self.chrome.path)
+		self.logger.debug('output directory: %s' % self.storage.moddir)
+		self.logger.debug('cmd: %s' % cmd)
+		self.logger.debug('loglevel: %s' % self.logger.level)
+		if self.logger.level <= self.DEBUG :
+			exec(cmd)
 		else:
-			if self.DEBUG:
+			try:
 				exec(cmd)
-			else:
-				try:
-					exec(cmd)
-				except Exception as error:
-					pass
+			except:
+				pass

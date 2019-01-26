@@ -15,13 +15,12 @@ from base.chrometools import Chrome
 class GUI(Tk):
 	'Graphic user interface using Tkinter, main / root window'
 
-	def __init__(self, root, logger):
+	def __init__(self, root, worker):
 		'Generate object for main / root window.'
 		self.root = root
-		self.logger = logger
-		self.storage = Storage()	# object for file system accesss
+		self.worker = worker
 		### "constants" for the gui ###
-		if self.storage.windows:
+		if self.worker.storage.windows:
 			self.JOBLISTLENGTH = 10
 			self.BUTTONWIDTH = 16
 			self.BIGENTRYWIDTH = 128
@@ -42,12 +41,10 @@ class GUI(Tk):
 			self.PADX = 8
 			self.PADY = 8
 			self.OPTPADX = 6
-			self.CHNGWIDTH = 132
+			self.CHNGWIDTH = 128
 			self.CHNGHEIGHT = 14
 			self.MSGHEIGHT = 8
 		###############################
-		self.chrome = Chrome()	# object to work with chrome/chromium
-		self.worker = Worker(self.storage, self.chrome, self.logger)	# generate object for the worker (smd_worker.py)
 		self.__close2quit__()	# handle closing of root window
 		self.jobs = []	# start with empty list for the jobs
 		self.root.title('Social Media Downloader')	# window title for somedo
@@ -74,12 +71,8 @@ class GUI(Tk):
 		frame_row = Frame(frame_jobs_inner)
 		frame_row.pack(fill=BOTH, expand=True)
 		self.startbutton = Button(frame_row, text="\u25b9 Start jobs", width=self.BUTTONWIDTH,
-			command=self.__start_hidden__)
+			command=self.__start__)
 		self.startbutton.pack(side=LEFT, pady=self.PADY)
-		if self.logger.level <= DEBUG:
-			self.startbutton_hidden = Button(frame_row, text="\u25b8 Start visible", width=self.BUTTONWIDTH,
-				command=self.__start_visible__)
-			self.startbutton_hidden.pack(side=LEFT, padx=self.PADX*2, pady=self.PADY)
 		Label(frame_row, text=' ').pack(side=LEFT)
 		self.stopbutton = Button(frame_row, text="\u25ad Stop / Abort", width=self.BUTTONWIDTH, state = DISABLED,
 			command=self.__stop__)
@@ -105,7 +98,7 @@ class GUI(Tk):
 		)
 		self.text_messages.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		self.text_messages.bind("<Key>", lambda e: "break")
-		self.worker.loghandler = LogHandler(self.text_messages)	# give tk loghandler to worker
+		self.worker.logger.addHandler(LogHandler(self.text_messages))	# give tk loghandler to worker
 		self.frame_config = Frame(self.frame_changeling)	# config frame
 		nb_config = ttk.Notebook(self.frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
@@ -114,14 +107,14 @@ class GUI(Tk):
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
 		Label(frame_row, text='Output directory:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX)
-		self.tk_outdir = StringVar(frame_row, self.storage.outdir)
+		self.tk_outdir = StringVar(frame_row, self.worker.storage.outdir)
 		self.tk_outdir_entry = Entry(frame_row, textvariable=self.tk_outdir, width=self.BIGENTRYWIDTH)
 		self.tk_outdir_entry.pack(side=LEFT)
 		Button(frame_row, text='...', command=self.__output_dir__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
 		frame_row = Frame(frame_nb)
 		frame_row.pack(fill=BOTH, expand=True)
 		Label(frame_row, text='Chrome path:', anchor=E, width=self.BUTTONWIDTH).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
-		self.tk_chrome = StringVar(frame_row, self.chrome.path)
+		self.tk_chrome = StringVar(frame_row, self.worker.chrome.path)
 		self.tk_chrome_entry = Entry(frame_row, textvariable=self.tk_chrome, width=self.BIGENTRYWIDTH)
 		self.tk_chrome_entry.pack(side=LEFT)
 		Button(frame_row, text='...', command=self.__chrome__).pack(side=LEFT, padx=self.PADX)
@@ -153,7 +146,7 @@ class GUI(Tk):
 		frame_row.pack(fill=X, expand=True)
 		for i in ('README.md', 'README.txt', 'README.md.txt', 'README'):
 			try:
-				with open(self.storage.rootdir + self.storage.slash + i, 'r', encoding='utf-8') as f:
+				with open(self.worker.storage.rootdir + self.worker.storage.slash + i, 'r', encoding='utf-8') as f:
 					self.about_help = f.read()
 					Button(frame_row, text="\u2370 About / Help", width=self.BUTTONWIDTH,
 						command=self.__help__).pack(side=LEFT, padx=self.PADX, pady=self.PADY)
@@ -167,7 +160,7 @@ class GUI(Tk):
 		'Try to Somedo icon for the window'
 		try:
 			master.call('wm', 'iconphoto', master._w, PhotoImage(
-				file='%s%ssomedo.png' % (self.storage.icondir, self.storage.slash)
+				file='%s%ssomedo.png' % (self.worker.storage.icondir, self.worker.storage.slash)
 			))
 		except:
 			pass
@@ -370,7 +363,7 @@ class GUI(Tk):
 		if path != ():
 			self.tk_outdir_entry.delete(0, END)
 			self.tk_outdir_entry.insert(0, path)
-			self.storage.outdir = path
+			self.worker.storage.outdir = path
 
 	def __chrome__(self):
 		'Set path to chrome.'
@@ -378,7 +371,7 @@ class GUI(Tk):
 		if path != () and path !=  '':
 			self.tk_chrome_entry.delete(0, END)
 			self.tk_chrome_entry.insert(0, path)
-			self.chrome.path = path
+			self.worker.chrome.path = path
 
 	def __save_config__(self):
 		'Save configuration to file.'
@@ -386,7 +379,7 @@ class GUI(Tk):
 		if path[-5:] != '.smdc':
 			path += '.smdc'
 		try:
-			self.storage.json_dump({
+			self.worker.storage.json_dump({
 				'Output': self.tk_outdir.get(),
 				'Chrome': self.tk_chrome.get(),
 				'Modules': { i: self.__get_login__(i) for i in self.worker.modulenames if self.worker.logins[i] != None }
@@ -399,17 +392,17 @@ class GUI(Tk):
 		path = filedialog.askopenfilename(title = 'Configuration file', filetypes = [('Somedo configuration files', '*.smdc'), ('All files', '*.*')])
 		if path != () and path !=  '':
 			try:
-				config = self.storage.json_load(path)
+				config = self.worker.storage.json_load(path)
 			except:
 				messagebox.showerror('Error', 'Could not load configuration file')
 				return
 			try:
 				self.tk_outdir_entry.delete(0, END)
 				self.tk_outdir_entry.insert(0, config['Output'])
-				self.storage.outdir = config['Output']
+				self.worker.storage.outdir = config['Output']
 				self.tk_chrome_entry.delete(0, END)
 				self.tk_chrome_entry.insert(0, config['Chrome'])
-				self.chrome.path = config['Chrome']
+				self.worker.chrome.path = config['Chrome']
 				for i in config['Modules']:
 					for j in config['Modules'][i]:
 						self.tk_login_entries[i][j].delete(0, END)
@@ -428,25 +421,13 @@ class GUI(Tk):
 		Button(help_win, text="Close", width=self.BUTTONWIDTH,
 			command=help_win.destroy).pack(padx=self.PADX, pady=self.PADY, side=RIGHT)
 
-	def __start_visible__(self):
-		'Start the jobs visible in DEBUG mode'
-		self.headless = False	# start chrome visible for debugging
-		self.__start__()
-
-	def __start_hidden__(self):
-		'Start the jobs'
-		self.headless = True	# chrome will be started with option --headless
-		self.__start__()
-
 	def __disable_jobbuttons__(self):
 		'Disable the job related buttons except Abort'
 		for i in range(self.JOBLISTLENGTH):
 			self.jobbuttons[i].config(state=DISABLED)
 			self.upbuttons[i].config(state=DISABLED)
 			self.downbuttons[i].config(state=DISABLED)
-		self.startbutton.config(state=DISABLED)
-		if self.logger.level <= DEBUG:
-			self.startbutton_hidden.config(state=DISABLED)
+		self.startbutton.config(state=DISABLED)			
 		self.purgebutton.config(state=DISABLED)
 		for i in self.worker.modulenames:
 			self.modulebuttons[i].config(state=DISABLED)
@@ -458,8 +439,6 @@ class GUI(Tk):
 			self.upbuttons[i].config(state='normal')
 			self.downbuttons[i].config(state='normal')
 		self.startbutton.config(state='normal')
-		if self.logger.level <= DEBUG:
-			self.startbutton_hidden.config(state='normal')
 		self.purgebutton.config(state='normal')
 		for i in self.worker.modulenames:
 			self.modulebuttons[i].config(state='normal')
@@ -552,11 +531,7 @@ class GUI(Tk):
 		'Execute jobs'
 		self.__write_message__('\n--- Executing job(s) ---\n')
 		for self.running_job in range(len(self.jobs)):
-			self.worker.execute_job(
-				self.jobs[self.running_job],
-				headless=self.headless,
-				stop=self.stop
-			)
+			self.worker.execute_job(self.jobs[self.running_job], stop=self.stop)
 		self.running_job = -1
 		self.__write_message__('\n--- Done ---\n')
 		self.__close2quit__()

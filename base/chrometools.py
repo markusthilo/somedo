@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from logging import DEBUG
 from os import name as os_name
 from os import path as os_path
 from time import sleep
@@ -17,8 +18,9 @@ class Chrome:
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
 	DEFAULT_PAGE_LIMIT = 200	# default limit for page expansion
 
-	def __init__(self, path=None):
+	def __init__(self, logger, path=None):
 		'Create object. It is possible to give the path to the Chrome/Chromium.'
+		self.logger = logger
 		if path == None or path == '':
 			if os_name == 'nt':
 				self.path = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
@@ -37,7 +39,7 @@ class Chrome:
 			self.path = None
 		self.chrome_proc = None
 
-	def open(self, port=9222, window_width=1024, window_height=1280, stop=None, headless=True):
+	def open(self, port=9222, window_width=1024, window_height=1280, stop=None):
 		'Open Chrome/Chromium session'
 		chrome_cmd = [	# chrome with parameters
 			self.path,
@@ -47,8 +49,7 @@ class Chrome:
 			'--disable-gpu'	# might be needed for windows
 		]
 		self.stop = stop	# to abort if user hits the stop button
-		self.headless = headless
-		if headless:	# start invisble/headless if desired (default)
+		if self.logger.level < DEBUG:	# start invisble/headless if desired (default)
 			chrome_cmd.append('--headless')
 		self.chrome_proc = Popen(chrome_cmd)	# start chrome browser
 		wait_seconds = 10.0
@@ -278,7 +279,7 @@ class Chrome:
 
 	def page_pdf(self, path_no_ext):
 		'Save page to pdf'
-		if self.headless:
+		if self.logger.level >= DEBUG:
 			try:
 				with open('%s.pdf' % path_no_ext, 'wb') as f:
 					f.write(b64decode(self.send_cmd('Page.printToPDF')['result']['data']))

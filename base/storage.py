@@ -14,8 +14,9 @@ from shutil import copytree
 class Storage:
 	'Save data into destination directory and subdirectories'
 
-	def __init__(self):
+	def __init__(self, logger):
 		'Create object by making a destination directory if not exists'
+		self.logger = logger
 		self.workdir = getcwd()
 		if os_name == 'nt':
 			self.windows = True
