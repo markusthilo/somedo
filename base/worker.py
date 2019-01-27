@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from logging import getLogger, basicConfig, addLevelName, INFO, DEBUG
+from time import sleep
+from base.logger import Logger, DEBUG
 from base.storage import Storage
 from base.chrometools import Chrome
 from modules.facebook import Facebook
@@ -51,16 +52,8 @@ class Worker:
 
 	def __init__(self, loglevel):
 		'Create object that works out the jobs'
-		self.INFO = INFO
-		self.DEBUG = DEBUG
-		self.VISIBLE = DEBUG - 1	# loglevel to start chrome in visible mode
-		addLevelName(self.VISIBLE, "VISIBLE")
-		try:
-			level = {'info': self.INFO, 'debug': self.DEBUG, 'visible': self.VISIBLE}[loglevel]
-		except KeyError:
-			level = INFO
-		basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
-		self.logger = getLogger()
+		logger = Logger(loglevel)	# configure logging
+		self.logger = logger.get()	# get the logging function
 		self.storage = Storage(self.logger)	# object for file system accesss
 		self.chrome = Chrome(self.logger)	# object to work with chrome/chromium
 		self.modulenames = [ i['name'] for i in self.MODULES ]
@@ -94,12 +87,12 @@ class Worker:
 		'Execute jobs'
 		self.storage.mkmoddir(job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop)' % job['module']
-		self.logger.debug('job: %s' % job)
-		self.logger.debug('chrome.path: %s' % self.chrome.path)
-		self.logger.debug('output directory: %s' % self.storage.moddir)
-		self.logger.debug('cmd: %s' % cmd)
-		self.logger.debug('loglevel: %s' % self.logger.level)
-		if self.logger.level <= self.DEBUG :
+		self.logger.debug('Worker: job: %s' % job)
+		self.logger.debug('Worker: chrome.path: %s' % self.chrome.path)
+		self.logger.debug('Worker: output directory: %s' % self.storage.moddir)
+		self.logger.debug('Worker: cmd: %s' % cmd)
+		self.logger.debug('Worker: loglevel: %s' % self.logger.level)
+		if self.logger.level <= DEBUG :
 			exec(cmd)
 		else:
 			try:

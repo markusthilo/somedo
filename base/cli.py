@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from sys import exit as sys_exit
-from logging import DEBUG
+from base.logger import DEBUG
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -168,7 +168,7 @@ class CLI:
 			jobs = [self.job]
 		errors = ''
 		for i in jobs:
-			if self.worker.logger.level <= self.worker.DEBUG:
+			if self.worker.logger.level <= DEBUG:
 				self.worker.execute_job(i)
 			else:
 				try:

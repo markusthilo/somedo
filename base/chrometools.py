@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from logging import DEBUG
 from os import name as os_name
 from os import path as os_path
 from time import sleep
@@ -11,6 +10,7 @@ from requests import get as rq_get
 from requests import exceptions as rq_exceptions
 from websocket import create_connection
 from base64 import b64decode
+from base.logger import DEBUG
 
 class Chrome:
 	'Tools around the Chromedriver'
@@ -41,7 +41,7 @@ class Chrome:
 
 	def open(self, port=9222, window_width=1024, window_height=1280, stop=None):
 		'Open Chrome/Chromium session'
-		chrome_cmd = [	# chrome with parameters
+		cmd = [	# chrome with parameters
 			self.path,
 			'--window-size=%d,%d' % (window_width, window_height),	# try to set windows dimensions - might not work right now
 			'--remote-debugging-port=%d' % port,
@@ -49,9 +49,10 @@ class Chrome:
 			'--disable-gpu'	# might be needed for windows
 		]
 		self.stop = stop	# to abort if user hits the stop button
-		if self.logger.level < DEBUG:	# start invisble/headless if desired (default)
-			chrome_cmd.append('--headless')
-		self.chrome_proc = Popen(chrome_cmd)	# start chrome browser
+		if self.logger.level >= DEBUG:	# start invisble/headless if desired (default)
+			cmd.append('--headless')
+		self.logger.debug('Chrome: cmd: %s' % cmd)
+		self.chrome_proc = Popen(cmd)	# start chrome browser
 		wait_seconds = 10.0
 		while wait_seconds > 0:	# connect to chrome
 			try:

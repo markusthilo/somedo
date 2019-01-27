@@ -7,7 +7,7 @@ from tkinter import Tk, Frame, LabelFrame, Label, Button, Checkbutton, Entry
 from tkinter import Text, PhotoImage, StringVar, BooleanVar, IntVar
 from tkinter import BOTH, GROOVE, END, W, E, N, S, X, LEFT, RIGHT, DISABLED
 from tkinter import ttk, filedialog, messagebox, scrolledtext
-from logging import Handler, DEBUG
+from base.logger import Handler, DEBUG
 from base.storage import Storage
 from base.worker import Worker
 from base.chrometools import Chrome
@@ -68,6 +68,8 @@ class GUI(Tk):
 			self.upbuttons[i].pack(side=LEFT)
 			self.downbuttons.append(Button(frame_row, text='\u2193', command=partial(self.__job_down__, i)))
 			self.downbuttons[i].pack(side=LEFT)
+		self.colour_fg = self.jobbuttons[0].cget('fg')
+		self.colour_bg = self.jobbuttons[0].cget('bg')
 		frame_row = Frame(frame_jobs_inner)
 		frame_row.pack(fill=BOTH, expand=True)
 		self.startbutton = Button(frame_row, text="\u25b9 Start jobs", width=self.BUTTONWIDTH,
@@ -98,7 +100,7 @@ class GUI(Tk):
 		)
 		self.text_messages.pack(fill=BOTH, expand=True, padx=self.PADX, pady=self.PADY)
 		self.text_messages.bind("<Key>", lambda e: "break")
-		self.worker.logger.addHandler(LogHandler(self.text_messages))	# give tk loghandler to worker
+		self.worker.logger.addHandler(GUILogHandler(self.text_messages))	# give tk loghandler to worker
 		self.frame_config = Frame(self.frame_changeling)	# config frame
 		nb_config = ttk.Notebook(self.frame_config)	# here is the tk-notebook for the modules
 		nb_config.pack(padx=self.PADX, pady=self.PADY)
@@ -540,18 +542,23 @@ class GUI(Tk):
 
 	def __showjob__(self):
 		'Show what the worker is doing'
-		fg = self.jobbuttons[self.running_job].cget('fg')
-		bg = self.jobbuttons[self.running_job].cget('bg')
+		while True:
+			try:
+				if self.running_job >= 0:
+					break
+			except:
+				pass
+			sleep(0.1)
 		while self.running_job >= 0:
 			running = self.running_job
-			self.jobbuttons[running].config(fg=bg)
-			self.jobbuttons[running].config(bg=fg)
+			self.jobbuttons[running].config(fg=self.colour_bg)
+			self.jobbuttons[running].config(bg=self.colour_fg)
 			sleep(0.75)
-			self.jobbuttons[running].config(fg=fg)
-			self.jobbuttons[running].config(bg=bg)
+			self.jobbuttons[running].config(fg=self.colour_fg)
+			self.jobbuttons[running].config(bg=self.colour_bg)
 			sleep(0.75)
 
-class LogHandler(Handler):
+class GUILogHandler(Handler):
 	'Logging to GUI'
 
 	def __init__(self, text_msg):

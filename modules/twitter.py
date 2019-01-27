@@ -3,10 +3,10 @@
 from re import search as rsearch
 from re import sub as rsub
 from re import sub as rfindall
-from logging import DEBUG
 from time import sleep
 from datetime import datetime
 from base.cutter import Cutter
+from base.logger import DEBUG
 
 class Twitter:
 	'Downloader for Twitter'
@@ -15,17 +15,21 @@ class Twitter:
 
 	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Twitter'
-		self.chrome = chrome
 		self.storage = storage
-		self.logger = self.chrome.logger
+		self.chrome = chrome
+		self.logger = self.storage.logger
 		self.ct = Cutter()
 		self.options = job['options']
-		self.chrome.open(stop=stop, headless=headless)
+		self.logger.debug('Twitter: options: %s' % self.options)
+		self.chrome.open(stop=stop)
 		if self.options['Search']:	# twitter search
 			self.get_search(job['target'])
 		else:	# target userss / twitter user
 			for i in self.extract_targets(job['target']):				
 				self.get_account(i)
+		if self.logger.level < DEBUG:
+			self.logger.visible('Twitter: finished, now sleeping for 5 seconds until closing browser')
+			sleep(5)
 		self.chrome.close()
 
 	def extract_targets(self, target):
@@ -60,6 +64,7 @@ class Twitter:
 
 	def get_tweets(self, path):
 		'Get Tweets by scrolling down.'
+		self.logger.info('Twitter: data will be stored to: %s' % self.storage.modpath(path))
 		path_no_ext = self.storage.modpath(path, 'tweets')
 		self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.options['limitPages'])
 		self.chrome.page_pdf(path_no_ext)
@@ -91,7 +96,8 @@ class Twitter:
 		self.rm_banner()
 		self.storage.mksubdir(path)
 		path_no_ext = self.storage.modpath(path, 'account')
-		self.chrome.page_pdf(path_no_ext)
+		self.chrome.visible_page_png(path_no_ext)	# save the tob of timeline as png
+		self.chrome.page_pdf(path_no_ext)	# and as pdf
 		self.rm_profile_canopy()
 		self.get_tweets(path)
 
