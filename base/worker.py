@@ -99,3 +99,10 @@ class Worker:
 				exec(cmd)
 			except:
 				pass
+		if self.chrome.is_running():
+			self.logger.warning('Worker: Chrome/Chromium was still running finishing jobs')
+			if self.logger.level < DEBUG:
+				self.logger.visible('Worker: finished, now sleeping for 5 seconds until closing browser')
+				sleep(5)
+			self.chrome.close()
+		self.logger.debug('Worker: done!')

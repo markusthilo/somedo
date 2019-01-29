@@ -8,6 +8,7 @@ from re import search as rsearch
 from re import findall as rfindall
 from base.chrometools import Chrome
 from base.cutter import Cutter
+from base.logger import DEBUG
 from vis.netvis import NetVis
 
 class Facebook:
@@ -16,14 +17,16 @@ class Facebook:
 	ACCOUNT = ('type', 'id', 'name', 'path', 'link')
 	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
 	DEFAULTPAGELIMIT = 50
-	DEFAULTNETWORKDEPTH = 1
+	DEFAULTNETWORKDEPTH = 1	# network: 1 = get the friends of the target accounts
+	NEWLOGINAFTER = 25	# network: close browser and login again after a limited number of profile visits
 
-	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
+	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Facebook by giving the needed parameters'
 		self.storage = storage
 		self.chrome = chrome
+		self.logger = self.storage.logger
 		self.stop = stop
-		self.headless = headless
+		self.stop_check = self.chrome.stop_check
 		self.options = job['options']
 		self.ct = Cutter()
 		self.emails = self.ct.split(job['login']['Email'])
@@ -32,43 +35,55 @@ class Facebook:
 		if self.emails == [] or self.passwords == []:
 			raise RuntimeError('At least one login account is needed for the Facebook module.')
 		self.loginrevolver = -1	# for multiple investigator accounts
-		errors = []	# to return error messages
-		if debug:	# abort on errors in debug mode
-			accounts = [ self.get_landing(i) for i in self.extract_paths(job['target']) ]	# get account infos with a first visit
-			if self.options['Network']:
-				self.get_network(accounts)
-		else:	# be error robust on normal run
-			accounts = []
-			for i in self.extract_paths(job['target']):	# get account infos with a first visit
-				try:
-					account = self.get_landing(i)
-				except:
-					errors.append('Could not detect account "%s"' % i)
-					continue
-				accounts.append(account)
-			if accounts == []:
-				raise Exception('No valid target account(s) were detected.')
-			if self.options['Network']:
-				try:
-					self.get_network(accounts)
-				except:
-					errors.append('Network')
-		for i in accounts:	# go account after account
-			for j in ('About', 'Photos', 'Timeline'):
-				if self.chrome.stop_check():
+		targets = self.extract_paths(job['target'])
+		self.logger.debug('Facebook: targets: %s' % targets)
+		if self.options['Network']:
+				accounts = self.get_network(targets)
+		if self.options['Network'] and self.options['extendNetwork']:
+			check4tasks = ('About', 'Photos')
+		else:
+			check4tasks = ('About', 'Photos', 'Timeline')
+		for i in targets:	# one target after the other
+			if self.stop_check():
+				break
+			self.logger.debug('Facebook: now working on target: %s' % i)
+			if self.options['Network']:	# if networrk option has been proceeded already
+				account = accounts[i]	# the profiles have already been fetched
+			else:
+				if self.logger.level <= DEBUG:	# fragile on debug or lower logging level
+					account = self.get_landing(i)	# get profiles / landing page
+				else:	# error robust by default
+					try:
+						account = self.get_landing(i)
+					except:
+						self.logger.warning('Facebook: account undetected "%s"' % i)
+						continue
+			for j in check4tasks:	# run other desired tasks
+				if self.stop_check():
 					break
 				if self.options[j]:
-					cmd = 'self.get_%s(i)' % j.lower()
-					if debug:
+					cmd = 'self.get_%s(account)' % j.lower()
+					if self.logger.level <= DEBUG:
 						exec(cmd)
 					else:
 						try:
 							exec(cmd)
 						except:
-							errors.append(' %s:%s' %(i, j))
-		self.chrome.close()
-		if errors != []:
-			raise Exception('The following Facebook account(s)/action(s) returned errors:'.join(errors)) 
+							self.logger.warning('Facebook: could not execute "%s"' % cmd)
+							continue
+		if self.chrome.chrome_proc != None:
+			if self.logger.level < DEBUG:
+				self.logger.visible('Facebook: finished, now sleeping for 5 seconds until closing browser, if still')
+				tsleep(5)
+			self.chrome.close()
+
+		if self.chrome.is_running():
+			self.logger.warning('Facebook: Chrome/Chromium was still running finishing jobs')
+			if self.logger.level < DEBUG:
+				self.logger.visible('Facebook: finished, now sleeping for 5 seconds until closing browser, if still')
+				sleep(5)
+			self.chrome.close()		
+		self.logger.debug('Facebook: done!')
 
 	def sleep(self, t):
 		'Sleep a slightly ranomized time'
@@ -339,17 +354,15 @@ class Facebook:
 
 	def login(self):
 		'Login to Facebook'
-		if self.chrome.chrome_proc != None:
-			self.chrome.close()
-		self.chrome.open(stop=self.stop, headless=self.headless)
+		self.chrome.open(stop=self.stop)
 		self.chrome.navigate('https://www.facebook.com/login')	# go to facebook login
-		if self.loginrevolver == -1:
-				self.loginrevolver = 0
 		for i in range(len(self.emails) * 10):	# try 10x all accounts
 			if self.chrome.stop_check():
 				return
+			self.loginrevolver += 1
+			if self.loginrevolver == len(self.emails):
+				self.loginrevolver = 0
 			self.sleep(1)
-
 			try:
 				self.chrome.insert_element_by_id('email', self.emails[self.loginrevolver])	# login with email
 				self.chrome.insert_element_by_id('pass', self.passwords[self.loginrevolver])	# and password
@@ -360,15 +373,12 @@ class Facebook:
 				self.sleep(1)
 				if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
 					return
-			self.loginrevolver += 1
-			if self.loginrevolver == len(self.emails):
-				self.loginrevolver = 0
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
 
 	def navigate(self, url):
 		'Navigate to given URL. Open Chrome/Chromium and/or login if needed'
-		if self.chrome.chrome_proc == None:
+		if not self.chrome.is_running():
 			self.login()
 		for i in range(10):
 			for j in range(3):
@@ -385,6 +395,7 @@ class Facebook:
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
+		self.logger.debug('Facebook: getting account data: %s', path)
 		self.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		account = self.get_account(path)	# get account infos if not already done
 		self.storage.mksubdir(account['path'])	# as landing is the first task to perform, generate the subdiroctory here
@@ -405,6 +416,7 @@ class Facebook:
 
 	def get_timeline(self, account):
 		'Get timeline'
+		self.logger.debug('Facebook: getting timeline: %s' % account['path'])
 		if account['type'] == 'pg':
 			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
 			path_no_ext = self.storage.modpath(account['path'], 'posts')
@@ -423,41 +435,6 @@ class Facebook:
 			translate=self.options['translateTimeline']
 		)
 		self.chrome.page_pdf(path_no_ext)
-		if self.options['Network'] and self.options['depthNetwork']:
-			return self.get_visitors(account)
-		else:
-			return None
-
-	def get_visitors(self, account):
-		'Get all visitors who left comments or likes etc. in timeline - timeline has to be open end expand'
-		visitors = []	# list to store links to other profiles
-		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
-		items = self.chrome.get_outer_html('ClassName', 'commentable_item')	# get commentable items
-		for i in items:
-			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+</a>', i):	# get comment authors
-				visitor = self.link2account(j)
-				if not visitor['id'] in visitor_ids:	# uniq
-					visitors.append(visitor)
-					visitor_ids.add(visitor['id'])
-			href = self.ct.search('href="/ufi/reaction/profile/browser/[^"]+', i)		# get reactions
-			if href != None:
-				if self.chrome.stop_check():
-					return
-				self.navigate('https://www.facebook.com' + href[6:])	# open reaction page
-				self.chrome.expand_page(terminator=self.terminator)	# scroll through page
-				self.rm_pagelets()	# remove bluebar etc.
-				html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
-				for j in rfindall(
-					' href="https://www\.facebook\.com/[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" data-hovercard-prefer-more-content-show="1"[^<]+</a>',
-					html
-				):
-					visitor = self.link2account(j)
-					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
-						visitors.append(visitor)
-						visitor_ids.add(visitor['id'])
-		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], account['path'], 'visitors.csv')
-		self.storage.write_json(visitors, account['path'], 'visitors.json')
-		return { i['path'] for i in visitors }	# return visitors ids as set
 
 	def get_about(self, account):
 		'Get About'
@@ -612,42 +589,78 @@ class Facebook:
 			return { i['path'] for i in mlist }	# return members as set
 		return set()
 
-	def get_network(self, accounts):
+	def get_visitors(self, account):
+		'Get all visitors who left comments or likes etc. in timeline - timeline has to be open end expand'
+		self.get_timeline(account)
+		visitors = []	# list to store links to other profiles
+		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
+		items = self.chrome.get_outer_html('ClassName', 'commentable_item')	# get commentable items
+		for i in items:
+			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+</a>', i):	# get comment authors
+				visitor = self.link2account(j)
+				if not visitor['id'] in visitor_ids:	# uniq
+					visitors.append(visitor)
+					visitor_ids.add(visitor['id'])
+			href = self.ct.search('href="/ufi/reaction/profile/browser/[^"]+', i)		# get reactions
+			if href != None:
+				if self.chrome.stop_check():
+					return
+				self.navigate('https://www.facebook.com' + href[6:])	# open reaction page
+				self.chrome.expand_page(terminator=self.terminator)	# scroll through page
+				self.rm_pagelets()	# remove bluebar etc.
+				html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
+				for j in rfindall(
+					' href="https://www\.facebook\.com/[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" data-hovercard-prefer-more-content-show="1"[^<]+</a>',
+					html
+				):
+					visitor = self.link2account(j)
+					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
+						visitors.append(visitor)
+						visitor_ids.add(visitor['id'])
+		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], account['path'], 'visitors.csv')
+		self.storage.write_json(visitors, account['path'], 'visitors.json')
+		return { i['path'] for i in visitors }	# return visitors ids as set
+
+	def get_network(self, targets):
 		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
+		accounts = {}
 		network = dict()	# dictionary to store friend lists
 		old_ids = set()	# set to store ids already got handled
 		all_ids = set() # set for all ids
-		for i in accounts:	# start with the given target accounts
-			if self.chrome.stop_check():
+		for i in targets:	# first get landing pages and account data of the targets
+			self.logger.debug('Facebook: Network: 1st loop, target: %s' % i)
+			if self.stop_check():
 				break
-			friends = self.get_friends(i)
-			network.update({i['path']: {	# add friends
-				'id': i['id'],
-				'type': i['type'],
-				'name': i['name'],
-				'link': i['link'],
+			account = self.get_landing(i)
+			accounts[i] = account
+			if self.stop_check():
+				break
+			friends = self.get_friends(account)
+			network.update({account['path']: {	# add friends
+				'id': account['id'],
+				'type': account['type'],
+				'name': account['name'],
+				'link': account['link'],
 				'friends': friends
 			}})
-			old_ids.add(i['path'])	# remember already handled accounts
-			all_ids.add(i['path'])	# update set of all ids
+			old_ids.add(account['path'])	# remember already handled accounts
+			all_ids.add(account['path'])	# update set of all ids
 			all_ids |= friends
 			if self.options['extendNetwork']:	# also add visitors to network if desired
-				visitors = self.get_timeline(i)
+				visitors = self.get_visitors(i)
 				self.options['Timeline'] = False	# on extendNetwork no extra Timeline visit is needed
-				network[i['path']]['visitors'] = visitors
+				network[account['path']]['visitors'] = visitors
 				all_ids |= visitors
 			else:
-				network[i['path']]['visitors'] = set()	# empty set if extended option is false
-		if self.options['depthNetwork'] > 0:	# on 0 only get friend list(s)
-			depth = self.options['depthNetwork']
-		else:
-			return
-		for i in range(depth):	# stay in depth limit and go through friend lists
-			if self.chrome.stop_check():
+				network[account['path']]['visitors'] = set()	# empty set if extended option is false
+		if self.options['depthNetwork'] < 1:	# on 0 only get friend list(s)
+			self.logger.debug('Facebook: Network: done after fetching friend list(s)')
+			return accounts
+		for i in range(self.options['depthNetwork']):	# stay in depth limit and go through friend lists
+			if self.stop_check():
 				break
 			for j in all_ids - old_ids:	# work on friend list which have not been handled so far
 				account = self.get_landing(j)
-				self.sleep(5)
 				network.update({account['path']: {	# add new account
 					'id': account['id'],
 					'type': account['type'],
@@ -656,22 +669,15 @@ class Facebook:
 					'friends': set(),
 					'visitors': set()
 				}})
-				if i < depth - 1:	# on last recusion level do not get the friend lists anymore
-					if self.chrome.stop_check():
-						break
-					network[j]['friends'] = self.get_friends(account)
-					if extended:
-						network[j]['visitors'] = self.get_timeline(
-							i,
-							expand=True,
-							translate=False,
-							visitors=True,
-							until=0,
-							limit=limit,
-							dontsave=True
-						)
-					else:
-						network[j]['visitors'] = set()
+				if i = self.options['depthNetwork'] - 1:	# on last recusion level do not get the friend lists anymore
+					continue:
+				if self.stop_check():
+					break
+				network[j]['friends'] = self.get_friends(account)
+				if extended:
+					network[j]['visitors'] = self.get_visitors(account)
+				else:
+					network[j]['visitors'] = set()
 		netvis = NetVis(self.storage)	# create network visualisation object
 		friend_edges = set()	# generate edges for facebook friends excluding doubles
 		for i in network:
@@ -694,3 +700,4 @@ class Facebook:
 				ids = i.split(' ')
 				netvis.add_edge(ids[0], ids[1], arrow=True, dashes=True)
 		netvis.write(doubleclick="window.open('../' + params.nodes[0] + '/account.html')")
+		return accounts

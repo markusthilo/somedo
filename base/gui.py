@@ -170,7 +170,7 @@ class GUI(Tk):
 	def __quit__(self):
 		'Close the app'
 		if messagebox.askyesno('Quit', 'Close this Application?'):
-			self.root.quit()
+			self.__terminate__()
 
 	def __close2quit__(self):
 		'Ask to quit on close windows by "X"'
@@ -506,6 +506,7 @@ class GUI(Tk):
 		self.__close2stop__()
 		self.stop = Event()	# to stop working thread
 		self.stop_set = False
+		self.running_job = 0
 		self.thread_worker = Thread(target=self.__worker__)
 		self.thread_worker.start()	# start work
 		self.thread_showjob = Thread(target=self.__showjob__)
@@ -527,14 +528,14 @@ class GUI(Tk):
 	def __kill__(self):
 		'Kill Somedo immediatly'
 		if messagebox.askyesno('Somedo', 'Kill Somedo as fast as possible?\n\nAlready downloaded data mightbe lost!'):
-			self.root.quit()
+			self.__terminate__()
 
 	def __worker__(self):
 		'Execute jobs'
 		self.__write_message__('\n--- Executing job(s) ---\n')
-		for self.running_job in range(len(self.jobs)):
+		while self.running_job < len(self.jobs):
 			self.worker.execute_job(self.jobs[self.running_job], stop=self.stop)
-		self.running_job = -1
+			self.running_job += 1
 		self.__write_message__('\n--- Done ---\n')
 		self.__close2quit__()
 		self.__enable_jobbuttons__()
@@ -542,14 +543,7 @@ class GUI(Tk):
 
 	def __showjob__(self):
 		'Show what the worker is doing'
-		while True:
-			try:
-				if self.running_job >= 0:
-					break
-			except:
-				pass
-			sleep(0.1)
-		while self.running_job >= 0:
+		while self.thread_worker.isAlive():
 			running = self.running_job
 			self.jobbuttons[running].config(fg=self.colour_bg)
 			self.jobbuttons[running].config(bg=self.colour_fg)
@@ -557,6 +551,20 @@ class GUI(Tk):
 			self.jobbuttons[running].config(fg=self.colour_fg)
 			self.jobbuttons[running].config(bg=self.colour_bg)
 			sleep(0.75)
+
+	def __terminate__(self):
+		'Terminate GUI'
+		try:
+			if self.thread_worker.isAlive():
+				raise SystemExit('Worker thread was still running')
+		except:
+			pass
+		try:
+			if self.thread_showjob.isAlive():
+				raise SystemExit('Thread that indicates job was still running')
+		except:
+			pass
+		self.root.quit()
 
 class GUILogHandler(Handler):
 	'Logging to GUI'

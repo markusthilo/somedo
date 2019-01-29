@@ -5,22 +5,28 @@ from re import findall as rfindall
 from time import sleep
 from datetime import datetime
 from base.cutter import Cutter
+from base.logger import DEBUG
 
 class Instagram:
 	'Downloader for Instagram'
 
 	DEFAULTPAGELIMIT = 20
 
-	def __init__(self, job, storage, chrome, stop=None, headless=True, debug=False):
+	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Instagram'
 		self.storage = storage
 		self.chrome = chrome
 		self.ct = Cutter()
+		self.logger = self.storage.logger
 		self.options = job['options']
-		self.chrome.open(stop=stop, headless=headless)
+		self.chrome.open(stop=stop)
 		for i in self.extract_targets(job['target']):
 			self.get_main(i)
+		if self.logger.level < DEBUG:
+			self.logger.visible('Instagram: finished, now sleeping for 5 seconds until closing browser')
+			sleep(5)
 		self.chrome.close()
+		self.logger.debug('Facebook: done!')
 
 	def extract_targets(self, target):
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
@@ -108,6 +114,9 @@ class Instagram:
 
 	def get_links(self):
 		'Extract links from tag "article"'
-		for i in rfindall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
-			if not i[9:] in self.links:
-				self.links.append(i[9:])
+		try:
+			for i in rfindall('<a href="/p/[^"]+', self.chrome.get_outer_html('TagName', 'article')[0]):	# go through links
+				if not i[9:] in self.links:
+					self.links.append(i[9:])
+		except:
+			pass

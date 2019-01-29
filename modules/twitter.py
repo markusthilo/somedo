@@ -31,6 +31,7 @@ class Twitter:
 			self.logger.visible('Twitter: finished, now sleeping for 5 seconds until closing browser')
 			sleep(5)
 		self.chrome.close()
+		self.logger.debug('Facebook: done!')
 
 	def extract_targets(self, target):
 		'Extract paths (= URLs without ...instagram.com/) from given targets'
@@ -64,7 +65,6 @@ class Twitter:
 
 	def get_tweets(self, path):
 		'Get Tweets by scrolling down.'
-		self.logger.info('Twitter: data will be stored to: %s' % self.storage.modpath(path))
 		path_no_ext = self.storage.modpath(path, 'tweets')
 		self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.options['limitPages'])
 		self.chrome.page_pdf(path_no_ext)
@@ -94,7 +94,7 @@ class Twitter:
 		self.chrome.navigate('http://twitter.com/%s' % path)
 		sleep(1)
 		self.rm_banner()
-		self.storage.mksubdir(path)
+		self.logger.info('Twitter: data will be stored to: %s' % self.storage.mksubdir(path))
 		path_no_ext = self.storage.modpath(path, 'account')
 		self.chrome.visible_page_png(path_no_ext)	# save the tob of timeline as png
 		self.chrome.page_pdf(path_no_ext)	# and as pdf
@@ -110,6 +110,7 @@ class Twitter:
 			path += target.replace(' ', '_')[:23]
 		else:
 			path += target.replace(' ', '_')
+		self.logger.info('Twitter: data will be stored to: %s' % self.storage.mksubdir(path))
 		self.rm_banner()
 		self.rm_search()
 		self.get_tweets(path)

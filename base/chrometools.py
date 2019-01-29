@@ -37,10 +37,11 @@ class Chrome:
 						break
 		if not os_path.isfile(self.path):
 			self.path = None
-		self.chrome_proc = None
 
 	def open(self, port=9222, window_width=1024, window_height=1280, stop=None):
 		'Open Chrome/Chromium session'
+		if self.is_running():
+			self.close()
 		cmd = [	# chrome with parameters
 			self.path,
 			'--window-size=%d,%d' % (window_width, window_height),	# try to set windows dimensions - might not work right now
@@ -66,6 +67,24 @@ class Chrome:
 				wait_seconds -= 0.25
 		raise Exception('Unable to connect to Chrome')
 
+	def close(self):
+		'Close session/browser'
+		self.chrome_proc.kill()
+		for i in range(600):
+			if self.chrome_proc.poll() != None:
+				return
+			sleep(0.1)
+		raise Exception('Unable to close Chrome/Chromium')
+
+	def is_running(self):
+		'Check if Chrome/Chromium is running'
+		try:
+			if self.chrome_proc.poll() == None:
+				return True
+		except:
+			pass
+		return False
+
 	def send_cmd(self, method, **kwargs):
 		'Send command to Chrome'
 		self.request_id += 1
@@ -74,7 +93,7 @@ class Chrome:
 			message = jloads(self.conn.recv())
 			if message.get('id') == self.request_id:
 				return message
-			if i > 1000:
+			if i > 600:
 				sleep(0.1)
 		return None
 
@@ -262,10 +281,6 @@ class Chrome:
 	def get_scroll_height(self):
 		'Calculate scroll height based on the window height'
 		return int(self.get_window_height() * self.SCROLL_RATIO)
-
-	def close(self):
-		'Close session/browser'
-		self.chrome_proc.kill()
 
 	def download(self, url, path):
 		'Download file'
