@@ -9,7 +9,6 @@ from tkinter import BOTH, GROOVE, END, W, E, N, S, X, LEFT, RIGHT, DISABLED
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 from base.logger import Handler, DEBUG
 from base.storage import Storage
-from base.worker import Worker
 from base.chrometools import Chrome
 
 class GUI(Tk):
@@ -29,8 +28,8 @@ class GUI(Tk):
 			self.PADX = 8
 			self.PADY = 8
 			self.OPTPADX = 6
-			self.CHNGWIDTH = 160
-			self.CHNGHEIGHT = 10
+			self.CHNGWIDTH = 144
+			self.CHNGHEIGHT = 12
 			self.MSGHEIGHT = 8
 		else:
 			self.JOBLISTLENGTH = 10

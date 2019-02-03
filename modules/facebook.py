@@ -18,7 +18,7 @@ class Facebook:
 	ONEYEARAGO  = ( datetime.now() - timedelta(days=366) ).strftime('%Y-%m-%d')
 	DEFAULTPAGELIMIT = 50
 	DEFAULTNETWORKDEPTH = 1	# network: 1 = get the friends of the target accounts
-	NEWLOGINAFTER = 25	# network: close browser and login again after a limited number of profile visits
+	NEWLOGINAFTER = 100	# network: close browser and login again after a limited number of profile / landing visits
 
 	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Facebook by giving the needed parameters'
@@ -363,26 +363,29 @@ class Facebook:
 			if self.loginrevolver == len(self.emails):
 				self.loginrevolver = 0
 			self.sleep(1)
+			self.logger.info('Facebook: Login with %s' % self.emails[self.loginrevolver])
 			try:
 				self.chrome.insert_element_by_id('email', self.emails[self.loginrevolver])	# login with email
 				self.chrome.insert_element_by_id('pass', self.passwords[self.loginrevolver])	# and password
 				self.chrome.click_element_by_id('loginbutton')	# click login
 			except:
 				pass
-			else:
+			for j in range(10):	# try for 10 seconds ig login was succesful
 				self.sleep(1)
 				if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
-					return
+						return
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
 
 	def navigate(self, url):
 		'Navigate to given URL. Open Chrome/Chromium and/or login if needed'
 		if not self.chrome.is_running():
+			self.logger.debug('Facebook: Chrome/Chromium is not running!')
 			self.login()
+		self.logger.debug('Facebook: navigate to: %s' % url)
 		for i in range(10):
-			for j in range(3):
-				self.chrome.navigate(url)	# go to page
+			self.chrome.navigate(url)	# go to page
+			for j in range(10):
 				self.sleep(1)
 				try:
 					m = rsearch('<img', self.chrome.get_inner_html_by_id('content'))
@@ -395,10 +398,10 @@ class Facebook:
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
-		self.logger.debug('Facebook: getting account data: %s', path)
+		self.logger.info('Facebook: Visiting %s', path)
 		self.navigate('https://www.facebook.com/%s' % path)	# go to landing page of the given faebook account
 		account = self.get_account(path)	# get account infos if not already done
-		self.storage.mksubdir(account['path'])	# as landing is the first task to perform, generate the subdiroctory here
+		self.logger.info('Facebook: Data will be stored to: %s' % self.storage.mksubdir(account['path']))	# generate the subdiroctory
 		self.storage.write_dicts(account, self.ACCOUNT, account['path'], 'account.csv')	# write account infos
 		self.storage.write_json(account, account['path'], 'account.json')
 		try:	# try to download profile photo
@@ -621,81 +624,90 @@ class Facebook:
 		self.storage.write_json(visitors, account['path'], 'visitors.json')
 		return { i['path'] for i in visitors }	# return visitors ids as set
 
+	def add2network(self, account, final=False):
+		'Add account with friends (and visitorson extendNetwork) to network'
+		self.network.update({account['path']: {	# add new account
+			'id': account['id'],
+			'type': account['type'],
+			'name': account['name'],
+			'link': account['link'],
+			'friends': set(),
+			'visitors': set()
+		}})
+		if final or self.stop_check():	# on last recusion level do not get the friend lists anymore
+			return set()
+		friends = self.get_friends(account)
+		self.network[account['path']]['friends'] = friends
+		if not self.options['extendNetwork']:
+			return friends
+		visitors = self.get_visitors(account)
+		self.network[account['path']]['visitors'] = visitors
+		return friends | visitors
+
 	def get_network(self, targets):
-		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
-		accounts = {}
-		network = dict()	# dictionary to store friend lists
-		old_ids = set()	# set to store ids already got handled
-		all_ids = set() # set for all ids
+		'Get friends and friends of friends and so on to given depth or abort if limit is reached'	
+		if self.options['extendNetwork']:	# on extendNetwork no extra timeline visit is needed
+			self.options['Timeline'] = False
+		accounts = {}	# set of the targeted accounts as return value for further action
+		self.network = dict()	# dictionary to store friend lists
+		old_profs = set()	# set to store profiles  that already got handled
+		all_profs = set() # set for all profiles
 		for i in targets:	# first get landing pages and account data of the targets
+			if self.stop_check():
+				break
 			self.logger.debug('Facebook: Network: 1st loop, target: %s' % i)
-			if self.stop_check():
-				break
 			account = self.get_landing(i)
-			accounts[i] = account
-			if self.stop_check():
-				break
-			friends = self.get_friends(account)
-			network.update({account['path']: {	# add friends
-				'id': account['id'],
-				'type': account['type'],
-				'name': account['name'],
-				'link': account['link'],
-				'friends': friends
-			}})
-			old_ids.add(account['path'])	# remember already handled accounts
-			all_ids.add(account['path'])	# update set of all ids
-			all_ids |= friends
-			if self.options['extendNetwork']:	# also add visitors to network if desired
-				visitors = self.get_visitors(i)
-				self.options['Timeline'] = False	# on extendNetwork no extra Timeline visit is needed
-				network[account['path']]['visitors'] = visitors
-				all_ids |= visitors
-			else:
-				network[account['path']]['visitors'] = set()	# empty set if extended option is false
+			accounts[i] = account	# to return later
+			old_profs.add(account['path'])	# update set of already handled profiles
+			all_profs |= self.add2network(account)
 		if self.options['depthNetwork'] < 1:	# on 0 only get friend list(s)
 			self.logger.debug('Facebook: Network: done after fetching friend list(s)')
 			return accounts
+		landing_cnt = 0	# to re-login after getting only landings to avoid blocking by facebook
 		for i in range(self.options['depthNetwork']):	# stay in depth limit and go through friend lists
-			if self.stop_check():
-				break
-			for j in all_ids - old_ids:	# work on friend list which have not been handled so far
-				account = self.get_landing(j)
-				network.update({account['path']: {	# add new account
-					'id': account['id'],
-					'type': account['type'],
-					'name': account['name'],
-					'link': account['link'],
-					'friends': set(),
-					'visitors': set()
-				}})
-				if i = self.options['depthNetwork'] - 1:	# on last recusion level do not get the friend lists anymore
-					continue:
+			profile_cnt = 0
+			new_profs = all_profs - old_profs	# friend list which have not been handled so far
+			sum_new_profs = len(new_profs)
+			for j in new_profs:	# work on new friends
 				if self.stop_check():
 					break
-				network[j]['friends'] = self.get_friends(account)
-				if extended:
-					network[j]['visitors'] = self.get_visitors(account)
+				profile_cnt += 1
+				self.logger.info('Facebook: Network recursion level %d of %d, account %d of %d' % (
+					i+1,
+					self.options['depthNetwork'],
+					profile_cnt,
+					sum_new_profs
+				))
+				account = self.get_landing(j)
+				if self.stop_check():
+					break
+				old_profs.add(account['path'])	# update set of already handled profiles
+				if i == self.options['depthNetwork'] - 1:	# on last recusion level do not get the friend lists anymore
+					all_profs |= self.add2network(account, final=True)
+					landing_cnt += 1
+					if landing_cnt == self.NEWLOGINAFTER:
+						self.login()
+						landing_cnt = 0
 				else:
-					network[j]['visitors'] = set()
+					all_profs |= self.add2network(account)
 		netvis = NetVis(self.storage)	# create network visualisation object
 		friend_edges = set()	# generate edges for facebook friends excluding doubles
-		for i in network:
+		for i in self.network:
 			netvis.add_node(
 				i,
 				image = '../%s/profile.jpg' % i,
 				alt_image = './pixmaps/profile.jpg',
-				label = network[i]['name'],
+				label = self.network[i]['name'],
 				title = '<img src="../%s/account.png" alt="%s" style="width: 24em;"/>' % (i, i)
 			)
-			for j in network[i]['friends']:
+			for j in self.network[i]['friends']:
 				if not '%s %s' % (i, j) in friend_edges:
 					friend_edges.add('%s %s' % (j, i))
 		for i in friend_edges:
 			ids = i.split(' ')
 			netvis.add_edge(ids[0], ids[1])
-		if extended:	# on extended create edges for the visitors as arrows
-			visitor_edges = { '%s %s' % (j, i) for i in network for j in network[i]['visitors'] }
+		if self.options['extendNetwork']:	# on extended create edges for the visitors as arrows
+			visitor_edges = { '%s %s' % (j, i) for i in self.network for j in self.network[i]['visitors'] }
 			for i in visitor_edges:
 				ids = i.split(' ')
 				netvis.add_edge(ids[0], ids[1], arrow=True, dashes=True)

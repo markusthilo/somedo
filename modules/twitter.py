@@ -94,7 +94,7 @@ class Twitter:
 		self.chrome.navigate('http://twitter.com/%s' % path)
 		sleep(1)
 		self.rm_banner()
-		self.logger.info('Twitter: data will be stored to: %s' % self.storage.mksubdir(path))
+		self.logger.info('Twitter: Data will be stored to %s' % self.storage.mksubdir(path))
 		path_no_ext = self.storage.modpath(path, 'account')
 		self.chrome.visible_page_png(path_no_ext)	# save the tob of timeline as png
 		self.chrome.page_pdf(path_no_ext)	# and as pdf

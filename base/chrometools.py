@@ -6,6 +6,7 @@ from time import sleep
 from json import loads as jloads
 from json import dumps as jdumps
 from subprocess import Popen
+from socket import socket, AF_INET, SOCK_STREAM
 from requests import get as rq_get
 from requests import exceptions as rq_exceptions
 from websocket import create_connection
@@ -13,15 +14,17 @@ from base64 import b64decode
 from base.logger import DEBUG
 
 class Chrome:
-	'Tools around the Chromedriver'
+	'Class around the Chrome/Chromium using the Developers Tools'
 
 	SCROLL_RATIO = 0.85	# ratio to scroll in relation to window/screenshot height
-	DEFAULT_PAGE_LIMIT = 200	# default limit for page expansion
+	DEFAULT_PAGE_LIMIT = 100	# default limit for page expansion
+	DEFAULT_WINDOW_WIDTH = 1024	# default chrome/chromium window width
+	DEFAULT_WINDOW_HEIGHT = 1280	# default window height
 
-	def __init__(self, logger, path=None):
+	def __init__(self, logger, path=None, port=None):
 		'Create object. It is possible to give the path to the Chrome/Chromium.'
 		self.logger = logger
-		if path == None or path == '':
+		if path == None or path == '':	# set path to chrome/chromium
 			if os_name == 'nt':
 				self.path = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
 			else:
@@ -37,15 +40,30 @@ class Chrome:
 						break
 		if not os_path.isfile(self.path):
 			self.path = None
+		if port == None:	# set port
+			self.port = 9222
+			while self.port <= 10222:
+				with socket(AF_INET, SOCK_STREAM) as so:	# check if port is unused
+					print(so.connect_ex(('localhost', self.port)))
+					if so.connect_ex(('localhost', self.port)) != 0:
+						return
+				self.port += 1
+		else:
+			with socket(AF_INET, SOCK_STREAM) as so:	# check if given port is unused
+				if so.connect_ex(('localhost', port)) == 0:
+					raise Exception('Port %d is in use' % port)
+			self.port = port
+			return
+		raise Exception('Could not find an unused port to control Chrome/Chromium')
 
-	def open(self, port=9222, window_width=1024, window_height=1280, stop=None):
+	def open(self, window_width=DEFAULT_WINDOW_WIDTH, window_height=DEFAULT_WINDOW_HEIGHT, stop=None):
 		'Open Chrome/Chromium session'
 		if self.is_running():
 			self.close()
 		cmd = [	# chrome with parameters
 			self.path,
 			'--window-size=%d,%d' % (window_width, window_height),	# try to set windows dimensions - might not work right now
-			'--remote-debugging-port=%d' % port,
+			'--remote-debugging-port=%d' % self.port,
 			'--incognito',
 			'--disable-gpu'	# might be needed for windows
 		]
@@ -54,17 +72,16 @@ class Chrome:
 			cmd.append('--headless')
 		self.logger.debug('Chrome: cmd: %s' % cmd)
 		self.chrome_proc = Popen(cmd)	# start chrome browser
-		wait_seconds = 10.0
-		while wait_seconds > 0:	# connect to chrome
+		for i in range(100):	# connect to chrome (try 10 seconds before throwing error)
 			try:
-				response = rq_get('http://127.0.0.1:%d/json' % port).json()
+				response = rq_get('http://127.0.0.1:%d/json' % self.port).json()
 				self.conn = create_connection(response[0]['webSocketDebuggerUrl'])
 				self.request_id = 0
 				self.x = 0
+				self.logger.info('%s is running and listening on port %d' % (self.path, self.port))
 				return
 			except rq_exceptions.ConnectionError:
-				sleep(0.25)
-				wait_seconds -= 0.25
+				sleep(0.1)
 		raise Exception('Unable to connect to Chrome')
 
 	def close(self):

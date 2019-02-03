@@ -1,4 +1,4 @@
-Somedo Version 0.6.0 Alpha 2019-01-20
+Somedo Version 0.6.1 Alpha 2019-02-03
 
 
 1 Introduction
@@ -19,14 +19,14 @@ anything. Facebook is one of them. Register one or more accounts avoiding giving
 away any real personal data. Set the privacy level and options for the accounts to
 the maximum. The accepted accounts can then be used to optain data.
 
-Make sure this is leagel for you in your country/state etc. I, Markus Thilo, the
-developer of this open source software, is and will never be responsable for any
-use of my tiny one man show development. Somedo is intended to protect the law
-and may help aquiring information for journalistic or other goals that do
-not interfere with legislation, privacy and human rights.
+Make sure this is leagel for you in your country/state etc. I, the developer of
+this open source software, is and will never be responsable for any use of my tiny
+one man show development. Somedo is intended to protect the law and may help
+aquiring information for journalistic or other goals that do not interfere with
+legislation, privacy and human rights.
 
 
-2 Use
+2 Use (GUI)
 
 You need Googel Chrome or Chromium to be installed.
 
@@ -35,7 +35,7 @@ execution when you know what you want. The investigator can use the browser of h
 choice to detect the targeted account(s) or criterias to download.
 
 The modules should by default take several accounts as targets. Seperate them with
-am comma or semicolon in the target(s) field.
+comma or semicolon in the target(s) field.
 
 You can add jobs hitting the large Buttons for Facebook, Instagram or Twitter. To
 edit click the job in the list. The job list can be resetted usind "Purge jobs". Make
@@ -45,7 +45,7 @@ hand symbol button). In addition you might want to change to directory where the
 optained data will be stored by setting "Output directory".
 
 Before launching make sure the used browser (Chrome/Chromium) is not running. Somedo
-will hide the Google browser (in DEBUG mode you are able to see the browser working
+will hide the Google browser (in VISIBLE mode you are able to see the browser working
 but no PDF files will be created due to limitations of the browser's abilities -
 info for developers only).
 
@@ -56,7 +56,10 @@ Chrome).
 A running task can be aborted by the user hitting Stop running task (as the already
 obtained data is stored, it might take a while before All done is reported).
 
-It might be a good idea to observer the progress by looking into the target directories.
+While running Somedo gives some information about what it is doing (Messages filed).
+In addition it might be a good idea to observer the progress by looking into the
+target directories.
+
 Chrome/Chromium ist started headless so you will not see anything while Somedo is
 executing the given jobs. As Somedo does not use APIs but opens the pages as a human
 user would do, it does not work very fast. The job which is currently executed is
@@ -101,6 +104,8 @@ that left comments or likes. Network Depth 0 downloads the Friend lists of the t
 Depth 1 will should you a network visualisation. Look in the directory "Facebook/Network".
 "Facebook/Network/network.html" will show Facebook Friendships with solid lines and
 commentors/likers with dashed arrows. You can click on the nodes to get account infos.
+Depth 2 gets friends of friends and so on. Be aware of the exponential number
+of befriended accounts.
 
 If target is a Page ("pg") or a Facebook Group ("groups"), Somedo tries to aquire data but
 this does not work very relieable. E.g. getting all members of large Facebook groups is
@@ -174,6 +179,12 @@ Twitter',
 		Photos=bool
 		limitPages=int
 
+Debug modes DEBUG and VISIBLE can be set as first command line argument, e.g.:
+
+"python somedo.py VISIBLE" starts the GUI and will show Chrome/Chromium while running.
+
+"python somedo.py DEBUG Twitter -t nakatomi" start a Twitter job in debug mode.
+
 
 5 Development and License
 
@@ -197,4 +208,3 @@ You are welcome to participate or donate to the development. Feel free to report
 give suggestions by email to:
 
 markus.thilo@gmail.com
-

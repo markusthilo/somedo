@@ -3,7 +3,6 @@
 from sys import exit as sys_exit
 from base.logger import DEBUG
 from base.storage import Storage
-from base.worker import Worker
 from base.chrometools import Chrome
 
 class CLI:

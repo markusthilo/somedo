@@ -51,7 +51,7 @@ class Instagram:
 			name = self.chrome.get_inner_html('TagName', 'h1')[0]
 		except:
 			name = 'Undetected'
-		self.storage.mksubdir(path)
+		self.logger.info('Instagram: Data will be stored to %s' % self.storage.mksubdir(path))
 		self.storage.write_str('%s\thttp://www.instagram.com/%s' % (name, path), path, 'account.csv')	# write information as file
 		self.storage.write_json({'name': name, 'link': 'http://www.instagram.com/%s' % path}, path, 'account.json')	# write as json file
 		try:	# try to download profile picture
