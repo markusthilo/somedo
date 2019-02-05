@@ -28,7 +28,7 @@ class Twitter:
 			for i in self.extract_targets(job['target']):				
 				self.get_account(i)
 		if self.logger.level < DEBUG:
-			self.logger.visible('Twitter: finished, now sleeping for 5 seconds until closing browser')
+			self.logger.trace('Twitter: finished, now sleeping for 5 seconds until closing browser')
 			sleep(5)
 		self.chrome.close()
 		self.logger.debug('Facebook: done!')

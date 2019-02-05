@@ -73,14 +73,14 @@ class Facebook:
 							continue
 		if self.chrome.chrome_proc != None:
 			if self.logger.level < DEBUG:
-				self.logger.visible('Facebook: finished, now sleeping for 5 seconds until closing browser, if still')
+				self.logger.trace('Facebook: finished, now sleeping for 5 seconds until closing browser, if still')
 				tsleep(5)
 			self.chrome.close()
 
 		if self.chrome.is_running():
 			self.logger.warning('Facebook: Chrome/Chromium was still running finishing jobs')
 			if self.logger.level < DEBUG:
-				self.logger.visible('Facebook: finished, now sleeping for 5 seconds until closing browser, if still')
+				self.logger.trace('Facebook: finished, now sleeping for 5 seconds until closing browser, if still')
 				sleep(5)
 			self.chrome.close()		
 		self.logger.debug('Facebook: done!')

@@ -23,7 +23,7 @@ class Instagram:
 		for i in self.extract_targets(job['target']):
 			self.get_main(i)
 		if self.logger.level < DEBUG:
-			self.logger.visible('Instagram: finished, now sleeping for 5 seconds until closing browser')
+			self.logger.trace('Instagram: finished, now sleeping for 5 seconds until closing browser')
 			sleep(5)
 		self.chrome.close()
 		self.logger.debug('Facebook: done!')

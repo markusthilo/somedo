@@ -11,8 +11,8 @@ if __name__ == '__main__':	# start here if called as program / app / command
 	if len(params) > 0 and params[0].lower() in ('--debug', '-debug', 'debug'):
 		loglevel = 'debug'
 		del params[0]
-	elif len(params) > 0 and params[0].lower() in ('--visible', '-visible', 'visible'):
-		loglevel = 'visible'
+	elif len(params) > 0 and params[0].lower() in ('--trace', '-trace', 'trace'):
+		loglevel = 'trace'
 		del params[0]
 	else:
 		loglevel = 'info'

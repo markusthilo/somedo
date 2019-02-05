@@ -5,18 +5,18 @@ from logging import Logger as ParentLogger
 
 INFO = INFO
 DEBUG = DEBUG
-VISIBLE = DEBUG - 1	# loglevel to start chrome in visible mode
+TRACE = DEBUG - 1	# loglevel to start chrome in visible mode
 
 class Logger():
 	'Configure logging'
 
 	def __init__(self, loglevel):
-		addLevelName(VISIBLE, "VISIBLE")
-		def __visible__(self, msg, *args, **kws):	# adding output method visible to logger
-			self._log(VISIBLE, msg, args, **kws) 
-		ParentLogger.visible = __visible__
+		addLevelName(TRACE, "TRACE")
+		def __trace__(self, msg, *args, **kws):	# adding output method visible to logger
+			self._log(TRACE, msg, args, **kws) 
+		ParentLogger.trace = __trace__
 		try:
-			level = {'info': INFO, 'debug': DEBUG, 'visible': VISIBLE}[loglevel.lower()]
+			level = {'info': INFO, 'debug': DEBUG, 'trace': TRACE}[loglevel.lower()]
 		except KeyError:
 			level = INFO
 		basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
