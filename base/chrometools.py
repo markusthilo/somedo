@@ -11,6 +11,7 @@ from requests import get as rq_get
 from requests import exceptions as rq_exceptions
 from websocket import create_connection
 from base64 import b64decode
+from re import findall
 from base.logger import DEBUG
 
 class Chrome:
@@ -205,6 +206,16 @@ class Chrome:
 	def rm_inner_html_by_id(self, selector):
 		'Remove innerHTML of element selected by ID'
 		self.runtime_eval('document.getElementById("%s").innerHTML = ""' % selector)
+
+	def rm_outer_html_by_regex_id(self, base_id, regex_id, lcut, rcut):
+		'Remove all outerHTML/elements by matching ids'
+		for i in findall(regex_id, self.get_outer_html_by_id(base_id)):
+			self.rm_outer_html_by_id(i[lcut:rcut])
+
+	def rm_inner_html_by_regex_id(self, base_id, regex_id, lcut, rcut):
+		'Remove all innerHTML/elements by matching ids'
+		for i in findall(regex_id, self.get_outer_html_by_id(base_id)):
+			self.rm_inner_html_by_id(i[lcut:rcut])
 
 	def set_outer_html(self, element_type, selector, n, html):
 		'Set outerHTML of element n'

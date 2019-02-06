@@ -283,6 +283,31 @@ class Facebook:
 		'Remove Write a comment...'
 		self.chrome.rm_outer_html('ClassName', 'UFIList')
 
+	def rm_left_of_posts(self):
+		'Remove left column in pg posts'
+		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="PageTimelineSearchPagelet_[^"]+', 4, 0)
+		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="PagePostsByOthersPagelet_[^"]+', 4, 0)
+
+	def rm_rhc_footer(self):
+		'Remove pagelet_rhc_footer'
+		self.chrome.rm_outer_html_by_id('pagelet_rhc_footer')
+
+	def rm_composer_pagelet(self):
+		'Remove PageComposerPagelet_'
+		self.chrome.rm_outer_html_by_id('PageComposerPagelet_')
+
+	def rm_add_comment(self):
+		'Remove addComment'
+		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="addComment_[^"]+', 4, 0)
+
+	def rm_u_fetchstream(self):
+		'Remove u_fetchstream_'
+		html = self.chrome.get_inner_html_by_id('content_container')
+		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="u_fetchstream_[^"]+', 4, 0)
+
+
+
+
 	def click_translations(self):
 		'Find the See Translation buttons and click'
 		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
@@ -417,19 +442,8 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def get_timeline(self, account):
-		'Get timeline'
-		self.logger.debug('Facebook: getting timeline: %s' % account['path'])
-		if account['type'] == 'pg':
-			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
-			path_no_ext = self.storage.modpath(account['path'], 'posts')
-		else:
-			self.navigate(account['link'])
-			path_no_ext = self.storage.modpath(account['path'], 'timeline')
-		self.rm_profile_cover()
-		self.rm_pagelets()
-		self.rm_left()
-		self.rm_right()
+	def expand_timeline(self, path_no_ext):
+		'Expand timeline or similar content, take screenshots and generate PDF'
 		self.expand_page(	# go through timeline
 			path_no_ext=path_no_ext,
 			limit=self.options['limitTimeline'],
@@ -438,6 +452,46 @@ class Facebook:
 			translate=self.options['translateTimeline']
 		)
 		self.chrome.page_pdf(path_no_ext)
+
+	def get_timeline(self, account):
+		'Get timeline'
+		if account['type'] == 'profile':
+			self.logger.debug('Facebook: getting timeline: %s' % account['path'])
+			self.navigate(account['link'])
+			path_no_ext = self.storage.modpath(account['path'], 'timeline')
+			self.rm_profile_cover()
+			self.rm_pagelets()
+			self.rm_left()
+			self.rm_right()
+			self.expand_timeline(path_no_ext)	# go through timeline
+		elif account['type'] == 'pg':
+			self.logger.debug('Facebook: getting posts: %s' % account['path'])
+			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
+			path_no_ext = self.storage.modpath(account['path'], 'posts')
+			self.rm_profile_cover()
+			self.rm_pagelets()
+			self.rm_composer_pagelet()
+			self.rm_add_comment()
+			self.rm_left_of_posts()
+			self.rm_rhc_footer()
+			self.expand_timeline(path_no_ext)	# go through posts
+			self.logger.debug('Facebook: getting community: %s' % account['path'])
+			self.navigate('https://www.facebook.com/pg/%s/community' % account['path'])
+			path_no_ext = self.storage.modpath(account['path'], 'community')
+			self.rm_profile_cover()
+			self.rm_pagelets()
+			self.rm_u_fetchstream()
+			self.rm_rhc_footer()
+			self.expand_timeline(path_no_ext)	# go through community section
+		else:
+			self.logger.debug('Facebook: unknown type, trying to get content anyway: %s' % account['path'])
+			self.navigate(account['link'])
+			path_no_ext = self.storage.modpath(account['path'], 'timeline')
+			self.rm_profile_cover()
+			self.rm_pagelets()
+			self.rm_left()
+			self.rm_right()
+			self.expand_timeline(path_no_ext)
 
 	def get_about(self, account):
 		'Get About'
