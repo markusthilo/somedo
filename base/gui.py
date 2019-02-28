@@ -531,10 +531,14 @@ class GUI(Tk):
 
 	def __worker__(self):
 		'Execute jobs'
-		self.__write_message__('\n--- Executing job(s) ---\n')
-		while self.running_job < len(self.jobs):
+		if len(self.jobs) > 1:
+			self.__write_message__('\n--- Executing jobs ---\n')
+			while self.running_job < len(self.jobs):
+				self.worker.execute_job(self.jobs[self.running_job], jobnumber=self.running_job+1, stop=self.stop)
+				self.running_job += 1
+		else:
+			self.__write_message__('\n--- Executing job ---\n')
 			self.worker.execute_job(self.jobs[self.running_job], stop=self.stop)
-			self.running_job += 1
 		self.__write_message__('\n--- Done ---\n')
 		self.__close2quit__()
 		self.__enable_jobbuttons__()

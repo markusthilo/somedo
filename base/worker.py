@@ -83,9 +83,12 @@ class Worker:
 			job['login'] = None
 		return job
 
-	def execute_job(self, job, stop=None):
+	def execute_job(self, job, jobnumber=None, stop=None):
 		'Execute jobs'
-		self.storage.mkmoddir(job['module'])
+		if jobnumber == None:
+			self.storage.mkmoddir(job['module'])
+		else:
+			self.storage.mkmoddir('{:02}_'.format(jobnumber) + job['module'])
 		cmd = '%s(job, self.storage, self.chrome, stop=stop)' % job['module']
 		self.logger.debug('Worker: job: %s' % job)
 		self.logger.debug('Worker: chrome.path: %s' % self.chrome.path)

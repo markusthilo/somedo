@@ -173,7 +173,7 @@ Instagram
 		Media=bool
 		limitPages=int
 
-Twitter',
+Twitter,
 	--options, -o
 		Search=bool
 		Photos=bool

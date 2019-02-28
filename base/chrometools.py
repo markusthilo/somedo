@@ -45,7 +45,6 @@ class Chrome:
 			self.port = 9222
 			while self.port <= 10222:
 				with socket(AF_INET, SOCK_STREAM) as so:	# check if port is unused
-					print(so.connect_ex(('localhost', self.port)))
 					if so.connect_ex(('localhost', self.port)) != 0:
 						return
 				self.port += 1
@@ -60,6 +59,7 @@ class Chrome:
 	def open(self, window_width=DEFAULT_WINDOW_WIDTH, window_height=DEFAULT_WINDOW_HEIGHT, stop=None):
 		'Open Chrome/Chromium session'
 		if self.is_running():
+			self.logger.debug('Closing Chrome/Chromium')
 			self.close()
 		cmd = [	# chrome with parameters
 			self.path,
@@ -71,7 +71,7 @@ class Chrome:
 		self.stop = stop	# to abort if user hits the stop button
 		if self.logger.level >= DEBUG:	# start invisble/headless if desired (default)
 			cmd.append('--headless')
-		self.logger.debug('Chrome: cmd: %s' % cmd)
+		self.logger.debug('Starting Chrome/Chromium with: %s' % cmd)
 		self.chrome_proc = Popen(cmd)	# start chrome browser
 		for i in range(100):	# connect to chrome (try 10 seconds before throwing error)
 			try:
@@ -79,7 +79,7 @@ class Chrome:
 				self.conn = create_connection(response[0]['webSocketDebuggerUrl'])
 				self.request_id = 0
 				self.x = 0
-				self.logger.info('%s is running and listening on port %d' % (self.path, self.port))
+				self.logger.info('Chrome/Chromium is running and listening on port %d' % self.port)
 				return
 			except rq_exceptions.ConnectionError:
 				sleep(0.1)

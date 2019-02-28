@@ -165,15 +165,20 @@ class CLI:
 		'Execute/start job or jobs'
 		if jobs == None:
 			jobs = [self.job]
-		errors = ''
-		for i in jobs:
-			if self.worker.logger.level <= DEBUG:
-				self.worker.execute_job(i)
-			else:
-				try:
-					self.worker.execute_job(i)
-				except Exception as error:
-					errors += str(error) + '\n'
+		if len(jobs) == 1:
+			self.worker.execute_job(jobs[0])
+		else:
+			errors = ''
+			cnt = 1
+			for i in jobs:
+				if self.worker.logger.level <= DEBUG:
+					self.worker.execute_job(i, jobnumber=cnt)
+				else:
+					try:
+						self.worker.execute_job(i, jobnumber=cnt)
+					except Exception as error:
+						errors += str(error) + '\n'
+				cnt += 1
 		if errors!= '': 
 			self.__error__(errors)
 		sys_exit(0)
