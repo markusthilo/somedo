@@ -31,6 +31,8 @@ class CLI:
 			except:
 				self.__error__('Could not read jobs from file: %s' % params[1])
 			jobs = [ self.__job__([ j for j in i.split(' ') if j != '' ]) for i in jobfile.split('\n') if i != '' ]
+			if len(jobs) > 99:
+				self.__error__('99 jobs is the maximum')
 			self.__execute_jobs__(jobs=jobs)
 			sys_exit(0)
 		self.__job__(params)
@@ -179,6 +181,6 @@ class CLI:
 					except Exception as error:
 						errors += str(error) + '\n'
 				cnt += 1
-		if errors!= '': 
-			self.__error__(errors)
+			if errors!= '': 
+				self.__error__(errors)
 		sys_exit(0)
