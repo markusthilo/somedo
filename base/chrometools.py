@@ -294,17 +294,14 @@ class Chrome:
 	def set_x_left(self):
 		'Horizontally focus to left of page an go to top'
 		self.x = 0
-		self.set_position(0)
 
 	def set_x_right(self):
 		'Horizontally focus to right of page an go to top'
 		self.x = self.get_page_width() - self.get_window_width()
-		self.set_position(0)
 
 	def set_x_center(self):
 		'Horizontally focus to center of page an go to top'
 		self.x = self.get_page_width() - int( self.get_window_width() / 2 )
-		self.set_position(0)
 
 	def get_scroll_height(self):
 		'Calculate scroll height based on the window height'

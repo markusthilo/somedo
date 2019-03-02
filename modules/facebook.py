@@ -268,16 +268,28 @@ class Facebook:
 		'Remove fbProfileCover'
 		self.chrome.rm_outer_html_by_id('fbProfileCover')
 
+	def rm_header_area(self):
+		'Remove header area of groups'
+		self.chrome.rm_outer_html_by_id('headerArea')
+
 	def rm_left(self):
 		'Remove Intro, Photos, Friends etc. on the left'
 		self.chrome.rm_outer_html('ClassName', '_1vc-')
 		self.chrome.rm_outer_html_by_id('timeline_small_column')
+
+	def rm_left_col(self):
+		'Remove left column from groups'
+		self.chrome.rm_outer_html_by_id('leftCol')
 
 	def rm_right(self):
 		'Remove stuff right of timeline/posts'
 		self.chrome.rm_outer_html_by_id('entity_sidebar')
 		self.chrome.rm_outer_html_by_id('pages_side_column')
 		self.chrome.rm_outer_html_by_id('rightCol')
+
+	def rm_right_of_activity(self):
+		self.chrome.rm_outer_html_by_id('pagelet_group_rhc')
+		self.chrome.rm_outer_html_by_id('pages_side_column')
 
 	def rm_write_comment(self):
 		'Remove Write a comment...'
@@ -304,9 +316,6 @@ class Facebook:
 		'Remove u_fetchstream_'
 		html = self.chrome.get_inner_html_by_id('content_container')
 		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="u_fetchstream_[^"]+', 4, 0)
-
-
-
 
 	def click_translations(self):
 		'Find the See Translation buttons and click'
@@ -464,6 +473,15 @@ class Facebook:
 			self.rm_left()
 			self.rm_right()
 			self.expand_timeline(path_no_ext)	# go through timeline
+		elif account['type'] == 'groups':
+			self.logger.debug('Facebook: getting activity: %s' % account['path'])
+			self.navigate(account['link'])
+			path_no_ext = self.storage.modpath(account['path'], 'activity')
+			self.rm_header_area()
+			self.rm_pagelets()
+			self.rm_left_col()
+			self.rm_right_of_activity()
+			self.expand_timeline(path_no_ext)
 		elif account['type'] == 'pg':
 			self.logger.debug('Facebook: getting posts: %s' % account['path'])
 			self.navigate('https://www.facebook.com/pg/%s/posts' % account['path'])
