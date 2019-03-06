@@ -317,18 +317,6 @@ class Facebook:
 		html = self.chrome.get_inner_html_by_id('content_container')
 		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="u_fetchstream_[^"]+', 4, 0)
 
-	def click_translations(self):
-		'Find the See Translation buttons and click'
-		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
-		if html == None:
-			html = self.chrome.get_inner_html_by_id('pagelet_timeline_main_column')
-		if html == None:
-			html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
-		if html == None:
-			return
-		for i in rfindall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
-			self.chrome.click_element_by_id(i[10:-1])
-
 	def terminator(self):
 		'Check date of posts to abort'
 		if self.stop_utc <= 0:
@@ -341,6 +329,29 @@ class Facebook:
 			except:
 				pass
 		return False
+
+	def click_timeline_translations(self):
+		'Find the See Translation buttons and click'
+		for i in range(5):	# try 5 times to
+		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
+		if html == None:
+			html = self.chrome.get_inner_html_by_id('pagelet_timeline_main_column')
+		if html == None:
+			html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
+		if html == None:
+			return
+		self.chrome.click_elements('ClassName', 'UFITranslateLink')
+		
+		for i in rfindall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
+			self.chrome.click_element_by_id(i[10:-1])
+
+	def click_timeline_comments(self):
+		'Find comments and replies to expanding page by clicking them'
+		self.chrome.click_elements('ClassName', 'see_more_link')
+		self.chrome.click_elements('ClassName', 'UFIPagerLink')
+		self.chrome.click_elements('ClassName', 'UFICommentLink')
+		self.chrome.click_elements('ClassName', ' UFIReplyList')
+
 
 	def expand_page(self, path_no_ext='', expand=True, translate=False, until=ONEYEARAGO, limit=0):
 		'Go through page, expand, translate, take screenshots and generate pdf'

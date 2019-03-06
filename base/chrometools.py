@@ -360,11 +360,6 @@ class Chrome:
 					self.click_elements(j[0], j[1])
 		return self.wait_expand_end()
 
-	def __per_page__(self, per_page_action):
-		'Execute this function on every visible page'
-		if per_page_action != None:
-			per_page_action()
-
 	def visible_page_png(self, path_no_ext):
 		'Take screenshot of the visible area of the web page'
 		if path_no_ext == '':	# no screenshot on empty path
@@ -392,7 +387,7 @@ class Chrome:
 				if cnt == 100000:	# 99999 screenshots max
 					return
 
-	def expand_page(self, path_no_ext='', click_elements_by=[], terminator=None, per_page_action=None, limit=DEFAULT_PAGE_LIMIT):
+	def expand_page(self, path_no_ext='', terminator=None, per_page_actions=[], limit=DEFAULT_PAGE_LIMIT):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.terminator = terminator
 		self.wait_expand_end()	# do not start while page is still expanding
@@ -408,8 +403,8 @@ class Chrome:
 			if self.stop_check() or self.__terminator_check__():
 				break
 			self.set_position(old_y)
-			self.click_page(click_elements_by)	# expand page by clicking on elments
-			self.__per_page__(per_page_action)	# execute per page action
+			for i in per_page_actions:	# execute per page actions
+				i()
 			self.wait_expand_end()
 			if cnt == limit:
 				self.set_position(old_y)
