@@ -334,13 +334,6 @@ class Chrome:
 		except:
 			return False
 
-	def __terminator_check__(self):
-		'Check criteria to abort extraction'
-		try:
-			return self.terminator()
-		except:
-			return False
-
 	def wait_expand_end(self):
 		'Wait for page not expanding anymore'
 		sleep(0.2)
@@ -351,14 +344,6 @@ class Chrome:
 			if new_height == old_height:
 				return new_height
 			old_height = new_height
-
-	def click_page(self, click_elements_by):
-		'Clicking on elements stored in a list of lists: e.g. [["ClassName", "UFIPagerLink"], ["ClassName", "UFICommentLInk"]]'
-		if click_elements_by != None:	# do not click if no elements are given
-			for i in range(5):	# try several times to click on all elements
-				for j in click_elements_by:	# go throught dictionary containing pairs of element type and selector
-					self.click_elements(j[0], j[1])
-		return self.wait_expand_end()
 
 	def visible_page_png(self, path_no_ext):
 		'Take screenshot of the visible area of the web page'
@@ -389,7 +374,6 @@ class Chrome:
 
 	def expand_page(self, path_no_ext='', terminator=None, per_page_actions=[], limit=DEFAULT_PAGE_LIMIT):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
-		self.terminator = terminator
 		self.wait_expand_end()	# do not start while page is still expanding
 		scroll_height = self.get_scroll_height()
 		view_height = self.get_window_height()
@@ -399,9 +383,11 @@ class Chrome:
 			limit = 1
 		cnt = 0
 		while True:
-			cnt += 1
-			if self.stop_check() or self.__terminator_check__():
+			if self.stop_check():
 				break
+			if terminator != None and terminator():
+				break
+			cnt += 1
 			self.set_position(old_y)
 			for i in per_page_actions:	# execute per page actions
 				i()

@@ -317,14 +317,14 @@ class Facebook:
 		html = self.chrome.get_inner_html_by_id('content_container')
 		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="u_fetchstream_[^"]+', 4, 0)
 
-	def terminator(self):
+	def stop_post_date(self):
 		'Check date of posts to abort'
 		if self.stop_utc <= 0:
 			return False
 		for i in self.chrome.get_outer_html('TagName', 'abbr'):
 			m = rsearch(' data-utime="[0-9]+" ', i)
 			try:
-				if int(m.group()[13:-2]) <= self.stop_utc:
+				if datetime.strptime(m.group()[13:-2], '%Y-%m-%d') <= self.stop_utc:
 					return True
 			except:
 				pass
@@ -475,6 +475,7 @@ class Facebook:
 
 	def get_timeline(self, account):
 		'Get timeline'
+		self.until_utc = datetime.strptime(self.options['untilTimeline'], '%Y-%m-%d')
 		if account['type'] == 'profile':
 			self.logger.debug('Facebook: getting timeline: %s' % account['path'])
 			self.navigate(account['link'])
@@ -483,6 +484,37 @@ class Facebook:
 			self.rm_pagelets()
 			self.rm_left()
 			self.rm_right()
+			self.until_utc = self.options['untilTimeline']
+			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
+				self.chrome.expand_page(
+					click_elements_by = clicks,
+					per_page_actions = [],
+					terminator=self.stop_post_date,
+					limit=limit
+				)
+				
+					self.stop_utc = until
+		self.chrome.expand_page(
+			path_no_ext = path_no_ext,
+			click_elements_by = clicks,
+			per_page_action = action,
+			terminator=self.terminator,
+			limit=limit
+		)	
+				
+				
+					self.expand_page(	# go through timeline
+			path_no_ext=path_no_ext,
+			limit=self.options['limitTimeline'],
+			until=self.options['untilTimeline'],
+			expand=self.options['expandTimeline'],
+			translate=self.options['translateTimeline']
+		)
+		self.chrome.page_pdf(path_no_ext)
+			
+			
+			
+			
 			self.expand_timeline(path_no_ext)	# go through timeline
 		elif account['type'] == 'groups':
 			self.logger.debug('Facebook: getting activity: %s' % account['path'])
