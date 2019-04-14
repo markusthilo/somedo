@@ -317,6 +317,11 @@ class Facebook:
 		html = self.chrome.get_inner_html_by_id('content_container')
 		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="u_fetchstream_[^"]+', 4, 0)
 
+	def rm_m_top_of_timeline(self):
+		'Remove all above timeline in mobile version'
+		self.chrome.rm_outer_html_by_id('m-timeline-cover-section')
+		self.chrome.rm_outer_html_by_id('timelineProfileTiles')
+
 	def stop_post_date(self):
 		'Check date of posts to abort'
 		if self.stop_utc <= 0:
@@ -417,29 +422,19 @@ class Facebook:
 				pass
 			for j in range(10):	# try for 10 seconds ig login was succesful
 				self.sleep(1)
-				if self.chrome.get_inner_html_by_id('findFriendsNav') != None:
-						return
+				if self.chrome.get_inner_html_by_id('loginbutton') == None:
+					return
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
 
 	def navigate(self, url):
-		'Navigate to given URL. Open Chrome/Chromium and/or login if needed'
+		'Navigate to given URL. Open Chrome/Chromium and/or login if needed.'
 		if not self.chrome.is_running():
 			self.logger.debug('Facebook: Chrome/Chromium is not running!')
 			self.login()
 		self.logger.debug('Facebook: navigate to: %s' % url)
-		for i in range(10):
-			self.chrome.navigate(url)	# go to page
-			for j in range(10):
-				self.sleep(1)
-				try:
-					m = rsearch('<img', self.chrome.get_inner_html_by_id('content'))
-					if m != None:
-						return
-				except:
-					pass
-			self.login()
-		raise Exception('Facebook might have blocked all given accounts.')
+		self.chrome.navigate(url)	# go to page
+		self.sleep(1)
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
