@@ -73,8 +73,8 @@ class Facebook:
 							continue
 		if self.chrome.chrome_proc != None:
 			if self.logger.level < DEBUG:
-				self.logger.trace('Facebook: finished, now sleeping for 5 seconds')
-				tsleep(5)
+				self.logger.trace('Facebook: finished, now sleeping for 10 seconds')
+				tsleep(10)
 			self.chrome.close()
 
 		if self.chrome.is_running():
@@ -142,50 +142,32 @@ class Facebook:
 		account['link'] = 'https://facebook.com/' + account['path']
 		return account
 
-	def extract_sidebarinfo(self):
-		'Get infos from entity_sidebar'
-		html = self.chrome.get_outer_html_by_id('entity_sidebar')
-		if html == None:	# exit if no cover entity_sidebar
+	def extract_seo_h1_tag(self):
+		'Get infos from seo_h1_tag'
+		html = self.chrome.get_inner_html_by_id('seo_h1_tag')
+		if html == None:	# no seo_h1_tag?
 			return None
-		account = {'type': 'pg'}
-		fid = self.ct.search(' aria-label="Profile picture" class="[^"]+" href="/[0-9]+', html)
-		if fid != None:
-			account['id'] = fid.rsplit('/', 1)[1]
+		name = rsub('"[^"]*"', '', html)
+		name = rsub('<[^>]*>', '', name)
+		if 	name != '':
+			account = {'name': name}
 		else:
+			account = {'name': 'undetected'}
+		href = self.ct.search(' href="https://www\.facebook\.com/[^/?"]+', html)
+		if href != None:
+			account['type'] = 'pg'
+			account['path'] = href[32:]
+			account['link'] = href[7:]
 			account['id'] = 'undetected'
-		link = self.ct.search(' href="https://www\.facebook\.com/[^"/?]+', html)
-		if link != None:
-			account['path'] = link[32:]
-			account['link'] = link[7:]
-		elif fid != None:
-			account['path'] = account['id']
-			account['link'] = 'https://www.facebook.com/' + account['id']
 		else:
-			return None
-		name = self.ct.search(' href="https://www\.facebook\.com/[^"]+"><span>[^<]+</span>', html)
-		if name != None:
-			account['name'] = name.rsplit('<', 2)[1][5:]
-		else:
-			account['name'] = 'undetected'
-		return account
-
-	def extract_leftcolinfo(self):
-		'Get infos from leftCol'
-		html = self.chrome.get_inner_html_by_id('leftCol')
-		if html == None:	# exit if no cover entity_sidebar
-			return None
-		path = self.ct.search('<a href="/groups/[^/?"]+', html)
-		if path == None:
-			return None
-		account = {'type': 'groups'}
-		account['path'] = 'groups_' + path[17:]
-		account['link'] = 'https://facebook.com' + path[9:]
-		account['id'] = 'undetected'
-		name = self.ct.search('<a href="/groups/[^"]+">[^<]+', html)
-		if name != None:
-			account['name'] = name.rsplit('"', 1)[1][1:]
-		else:
-			account['name'] = 'undetected'
+			href = self.ct.search(' href="/groups/[^/?"]+', html)
+			if href != None:
+				account['type'] = 'groups'
+				account['path'] = 'groups_' + href[15:]
+				account['link'] = 'https://facebook.com' + href[7:]
+				account['id'] = 'undetected'
+			else:
+				return None
 		return account
 
 	def extract_profileactions(self):
@@ -202,9 +184,7 @@ class Facebook:
 		'Get account data and write information as CSV and JSON file if not alredy done'
 		account = self.extract_coverinfo()	# try to get facebook id, path/url and name from profile page
 		if account == None:
-			account = self.extract_sidebarinfo()	# try to get account info from pg page
-		if account == None:
-			account = self.extract_leftcolinfo()	# try to get account info from groups etc.
+			account = self.extract_seo_h1_tag()	# try to get account info from facebook pages or groups
 		if account == None:
 			return {
 				'type': 'undetected', 
@@ -250,9 +230,23 @@ class Facebook:
 		account['name'] = self.get_profile_name(html)
 		return account
 
+	def rm_personal_pagelets(self):
+		'Remove elements with IDs pagelet_bluebar, ChatTabsPagelet and BuddylistPagelet'
+		self.chrome.rm_outer_html_by_id('pagelet_bluebar')
+		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
+		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
+
+	def rm_profile_cover(self):
+		'Remove element with ID fbProfileCover'
+		self.chrome.rm_outer_html_by_id('fbProfileCover')
+
+	def rm_suggestions(self):
+		'Remove elements with IDs fbSuggestionsPlaceHolder and pagelet_escape_hatch'
+		self.chrome.rm_outer_html_by_id('fbSuggestionsPlaceHolder')
+		self.chrome.rm_outer_html_by_id('pagelet_escape_hatch')
+
 	def rm_pagelets(self):
 		'Remove bluebar and other unwanted pagelets'
-		self.chrome.rm_outer_html_by_id('pagelet_bluebar')
 		self.chrome.rm_outer_html_by_id('pagelet_sidebar')
 		self.chrome.rm_outer_html_by_id('pagelet_dock')
 		self.chrome.rm_outer_html_by_id('pagelet_escape_hatch')	# remove "Do you know ...?"
@@ -260,13 +254,7 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('pagelet_rhc_footer')
 		self.chrome.rm_outer_html_by_id('pagelet_page_cover')
 		self.chrome.rm_outer_html_by_id('pagelet_timeline_composer')
-		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
-		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
 		self.chrome.rm_outer_html_by_id('PageComposerPagelet_')
-
-	def rm_profile_cover(self):
-		'Remove fbProfileCover'
-		self.chrome.rm_outer_html_by_id('fbProfileCover')
 
 	def rm_header_area(self):
 		'Remove header area of groups'
@@ -338,14 +326,14 @@ class Facebook:
 	def click_timeline_translations(self):
 		'Find the See Translation buttons and click'
 		for i in range(5):	# try 5 times to
-		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
-		if html == None:
-			html = self.chrome.get_inner_html_by_id('pagelet_timeline_main_column')
-		if html == None:
-			html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
-		if html == None:
-			return
-		self.chrome.click_elements('ClassName', 'UFITranslateLink')
+			html = self.chrome.get_inner_html_by_id('recent_capsule_container')
+			if html == None:
+				html = self.chrome.get_inner_html_by_id('pagelet_timeline_main_column')
+			if html == None:
+				html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
+			if html == None:
+				return
+			self.chrome.click_elements('ClassName', 'UFITranslateLink')
 		
 		for i in rfindall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
 			self.chrome.click_element_by_id(i[10:-1])
@@ -448,9 +436,14 @@ class Facebook:
 			self.storage.download(self.ct.src(self.chrome.get_inner_html_by_id('fbTimelineHeadline')), account['path'], 'profile.jpg')
 		except:
 			pass
-		self.rm_pagelets()	# remove bluebar etc.
-		if account['type'] == 'pg':
+		self.rm_personal_pagelets()	# do not show investigator account
+		if account['type'] == 'profile':
+			self.rm_suggestions()
+		elif account['type'] == 'pg':
 			self.rm_write_comment()
+		elif account['type'] == 'groups':
+			pass
+		
 		path_no_ext = self.storage.modpath(account['path'], 'account')	# generate a file path for screenshot and pdf
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
 		self.chrome.page_pdf(path_no_ext)	# and as pdf (when headless)
@@ -480,37 +473,37 @@ class Facebook:
 			self.rm_left()
 			self.rm_right()
 			self.until_utc = self.options['untilTimeline']
-			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
-				self.chrome.expand_page(
-					click_elements_by = clicks,
-					per_page_actions = [],
-					terminator=self.stop_post_date,
-					limit=limit
-				)
-				
-					self.stop_utc = until
-		self.chrome.expand_page(
-			path_no_ext = path_no_ext,
-			click_elements_by = clicks,
-			per_page_action = action,
-			terminator=self.terminator,
-			limit=limit
-		)	
-				
-				
-					self.expand_page(	# go through timeline
-			path_no_ext=path_no_ext,
-			limit=self.options['limitTimeline'],
-			until=self.options['untilTimeline'],
-			expand=self.options['expandTimeline'],
-			translate=self.options['translateTimeline']
-		)
-		self.chrome.page_pdf(path_no_ext)
+#			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
+#				self.chrome.expand_page(
+#					click_elements_by = clicks,
+#					per_page_actions = [],
+#					terminator=self.stop_post_date,
+#					limit=limit
+#				)
+#				
+#					self.stop_utc = until
+#		self.chrome.expand_page(
+#			path_no_ext = path_no_ext,
+#			click_elements_by = clicks,
+#			per_page_action = action,
+#			terminator=self.terminator,
+#			limit=limit
+#		)	
+#				
+#				
+#					self.expand_page(	# go through timeline
+#			path_no_ext=path_no_ext,
+#			limit=self.options['limitTimeline'],
+#			until=self.options['untilTimeline'],
+#			expand=self.options['expandTimeline'],
+#			translate=self.options['translateTimeline']
+#		)
+#		self.chrome.page_pdf(path_no_ext)
 			
 			
 			
 			
-			self.expand_timeline(path_no_ext)	# go through timeline
+#			self.expand_timeline(path_no_ext)	# go through timeline
 		elif account['type'] == 'groups':
 			self.logger.debug('Facebook: getting activity: %s' % account['path'])
 			self.navigate(account['link'])
