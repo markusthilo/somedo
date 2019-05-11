@@ -11,44 +11,7 @@ from modules.twitter import Twitter
 class Worker:
 	'Work through a list of jobs and execute modules'
 
-	MODULES = (	# the modules with options
-		{
-			'name': 'Facebook',
-			'login': ('Email', 'Password'),
-			'options': {
-				'Timeline': {'name': 'Get Timeline', 'default': False, 'row': 0, 'column': 0},
-				'expandTimeline': {'name': 'Expand posts', 'default': False, 'row': 0, 'column': 1},
-				'translateTimeline': {'name': 'Translate posts', 'default': False, 'row': 0, 'column': 2},
-				'untilTimeline': {'name': 'Stop on date', 'default': Facebook.ONEYEARAGO, 'row': 0, 'column': 3},
-				'limitTimeline': {'name': 'Max. Screenshots', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 0, 'column': 4},
-				'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
-				'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
-				'expandPhotos': {'name': 'Expand comments', 'default': False, 'row': 2, 'column': 1},
-				'translatePhotos': {'name': 'Translate comments', 'default': False, 'row': 2, 'column': 2},
-				'limitPhotos': {'name': 'Max. Screenhots in Photos', 'default': Facebook.DEFAULTPAGELIMIT, 'row': 2, 'column': 3},
-				'Network': {'name': 'Network of Friends', 'default': False, 'row': 3, 'column': 0},
-				'depthNetwork': {'name': 'Depth of recursion', 'default': Facebook.DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
-				'extendNetwork': {'name': 'incl. Timeline responses', 'default': False, 'row': 3, 'column': 2}
-			}
-		},
-		{
-			'name': 'Instagram',
-			'login': None,
-			'options': {
-				'Media': {'name': 'Download media files', 'default': False, 'row': 0, 'column': 0},
-				'limitPages': {'name': 'Max. Screenshots', 'default': Instagram.DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
-			}
-		},
-		{
-			'name': 'Twitter',
-			'login': None,
-			'options': {
-				'Search': {'name': 'Target as search argument', 'default': False, 'row': 0, 'column': 0},
-				'Photos': {'name': 'Download photos', 'default': False, 'row': 1, 'column': 0},
-				'limitPages': {'name': 'Max. Screenshots', 'default': Twitter.DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
-			}
-		}
-	)
+	MODULES = (Facebook.OPTIONS, Instagram.OPTIONS, Twitter.OPTIONS)
 
 	def __init__(self, loglevel):
 		'Create object that works out the jobs'

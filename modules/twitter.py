@@ -12,6 +12,15 @@ class Twitter:
 	'Downloader for Twitter'
 
 	DEFAULTPAGELIMIT = 20
+	OPTIONS = {
+		'name': 'Twitter',
+		'login': None,
+		'options': {
+			'Search': {'name': 'Target as search argument', 'default': False, 'row': 0, 'column': 0},
+			'Photos': {'name': 'Download photos', 'default': False, 'row': 1, 'column': 0},
+			'limitPages': {'name': 'Max. Screenshots', 'default': DEFAULTPAGELIMIT, 'row': 2, 'column': 0}
+		}
+	}
 
 	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Twitter'

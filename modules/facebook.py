@@ -19,6 +19,20 @@ class Facebook:
 	DEFAULTPAGELIMIT = 50
 	DEFAULTNETWORKDEPTH = 1	# network: 1 = get the friends of the target accounts
 	NEWLOGINAFTER = 100	# network: close browser and login again after a limited number of profile / landing visits
+	OPTIONS = {
+		'name': 'Facebook',
+		'login': ('Email', 'Password'),
+		'options': {
+			'Posts': {'name': 'Get Posts', 'default': False, 'row': 0, 'column': 0},
+			'untilPosts': {'name': 'Stop on date', 'default': ONEYEARAGO, 'row': 0, 'column': 1},
+			'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
+			'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
+			'limitPhotos': {'name': 'Max. number of Photos', 'default': DEFAULTPAGELIMIT, 'row': 2, 'column': 1},
+			'Network': {'name': 'Network of Friends', 'default': False, 'row': 3, 'column': 0},
+			'depthNetwork': {'name': 'Depth of recursion', 'default': DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
+			'extendNetwork': {'name': 'incl. Timeline responses', 'default': False, 'row': 3, 'column': 2}
+		}
+	}
 
 	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Facebook by giving the needed parameters'
@@ -42,7 +56,7 @@ class Facebook:
 		if self.options['Network'] and self.options['extendNetwork']:
 			check4tasks = ('About', 'Photos')
 		else:
-			check4tasks = ('About', 'Photos', 'Timeline')
+			check4tasks = ('About', 'Photos', 'Posts')
 		for i in targets:	# one target after the other
 			if self.stop_check():
 				break
@@ -76,7 +90,6 @@ class Facebook:
 				self.logger.trace('Facebook: finished, now sleeping for 5 seconds')
 				tsleep(5)
 			self.chrome.close()
-
 		if self.chrome.is_running():
 			self.logger.warning('Facebook: Chrome/Chromium was still running finishing jobs')
 			if self.logger.level < DEBUG:
@@ -319,6 +332,7 @@ class Facebook:
 
 	def rm_m_top_of_timeline(self):
 		'Remove all above timeline in mobile version'
+		self.chrome.rm_outer_html_by_id('header')
 		self.chrome.rm_outer_html_by_id('m-timeline-cover-section')
 		self.chrome.rm_outer_html_by_id('timelineProfileTiles')
 
@@ -338,14 +352,14 @@ class Facebook:
 	def click_timeline_translations(self):
 		'Find the See Translation buttons and click'
 		for i in range(5):	# try 5 times to
-		html = self.chrome.get_inner_html_by_id('recent_capsule_container')
-		if html == None:
-			html = self.chrome.get_inner_html_by_id('pagelet_timeline_main_column')
-		if html == None:
-			html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
-		if html == None:
-			return
-		self.chrome.click_elements('ClassName', 'UFITranslateLink')
+			html = self.chrome.get_inner_html_by_id('recent_capsule_container')
+			if html == None:
+				html = self.chrome.get_inner_html_by_id('pagelet_timeline_main_column')
+			if html == None:
+				html = self.chrome.get_inner_html_by_id('pagelett_group_mall')
+			if html == None:
+				return
+			self.chrome.click_elements('ClassName', 'UFITranslateLink')
 		
 		for i in rfindall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
 			self.chrome.click_element_by_id(i[10:-1])
@@ -422,7 +436,7 @@ class Facebook:
 				pass
 			for j in range(10):	# try for 10 seconds ig login was succesful
 				self.sleep(1)
-				if self.chrome.get_inner_html_by_id('loginbutton') == None:
+				if self.chrome.get_inner_html_by_id('stories_pagelet_rhc') != None:
 					return
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
@@ -457,29 +471,23 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def expand_timeline(self, path_no_ext):
-		'Expand timeline or similar content, take screenshots and generate PDF'
-		self.expand_page(	# go through timeline
-			path_no_ext=path_no_ext,
-			limit=self.options['limitTimeline'],
-			until=self.options['untilTimeline'],
-			expand=self.options['expandTimeline'],
-			translate=self.options['translateTimeline']
-		)
-		self.chrome.page_pdf(path_no_ext)
-
-	def get_timeline(self, account):
-		'Get timeline'
-		self.until_utc = datetime.strptime(self.options['untilTimeline'], '%Y-%m-%d')
+	def get_posts(self, account):
+		'Get posts'
+		self.until_utc = datetime.strptime(self.options['untilPosts], '%Y-%m-%d')
 		if account['type'] == 'profile':
 			self.logger.debug('Facebook: getting timeline: %s' % account['path'])
 			self.navigate(account['link'])
-			path_no_ext = self.storage.modpath(account['path'], 'timeline')
-			self.rm_profile_cover()
-			self.rm_pagelets()
-			self.rm_left()
-			self.rm_right()
-			self.until_utc = self.options['untilTimeline']
+			self.until_utc = self.options['untilPosts']
+			self.chrome.expand_page(	# scroll through timeline
+				terminator=self.stop_post_date,
+			)
+			for i in rfindall(' id="jumper_[^"]+', self.chrome.get_outer_html_by_id('timeline_story_column'))
+				try:
+					post = i.split(':')[2]
+				except:
+					continue
+				
+			
 			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
 				self.chrome.expand_page(
 					click_elements_by = clicks,
@@ -488,24 +496,24 @@ class Facebook:
 					limit=limit
 				)
 				
-					self.stop_utc = until
-		self.chrome.expand_page(
-			path_no_ext = path_no_ext,
-			click_elements_by = clicks,
-			per_page_action = action,
-			terminator=self.terminator,
-			limit=limit
-		)	
+				self.stop_utc = until
+			self.chrome.expand_page(
+				path_no_ext = path_no_ext,
+				click_elements_by = clicks,
+				per_page_action = action,
+				terminator=self.terminator,
+				limit=limit
+			)	
 				
 				
-					self.expand_page(	# go through timeline
-			path_no_ext=path_no_ext,
-			limit=self.options['limitTimeline'],
-			until=self.options['untilTimeline'],
-			expand=self.options['expandTimeline'],
-			translate=self.options['translateTimeline']
-		)
-		self.chrome.page_pdf(path_no_ext)
+			self.expand_page(	# go through timeline
+				path_no_ext=path_no_ext,
+				limit=self.options['limitTimeline'],
+				until=self.options['untilTimeline'],
+				expand=self.options['expandTimeline'],
+				translate=self.options['translateTimeline']
+			)
+			self.chrome.page_pdf(path_no_ext)
 			
 			
 			

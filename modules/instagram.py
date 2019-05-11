@@ -11,6 +11,14 @@ class Instagram:
 	'Downloader for Instagram'
 
 	DEFAULTPAGELIMIT = 20
+	OPTIONS = {
+		'name': 'Instagram',
+		'login': None,
+		'options': {
+			'Media': {'name': 'Download media files', 'default': False, 'row': 0, 'column': 0},
+			'limitPages': {'name': 'Max. Screenshots', 'default': DEFAULTPAGELIMIT, 'row': 1, 'column': 0}
+		}
+	}
 
 	def __init__(self, job, storage, chrome, stop=None):
 		'Generate object for Instagram'
