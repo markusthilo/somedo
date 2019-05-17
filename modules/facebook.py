@@ -24,13 +24,15 @@ class Facebook:
 		'login': ('Email', 'Password'),
 		'options': {
 			'Posts': {'name': 'Get Posts', 'default': False, 'row': 0, 'column': 0},
-			'untilPosts': {'name': 'Stop on date', 'default': ONEYEARAGO, 'row': 0, 'column': 1},
+			'extendPosts': {'name': 'Get Reactions and Comments', 'default': False, 'row': 0, 'column': 1},
+			'untilPosts': {'name': 'Stop on Date', 'default': ONEYEARAGO, 'row': 0, 'column': 2},
+			'limitPosts': {'name': 'Max. Number of Posts', 'default': DEFAULTPAGELIMIT, 'row': 0, 'column': 3},
 			'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
 			'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
 			'limitPhotos': {'name': 'Max. number of Photos', 'default': DEFAULTPAGELIMIT, 'row': 2, 'column': 1},
 			'Network': {'name': 'Network of Friends', 'default': False, 'row': 3, 'column': 0},
 			'depthNetwork': {'name': 'Depth of recursion', 'default': DEFAULTNETWORKDEPTH, 'row': 3,'column': 1},
-			'extendNetwork': {'name': 'incl. Timeline responses', 'default': False, 'row': 3, 'column': 2}
+			'extendNetwork': {'name': 'incl. Responses to Posts', 'default': False, 'row': 3, 'column': 2}
 		}
 	}
 
@@ -152,7 +154,7 @@ class Facebook:
 			if path == None:
 				return None
 			account['path'] = path[56:]
-		account['link'] = 'https://facebook.com/' + account['path']
+		account['link'] = 'https://www.facebook.com/' + account['path']
 		return account
 
 	def extract_seo_h1_tag(self):
@@ -246,6 +248,7 @@ class Facebook:
 	def rm_personal_pagelets(self):
 		'Remove elements with IDs pagelet_bluebar, ChatTabsPagelet and BuddylistPagelet'
 		self.chrome.rm_outer_html_by_id('pagelet_bluebar')
+		self.chrome.rm_outer_html_by_id('pagelet_ego_pane')
 		self.chrome.rm_outer_html_by_id('ChatTabsPagelet')
 		self.chrome.rm_outer_html_by_id('BuddylistPagelet')
 
@@ -257,6 +260,10 @@ class Facebook:
 		'Remove elements with IDs fbSuggestionsPlaceHolder and pagelet_escape_hatch'
 		self.chrome.rm_outer_html_by_id('fbSuggestionsPlaceHolder')
 		self.chrome.rm_outer_html_by_id('pagelet_escape_hatch')
+
+	def rm_small_column(self):
+		'Remove left of profile timeline'
+		self.chrome.rm_outer_html_by_id('timeline_small_column')
 
 	def rm_pagelets(self):
 		'Remove bluebar and other unwanted pagelets'
@@ -318,24 +325,15 @@ class Facebook:
 		html = self.chrome.get_inner_html_by_id('content_container')
 		self.chrome.rm_outer_html_by_regex_id('content_container', 'id="u_fetchstream_[^"]+', 4, 0)
 
-	def rm_m_top_of_timeline(self):
-		'Remove all above timeline in mobile version'
+	def rm_m_top_of_posts(self):
+		'Remove all above Posts in mobile version'
 		self.chrome.rm_outer_html_by_id('header')
 		self.chrome.rm_outer_html_by_id('m-timeline-cover-section')
 		self.chrome.rm_outer_html_by_id('timelineProfileTiles')
 
-	def stop_post_date(self):
-		'Check date of posts to abort'
-		if self.stop_utc <= 0:
-			return False
-		for i in self.chrome.get_outer_html('TagName', 'abbr'):
-			m = rsearch(' data-utime="[0-9]+" ', i)
-			try:
-				if datetime.strptime(m.group()[13:-2], '%Y-%m-%d') <= self.stop_utc:
-					return True
-			except:
-				pass
-		return False
+	def rm_forms(self):
+		'Remove form html elements'
+		self.chrome.rm_outer_html('TagName', 'FORM')
 
 	def click_timeline_translations(self):
 		'Find the See Translation buttons and click'
@@ -424,7 +422,7 @@ class Facebook:
 				pass
 			for j in range(10):	# try for 10 seconds ig login was succesful
 				self.sleep(1)
-				if self.chrome.get_inner_html_by_id('stories_pagelet_rhc') != None:
+				if self.chrome.get_inner_html_by_id('pagelet_sidebar') != None:
 					return
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
@@ -464,57 +462,128 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
+	def stop_post_date(self):
+		'Check date of posts to abort'
+		if self.stop_utc <= 0:
+			return False
+		for i in self.chrome.get_outer_html('TagName', 'abbr'):
+			m = rsearch(' data-utime="[0-9]+" ', i)
+			try:
+				if datetime.strptime(m.group()[13:-2], '%Y-%m-%d') <= self.stop_utc:
+					return True
+			except:
+				pass
+		return False
+
 	def get_posts(self, account):
-		'Get posts'
-		self.until_utc = datetime.strptime(self.options['untilPosts], '%Y-%m-%d')
+		'Get timeline'
+		visitors = []	# list to store links to other profiles
+		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
+		self.stop_utc = self.get_utc(self.options['untilPosts'])
+		self.logger.debug('Facebook: getting Posts: %s' % account['path'])
+		self.logger.debug('Facebook: stop at %d UTC, take %d screenshots max.' % (self.stop_utc, self.options['limitPosts']))
+		self.navigate('https://m.facebook.com/%s' % account['path'])
+		self.rm_m_top_of_posts()	# romve all above posts
 		if account['type'] == 'profile':
-			self.logger.debug('Facebook: getting timeline: %s' % account['path'])
-			self.navigate(account['link'])
-<<<<<<< HEAD
-			self.until_utc = self.options['untilPosts']
-			self.chrome.expand_page(	# scroll through timeline
-				terminator=self.stop_post_date,
-			)
-			for i in rfindall(' id="jumper_[^"]+', self.chrome.get_outer_html_by_id('timeline_story_column'))
-				try:
-					post = i.split(':')[2]
-				except:
+			path_no_ext = self.storage.modpath(account['path'], 'posts')
+		self.chrome.expand_page(
+			terminator = self.stop_post_date,
+			limit = self.options['limitPosts'],
+			path_no_ext = path_no_ext
+		)	# scroll through posts in mobile version
+		self.chrome.page_pdf(path_no_ext)
+		if account['type'] == 'profile' and self.options['extendPosts']:	# get reactions and comments
+			cnt = 1
+			for i in self.chrome.get_outer_html('TagName', 'article'):	# go post by post
+				if cnt > 99999:
+					break
+				href = self.ct.search(' href="/story.php\?[^"]+">', i)
+				if href == None:
 					continue
-				
-			
-			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
-				self.chrome.expand_page(
-					click_elements_by = clicks,
-					per_page_actions = [],
-					terminator=self.stop_post_date,
-					limit=limit
-				)
-				
-				self.stop_utc = until
-			self.chrome.expand_page(
-				path_no_ext = path_no_ext,
-				click_elements_by = clicks,
-				per_page_action = action,
-				terminator=self.terminator,
-				limit=limit
-			)	
-				
-				
-			self.expand_page(	# go through timeline
-				path_no_ext=path_no_ext,
-				limit=self.options['limitTimeline'],
-				until=self.options['untilTimeline'],
-				expand=self.options['expandTimeline'],
-				translate=self.options['translateTimeline']
-			)
-			self.chrome.page_pdf(path_no_ext)
-=======
-			path_no_ext = self.storage.modpath(account['path'], 'timeline')
-			self.rm_profile_cover()
-			self.rm_pagelets()
-			self.rm_left()
-			self.rm_right()
-			self.until_utc = self.options['untilTimeline']
+				self.navigate('https://m.facebook.com/%s' % self.ct.href(href))
+				self.rm_forms()	# do not show investigator account
+				path_no_ext = self.storage.modpath(account['path'], 'post_%05d' % cnt)
+				cnt += 1
+				self.chrome.expand_page(path_no_ext=path_no_ext, per_page_actions=[self.rm_forms])	# scroll through one post/story
+				self.rm_forms()
+				self.chrome.page_pdf(path_no_ext)
+				for j in self.chrome.get_outer_html('ClassNAme', '_2b00'):	# check all profiles on page
+					href = self.ct.search(' href="/[^"?/]+">', i)
+					if href == None:
+						continue
+					
+
+
+		return visitors
+
+#			for j in rfindall('<a class="[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" href="[^"]+"[^>]*>[^<]+</a>', i):	# get comment authors
+#				visitor = self.link2account(j)
+#				if not visitor['id'] in visitor_ids:	# uniq
+#					visitors.append(visitor)
+#					visitor_ids.add(visitor['id'])
+#			href = self.ct.search('href="/ufi/reaction/profile/browser/[^"]+', i)		# get reactions
+#			if href != None:
+#				if self.chrome.stop_check():
+#					return
+#				self.navigate('https://www.facebook.com' + href[6:])	# open reaction page
+#				self.chrome.expand_page(terminator=self.terminator)	# scroll through page
+#				self.rm_pagelets()	# remove bluebar etc.
+#				html = self.chrome.get_inner_html_by_id('content')	# get the necessary part of the page
+#				for j in rfindall(
+#					' href="https://www\.facebook\.com/[^"]+" data-hovercard="/ajax/hovercard/user\.php\?id=[^"]+" data-hovercard-prefer-more-content-show="1"[^<]+</a>',
+#					html
+#				):
+#					visitor = self.link2account(j)
+#					if visitor != None and not visitor['id'] in visitor_ids:	# uniq
+#						visitors.append(visitor)
+#						visitor_ids.add(visitor['id'])
+#		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], account['path'], 'visitors.csv')
+#		self.storage.write_json(visitors, account['path'], 'visitors.json')
+#		return { i['path'] for i in visitors }	# return visitors ids as set			
+#			
+#			
+#
+#
+#			for i in rfindall(' id="jumper_[^"]+', self.chrome.get_outer_html_by_id('timeline_story_column'))
+#				try:
+#					post = i.split(':')[2]
+#				except:
+#					continue
+#				
+#			
+#			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
+#				self.chrome.expand_page(
+#					click_elements_by = clicks,
+#					per_page_actions = [],
+#					terminator=self.stop_post_date,
+#					limit=limit
+#				)
+#				
+#				self.stop_utc = until
+#			self.chrome.expand_page(
+#				path_no_ext = path_no_ext,
+#				click_elements_by = clicks,
+#				per_page_action = action,
+#				terminator=self.terminator,
+#				limit=limit
+#			)	
+#				
+#				
+#			self.expand_page(	# go through timeline
+#				path_no_ext=path_no_ext,
+#				limit=self.options['limitTimeline'],
+#				until=self.options['untilTimeline'],
+#				expand=self.options['expandTimeline'],
+#				translate=self.options['translateTimeline']
+#			)
+#			self.chrome.page_pdf(path_no_ext)
+#
+#			path_no_ext = self.storage.modpath(account['path'], 'timeline')
+#			self.rm_profile_cover()
+#			self.rm_pagelets()
+#			self.rm_left()
+#			self.rm_right()
+#			self.until_utc = self.options['untilTimeline']
 #			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
 #				self.chrome.expand_page(
 #					click_elements_by = clicks,
@@ -540,14 +609,10 @@ class Facebook:
 #			expand=self.options['expandTimeline'],
 #			translate=self.options['translateTimeline']
 #		)
-#		self.chrome.page_pdf(path_no_ext)
->>>>>>> b518df13aadff6d961709ec594abcedc6e86525d
-			
-			
-			
-			
+#		self.chrome.page_pdf(path_no_ext)		
 #			self.expand_timeline(path_no_ext)	# go through timeline
-		elif account['type'] == 'groups':
+
+		if account['type'] == 'groups':
 			self.logger.debug('Facebook: getting activity: %s' % account['path'])
 			self.navigate(account['link'])
 			path_no_ext = self.storage.modpath(account['path'], 'activity')

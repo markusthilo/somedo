@@ -139,7 +139,7 @@ class Chrome:
 		'Click all elements by given type and selector'
 		return int(self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
-			for (var i=0;i<elements.length; i++) { elements[i].click() }
+			for (var i=0; i<elements.length; i++) { elements[i].click() }
 			JSON.stringify(elements.length);
 		''' % (element_type, selector)))
 
@@ -164,7 +164,7 @@ class Chrome:
 		return self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			var html = new Array();
-			for (var i=0;i<elements.length; i++) { html.push(elements[i].outerHTML) }
+			for (var i=0; i<elements.length; i++) { html.push(elements[i].outerHTML) }
 			JSON.stringify(html);
 		''' % (element_type, selector))
 
@@ -177,7 +177,7 @@ class Chrome:
 		return self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
 			var html = new Array();
-			for (var i=0;i<elements.length; i++) { html.push(elements[i].innerHTML) }
+			for (var i=0; i<elements.length; i++) { html.push(elements[i].innerHTML) }
 			JSON.stringify(html);
 		''' % (element_type, selector))
 
@@ -189,14 +189,14 @@ class Chrome:
 		'Remove outerHTML of all elements by given type and selector'
 		self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
-			for (var i=0;i<elements.length; i++) { elements[i].outerHTML = "" }
+			for (var i=0; i<elements.length; i++) { elements[i].outerHTML = "" }
 		''' % (element_type, selector))
 
 	def rm_inner_html(self, element_type, selector):
 		'Remove innerHTML of all elements by given type and selector'
 		self.runtime_eval('''
 			var elements = document.getElementsBy%s("%s");
-			for (var i=0;i<elements.length; i++) { elements[i].innerHTML = "" }
+			for (var i=0; i<elements.length; i++) { elements[i].innerHTML = "" }
 		''' % (element_type, selector))
 
 	def rm_outer_html_by_id(self, selector):
