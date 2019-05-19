@@ -497,7 +497,7 @@ class Facebook:
 			for i in self.chrome.get_outer_html('TagName', 'article'):	# go post by post
 				if cnt > 99999:
 					break
-				href = self.ct.search(' href="/story.php\?[^"]+">', i)
+				href = self.ct.search(' href="[^"]+"><abbr>', i)
 				if href == None:
 					continue
 				self.navigate('https://m.facebook.com/%s' % self.ct.href(href))
@@ -507,8 +507,9 @@ class Facebook:
 				self.chrome.expand_page(path_no_ext=path_no_ext, per_page_actions=[self.rm_forms])	# scroll through one post/story
 				self.rm_forms()
 				self.chrome.page_pdf(path_no_ext)
-				for j in self.chrome.get_outer_html('ClassNAme', '_2b00'):	# check all profiles on page
+				for j in self.chrome.get_outer_html('ClassName', '_2b00'):	# check all profiles on page
 					href = self.ct.search(' href="/[^"?/]+">', i)
+					print(href)
 					if href == None:
 						continue
 					
