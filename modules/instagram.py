@@ -73,7 +73,7 @@ class Instagram:
 		path_no_ext = self.storage.modpath(path, 'main')
 		self.chrome.expand_page(	# scroll through page and take screenshots
 			path_no_ext = path_no_ext,
-			per_page_action = self.get_links,
+			per_page_actions = [self.get_links],
 			limit = self.options['limitPages']
 		)
 		minfo = []	# list for media info

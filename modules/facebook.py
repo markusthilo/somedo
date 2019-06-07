@@ -23,10 +23,10 @@ class Facebook:
 		'name': 'Facebook',
 		'login': ('Email', 'Password'),
 		'options': {
-			'Posts': {'name': 'Get Posts', 'default': False, 'row': 0, 'column': 0},
-			'extendPosts': {'name': 'Get Reactions and Comments', 'default': False, 'row': 0, 'column': 1},
-			'untilPosts': {'name': 'Stop on Date', 'default': ONEYEARAGO, 'row': 0, 'column': 2},
-			'limitPosts': {'name': 'Max. Number of Posts', 'default': DEFAULTPAGELIMIT, 'row': 0, 'column': 3},
+			'Timeline': {'name': 'Get Timeline', 'default': False, 'row': 0, 'column': 0},
+			'extendTimeline': {'name': 'Get Reactions and Comments', 'default': False, 'row': 0, 'column': 1},
+			'untilTimeline': {'name': 'Stop on Date', 'default': ONEYEARAGO, 'row': 0, 'column': 2},
+			'limitTimeline': {'name': 'Max. number of Posts', 'default': DEFAULTPAGELIMIT, 'row': 0, 'column': 3},
 			'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
 			'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
 			'limitPhotos': {'name': 'Max. number of Photos', 'default': DEFAULTPAGELIMIT, 'row': 2, 'column': 1},
@@ -58,12 +58,12 @@ class Facebook:
 		if self.options['Network'] and self.options['extendNetwork']:
 			check4tasks = ('About', 'Photos')
 		else:
-			check4tasks = ('About', 'Photos', 'Posts')
+			check4tasks = ('About', 'Photos', 'Timeline')
 		for i in targets:	# one target after the other
 			if self.stop_check():
 				break
 			self.logger.debug('Facebook: now working on target: %s' % i)
-			if self.options['Network']:	# if networrk option has been proceeded already
+			if self.options['Network']:	# if network option has been proceeded already
 				account = accounts[i]	# the profiles have already been fetched
 			else:
 				if self.logger.level <= DEBUG:	# fragile on debug or lower logging level
@@ -280,6 +280,10 @@ class Facebook:
 		'Remove header area of groups'
 		self.chrome.rm_outer_html_by_id('headerArea')
 
+	def rm_header(self):
+		'Remove header'
+		self.chrome.rm_outer_html_by_id('header')
+
 	def rm_left(self):
 		'Remove Intro, Photos, Friends etc. on the left'
 		self.chrome.rm_outer_html('ClassName', '_1vc-')
@@ -455,43 +459,51 @@ class Facebook:
 			self.rm_write_comment()
 		elif account['type'] == 'groups':
 			pass
-		
 		path_no_ext = self.storage.modpath(account['path'], 'account')	# generate a file path for screenshot and pdf
 		self.chrome.visible_page_png(path_no_ext)	# save the visible part of the page as png
 		self.chrome.page_pdf(path_no_ext)	# and as pdf (when headless)
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def stop_post_date(self):
-		'Check date of posts to abort'
-		if self.stop_utc <= 0:
-			return False
-		for i in self.chrome.get_outer_html('TagName', 'abbr'):
-			m = rsearch(' data-utime="[0-9]+" ', i)
-			try:
-				if datetime.strptime(m.group()[13:-2], '%Y-%m-%d') <= self.stop_utc:
-					return True
-			except:
-				pass
-		return False
+	def timeline_per_page_action(self):
+		'Execute this on each visible page of the timeline'
+		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % account['id'])
+		for i in refindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html)
+			if self.stop_utc > 0 and self.stop_utc < int(self.ct.search('[0-9]+$', i)):
+				return True
+			post_id = self.ct.search('jumper_[0-9]+', i)
+			if not post_id in self.post_ids:
+				self.post_ids.append(post_id)
+			if self.stop_posts == len(self.post_ids):
+				return True
+		return False				
 
-	def get_posts(self, account):
+	def get_timeline(self, account):
 		'Get timeline'
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
-		self.stop_utc = self.get_utc(self.options['untilPosts'])
-		self.logger.debug('Facebook: getting Posts: %s' % account['path'])
-		self.logger.debug('Facebook: stop at %d UTC, take %d screenshots max.' % (self.stop_utc, self.options['limitPosts']))
-		self.navigate('https://m.facebook.com/%s' % account['path'])
-		self.rm_m_top_of_posts()	# romve all above posts
+		self.stop_utc = self.get_utc(self.options['untilTimeline'])
+		self.post_ids = []	# list to store post ids
+		self.stop_posts = self.options['limitTimeline']
+		self.logger.debug('Facebook: getting Timeline: %s' % account['path'])
+		self.logger.debug('Facebook: stop at %d UTC, take %d screenshots max.' % (self.stop_utc, self.options['limitTimeline']))
+		self.
 		if account['type'] == 'profile':
-			path_no_ext = self.storage.modpath(account['path'], 'posts')
-		self.chrome.expand_page(
-			terminator = self.stop_post_date,
-			limit = self.options['limitPosts'],
-			path_no_ext = path_no_ext
-		)	# scroll through posts in mobile version
-		self.chrome.page_pdf(path_no_ext)
+			path_no_ext = self.storage.modpath(account['path'], 'timeline')
+			self.rm_personal_pagelets()	# do not show investigator account
+			self.rm_small_column()
+			self.navigate(account['link']))
+			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_actions = [self.timeline_per_page_action])
+			for i in self.post_ids:
+				self.navigate('https://www.facebook.com%s' % i)	# go to post/story in desktop version
+				self.rm_personal_pagelets()	# do not show investigator account
+				timestr = datetime.utcfromtimestamp(utime).strftime('%Y-%m-%d_%H_%M_%S')	# readable utc time
+				self.chrome.expand_page()
+				path_no_ext = self.storage.modpath(account['path'], 'timeline_post_%s' % timestr)
+				self.chrome.entire_page_png(path_no_ext)
+				self.chrome.page_pdf(path_no_ext)
+			
+
 		if account['type'] == 'profile' and self.options['extendPosts']:	# get reactions and comments
 			cnt = 1
 			for i in self.chrome.get_outer_html('TagName', 'article'):	# go post by post
