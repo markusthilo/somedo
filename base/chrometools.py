@@ -374,13 +374,14 @@ class Chrome:
 
 	def execute_per_page(self, actions):
 		'Execute this on each visible page'
-		if actions != None or actions != []:
-			for i in actions:
-				if i():
-					return True
+		if actions != None:
+			return False
+		for i in actions:
+			if i():
+				return True
 		return False
 
-	def expand_page(self, path_no_ext='', per_page_actions=[], limit=DEFAULT_PAGE_LIMIT):
+	def expand_page(self, path_no_ext=None, per_page_actions=None, limit=DEFAULT_PAGE_LIMIT):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.wait_expand_end()	# do not start while page is still expanding
 		scroll_height = self.get_scroll_height()
@@ -410,7 +411,7 @@ class Chrome:
 				new_height = self.wait_expand_end()
 				if new_height <= old_height and y_bottom >= new_height:	# check again
 					break	# exit
-			if path_no_ext != '':
+			if path_no_ext != None and path_no_ext != '':
 				self.set_position(old_y)	# go back to old y in case expanding changed the position
 				self.visible_page_png('%s_%05d' % (path_no_ext, cnt)) # store screenshot
 			old_y = new_y

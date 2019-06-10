@@ -467,8 +467,8 @@ class Facebook:
 
 	def timeline_per_page_action(self):
 		'Execute this on each visible page of the timeline'
-		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % account['id'])
-		for i in refindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html)
+		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
+		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
 			if self.stop_utc > 0 and self.stop_utc < int(self.ct.search('[0-9]+$', i)):
 				return True
 			post_id = self.ct.search('jumper_[0-9]+', i)
@@ -487,43 +487,44 @@ class Facebook:
 		self.stop_posts = self.options['limitTimeline']
 		self.logger.debug('Facebook: getting Timeline: %s' % account['path'])
 		self.logger.debug('Facebook: stop at %d UTC, take %d screenshots max.' % (self.stop_utc, self.options['limitTimeline']))
-		self.
+
 		if account['type'] == 'profile':
 			path_no_ext = self.storage.modpath(account['path'], 'timeline')
 			self.rm_personal_pagelets()	# do not show investigator account
 			self.rm_small_column()
-			self.navigate(account['link']))
+			self.navigate(account['link'])
+			self.fid = account['id']
 			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_actions = [self.timeline_per_page_action])
-			for i in self.post_ids:
-				self.navigate('https://www.facebook.com%s' % i)	# go to post/story in desktop version
-				self.rm_personal_pagelets()	# do not show investigator account
-				timestr = datetime.utcfromtimestamp(utime).strftime('%Y-%m-%d_%H_%M_%S')	# readable utc time
-				self.chrome.expand_page()
-				path_no_ext = self.storage.modpath(account['path'], 'timeline_post_%s' % timestr)
-				self.chrome.entire_page_png(path_no_ext)
-				self.chrome.page_pdf(path_no_ext)
+#			for i in self.post_ids:
+#				self.navigate('https://www.facebook.com%s' % i)	# go to post/story in desktop version
+#				self.rm_personal_pagelets()	# do not show investigator account
+#				timestr = datetime.utcfromtimestamp(utime).strftime('%Y-%m-%d_%H_%M_%S')	# readable utc time
+#				self.chrome.expand_page()
+#				path_no_ext = self.storage.modpath(account['path'], 'timeline_post_%s' % timestr)
+#				self.chrome.entire_page_png(path_no_ext)
+#				self.chrome.page_pdf(path_no_ext)
 			
 
-		if account['type'] == 'profile' and self.options['extendPosts']:	# get reactions and comments
-			cnt = 1
-			for i in self.chrome.get_outer_html('TagName', 'article'):	# go post by post
-				if cnt > 99999:
-					break
-				href = self.ct.search(' href="[^"]+"><abbr>', i)
-				if href == None:
-					continue
-				self.navigate('https://m.facebook.com/%s' % self.ct.href(href))
-				self.rm_forms()	# do not show investigator account
-				path_no_ext = self.storage.modpath(account['path'], 'post_%05d' % cnt)
-				cnt += 1
-				self.chrome.expand_page(path_no_ext=path_no_ext, per_page_actions=[self.rm_forms])	# scroll through one post/story
-				self.rm_forms()
-				self.chrome.page_pdf(path_no_ext)
-				for j in self.chrome.get_outer_html('ClassName', '_2b00'):	# check all profiles on page
-					href = self.ct.search(' href="/[^"?/]+">', i)
-					print(href)
-					if href == None:
-						continue
+#		if account['type'] == 'profile' and self.options['extendPosts']:	# get reactions and comments
+#			cnt = 1
+#			for i in self.chrome.get_outer_html('TagName', 'article'):	# go post by post
+#				if cnt > 99999:
+#					break
+#				href = self.ct.search(' href="[^"]+"><abbr>', i)
+#				if href == None:
+#					continue
+#				self.navigate('https://m.facebook.com/%s' % self.ct.href(href))
+#				self.rm_forms()	# do not show investigator account
+#				path_no_ext = self.storage.modpath(account['path'], 'post_%05d' % cnt)
+#				cnt += 1
+#				self.chrome.expand_page(path_no_ext=path_no_ext, per_page_actions=[self.rm_forms])	# scroll through one post/story
+#				self.rm_forms()
+#				self.chrome.page_pdf(path_no_ext)
+#				for j in self.chrome.get_outer_html('ClassName', '_2b00'):	# check all profiles on page
+#					href = self.ct.search(' href="/[^"?/]+">', i)
+#					print(href)
+#					if href == None:
+#						continue
 					
 
 
