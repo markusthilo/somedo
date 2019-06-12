@@ -372,16 +372,7 @@ class Chrome:
 				if cnt == 100000:	# 99999 screenshots max
 					return
 
-	def execute_per_page(self, actions):
-		'Execute this on each visible page'
-		if actions != None:
-			return False
-		for i in actions:
-			if i():
-				return True
-		return False
-
-	def expand_page(self, path_no_ext=None, per_page_actions=None, limit=DEFAULT_PAGE_LIMIT):
+	def expand_page(self, path_no_ext=None, per_page_action=None, limit=DEFAULT_PAGE_LIMIT):
 		'Expand page by scrolling and optional clicking. If path is given, screenshots are taken on the way.'
 		self.wait_expand_end()	# do not start while page is still expanding
 		scroll_height = self.get_scroll_height()
@@ -396,7 +387,7 @@ class Chrome:
 				break
 			cnt += 1
 			self.set_position(old_y)
-			if self.execute_per_page(per_page_actions):	# execute per page actions
+			if per_page_action != None and per_page_action():	# execute per page actions
 				break
 			self.wait_expand_end()
 			if cnt == limit:

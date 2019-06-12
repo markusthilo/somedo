@@ -92,7 +92,7 @@ class CLI:
 		if self.chrome_set:
 			self.__2margs__()
 		try:
-			self.chrome.path = self.args.pop(0)
+			self.worker.chrome.path = self.args.pop(0)
 		except:
 			self.__wmarg__('--chrome or -c')
 		self.chrome_set = True
@@ -102,7 +102,7 @@ class CLI:
 		if self.outdir_set:
 			self.__2margs__()
 		try:
-			self.storage.outdir = self.args.pop(0)
+			self.worker.storage.outdir = self.args.pop(0)
 		except:
 			self.__wmarg__('--dir / -d')
 		self.outdir_set = True

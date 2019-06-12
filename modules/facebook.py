@@ -468,8 +468,11 @@ class Facebook:
 	def timeline_per_page_action(self):
 		'Execute this on each visible page of the timeline'
 		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
+		print(html)
 		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
-			if self.stop_utc > 0 and self.stop_utc < int(self.ct.search('[0-9]+$', i)):
+			post_time = int(self.ct.search('[0-9]+$', i))
+			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
+			if self.stop_utc > 0 and self.stop_utc < post_time:
 				return True
 			post_id = self.ct.search('jumper_[0-9]+', i)
 			if not post_id in self.post_ids:
@@ -490,11 +493,12 @@ class Facebook:
 
 		if account['type'] == 'profile':
 			path_no_ext = self.storage.modpath(account['path'], 'timeline')
+			self.navigate(account['link'])
 			self.rm_personal_pagelets()	# do not show investigator account
 			self.rm_small_column()
-			self.navigate(account['link'])
+
 			self.fid = account['id']
-			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_actions = [self.timeline_per_page_action])
+			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_action = self.timeline_per_page_action)
 #			for i in self.post_ids:
 #				self.navigate('https://www.facebook.com%s' % i)	# go to post/story in desktop version
 #				self.rm_personal_pagelets()	# do not show investigator account
