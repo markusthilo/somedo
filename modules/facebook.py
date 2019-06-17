@@ -468,13 +468,12 @@ class Facebook:
 	def timeline_per_page_action(self):
 		'Execute this on each visible page of the timeline'
 		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
-		print(html)
 		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
 			post_time = int(self.ct.search('[0-9]+$', i))
 			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
-			if self.stop_utc > 0 and self.stop_utc < post_time:
+			if self.stop_utc > 0 and self.stop_utc > post_time:
 				return True
-			post_id = self.ct.search('jumper_[0-9]+', i)
+			post_id = self.ct.search('jumper_[0-9]+', i)[7:]
 			if not post_id in self.post_ids:
 				self.post_ids.append(post_id)
 			if self.stop_posts == len(self.post_ids):
@@ -499,6 +498,7 @@ class Facebook:
 
 			self.fid = account['id']
 			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_action = self.timeline_per_page_action)
+			print(self.post_ids)
 #			for i in self.post_ids:
 #				self.navigate('https://www.facebook.com%s' % i)	# go to post/story in desktop version
 #				self.rm_personal_pagelets()	# do not show investigator account
