@@ -465,9 +465,25 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def timeline_per_page_action(self):
-		'Execute this on each visible page of the timeline'
-		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
+#	def timeline_per_page_action(self):
+#		'Execute this on each visible page of the timeline'
+#		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
+#		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
+#			post_time = int(self.ct.search('[0-9]+$', i))
+#			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
+#			if self.stop_utc > 0 and self.stop_utc > post_time:
+#				return True
+#			post_id = self.ct.search('jumper_[0-9]+', i)[7:]
+#			if not post_id in self.post_ids:
+#				self.post_ids.append(post_id)
+#			if self.stop_posts == len(self.post_ids):
+#				return True
+#		return False				
+
+	def get_timeline_stream(self, account, start_utc):
+		'Get a list of posts/stories from mobile timeline'
+		self.navigate('https://m.facebook.com/profile/timeline/stream/?end_time=%d&profile_id=%s' % (start_utc, account['id']')
+		html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
 		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
 			post_time = int(self.ct.search('[0-9]+$', i))
 			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
@@ -478,7 +494,7 @@ class Facebook:
 				self.post_ids.append(post_id)
 			if self.stop_posts == len(self.post_ids):
 				return True
-		return False				
+		return False
 
 	def get_timeline(self, account):
 		'Get timeline'
@@ -491,14 +507,18 @@ class Facebook:
 		self.logger.debug('Facebook: stop at %d UTC, take %d screenshots max.' % (self.stop_utc, self.options['limitTimeline']))
 
 		if account['type'] == 'profile':
-			path_no_ext = self.storage.modpath(account['path'], 'timeline')
-			self.navigate(account['link'])
-			self.rm_personal_pagelets()	# do not show investigator account
-			self.rm_small_column()
-
-			self.fid = account['id']
-			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_action = self.timeline_per_page_action)
-			print(self.post_ids)
+			self.navigate('https://m.facebook.com/%s?v=timeline' % account['path'])
+			self.chrome.expand_page()
+			html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
+			
+			
+#			path_no_ext = self.storage.modpath(account['path'], 'timeline')
+#			self.navigate(account['link'])
+#			self.rm_personal_pagelets()	# do not show investigator account
+#			self.rm_small_column()
+#			self.fid = account['id']
+#			self.chrome.expand_page(path_no_ext = path_no_ext, per_page_action = self.timeline_per_page_action)
+#			print(self.post_ids)
 #			for i in self.post_ids:
 #				self.navigate('https://www.facebook.com%s' % i)	# go to post/story in desktop version
 #				self.rm_personal_pagelets()	# do not show investigator account
