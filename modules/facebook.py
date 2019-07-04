@@ -24,9 +24,8 @@ class Facebook:
 		'login': ('Email', 'Password'),
 		'options': {
 			'Timeline': {'name': 'Get Timeline', 'default': False, 'row': 0, 'column': 0},
-			'extendTimeline': {'name': 'Get Reactions and Comments', 'default': False, 'row': 0, 'column': 1},
-			'untilTimeline': {'name': 'Stop on Date', 'default': ONEYEARAGO, 'row': 0, 'column': 2},
-			'limitTimeline': {'name': 'Max. number of Posts', 'default': DEFAULTPAGELIMIT, 'row': 0, 'column': 3},
+			'postsTimeline': {'name': 'Get Posts', 'default': False, 'row': 0, 'column': 1},
+			'limitTimeline': {'name': 'Max. number of Posts', 'default': DEFAULTPAGELIMIT, 'row': 0, 'column': 2},
 			'About': {'name': 'Get About', 'default': False, 'row': 1, 'column': 0},
 			'Photos': {'name': 'Get Photos', 'default': False, 'row': 2, 'column': 0},
 			'limitPhotos': {'name': 'Max. number of Photos', 'default': DEFAULTPAGELIMIT, 'row': 2, 'column': 1},
@@ -465,25 +464,9 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-#	def timeline_per_page_action(self):
-#		'Execute this on each visible page of the timeline'
-#		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
-#		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
-#			post_time = int(self.ct.search('[0-9]+$', i))
-#			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
-#			if self.stop_utc > 0 and self.stop_utc > post_time:
-#				return True
-#			post_id = self.ct.search('jumper_[0-9]+', i)[7:]
-#			if not post_id in self.post_ids:
-#				self.post_ids.append(post_id)
-#			if self.stop_posts == len(self.post_ids):
-#				return True
-#		return False				
-
-	def get_timeline_stream(self, account, start_utc):
-		'Get a list of posts/stories from mobile timeline'
-		self.navigate('https://m.facebook.com/profile/timeline/stream/?end_time=%d&profile_id=%s' % (start_utc, account['id']')
-		html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
+	def timeline_per_page_action(self):
+		'Execute this on each visible page of the timeline'
+		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
 		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
 			post_time = int(self.ct.search('[0-9]+$', i))
 			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
@@ -494,23 +477,31 @@ class Facebook:
 				self.post_ids.append(post_id)
 			if self.stop_posts == len(self.post_ids):
 				return True
-		return False
+		return False				
 
 	def get_timeline(self, account):
 		'Get timeline'
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
-		self.stop_utc = self.get_utc(self.options['untilTimeline'])
-		self.post_ids = []	# list to store post ids
-		self.stop_posts = self.options['limitTimeline']
 		self.logger.debug('Facebook: getting Timeline: %s' % account['path'])
-		self.logger.debug('Facebook: stop at %d UTC, take %d screenshots max.' % (self.stop_utc, self.options['limitTimeline']))
-
+		self.logger.debug('Facebook: %d posts max.' % self.options['limitTimeline'])
 		if account['type'] == 'profile':
-			self.navigate('https://m.facebook.com/%s?v=timeline' % account['path'])
-			self.chrome.expand_page()
-			html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
-			
+			path_no_ext = self.storage.modpath(account['path'], 'account')
+			self.navigate('https://m.facebook.com/%s' % account['path'])
+			self.rm_m_top_of_posts()
+			self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.options['limitTimeline'])
+			self.chrome.page_pdf(path_no_ext)
+			if self.options['postsTimeline']:
+				html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
+				if html != None:
+
+					for i in rfindall('<article class="[^"]+" data-store="[^"]+"', html):
+						key = self.ct.search('mf_story_key\.[0-9]+', i)
+						if key == None:
+							continue
+						url = 'https://m.facebook.com/story.php?story_fbid=%s&id=%s' % (key[13:], account['id'])
+						self.logger.debug('Facebook: URL: %s' % url)
+						self.navigate(url)
 			
 #			path_no_ext = self.storage.modpath(account['path'], 'timeline')
 #			self.navigate(account['link'])
