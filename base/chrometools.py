@@ -407,7 +407,7 @@ class Chrome:
 				self.visible_page_png('%s_%05d' % (path_no_ext, cnt)) # store screenshot
 			old_y = new_y
 			old_height = new_height
-		if path_no_ext != '':
+		if path_no_ext != None and path_no_ext != '':
 			if cnt > 1:
 				path_no_ext += '_%05d' % cnt
 			self.visible_page_png(path_no_ext) # store screenshot

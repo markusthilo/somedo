@@ -334,9 +334,9 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('m-timeline-cover-section')
 		self.chrome.rm_outer_html_by_id('timelineProfileTiles')
 
-	def rm_forms(self):
-		'Remove form html elements'
-		self.chrome.rm_outer_html('TagName', 'FORM')
+	def rm_m_composer(self, pid):
+		'Remove composer'
+		self.chrome.rm_outer_html_by_id('composer-%s' % pid)
 
 	def click_timeline_translations(self):
 		'Find the See Translation buttons and click'
@@ -464,45 +464,47 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
-	def timeline_per_page_action(self):
-		'Execute this on each visible page of the timeline'
-		html = self.chrome.get_inner_html_by_id('timeline_story_container_%s' % self.fid)
-		for i in rfindall('id="jumper_[0-9]+_[^"]+" data-store="{&quot;timestamp&quot;:[0-9]+', html):
-			post_time = int(self.ct.search('[0-9]+$', i))
-			self.logger.debug('Facebook: Timeline: found timestamp %d' % post_time)
-			if self.stop_utc > 0 and self.stop_utc > post_time:
-				return True
-			post_id = self.ct.search('jumper_[0-9]+', i)[7:]
-			if not post_id in self.post_ids:
-				self.post_ids.append(post_id)
-			if self.stop_posts == len(self.post_ids):
-				return True
-		return False				
+	def get_timeline_posts(self, account):
+		'Get post after post from timeline'
+		html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
+		if html != None:
+			cnt = 1
+			for i in rfindall('<article class="[^"]+" data-store="[^"]+"', html):
+				key = self.ct.search('mf_story_key\.[0-9]+', i)
+				if key == None:
+					continue
+				pid = key[13:]
+				url = 'https://m.facebook.com/story.php?story_fbid=%s&id=%s' % (pid, account['id'])
+				path_no_ext = self.storage.modpath(account['path'], 'post_%05d_pid_%s' % (cnt, pid))
+				cnt += 1
+				self.logger.debug('Facebook: Writing %s to files %s.*' % (url, path_no_ext))
+				self.navigate(url)
+				self.chrome.expand_page()
+				self.rm_m_composer(pid)
+				self.chrome.entire_page_png(path_no_ext)
+				self.chrome.page_pdf(path_no_ext)
+				if self.options['extendNetwirk']:
+					html = self.chrome.get_inner_html_by_id('ufi_%s' % pid)
+						
 
 	def get_timeline(self, account):
 		'Get timeline'
 		visitors = []	# list to store links to other profiles
 		visitor_ids = {account['id']}	# create set to store facebook ids of visitors to get uniq visitors
 		self.logger.debug('Facebook: getting Timeline: %s' % account['path'])
-		self.logger.debug('Facebook: %d posts max.' % self.options['limitTimeline'])
+		self.logger.debug('Facebook: %d page(s) max.' % self.options['limitTimeline'])
 		if account['type'] == 'profile':
-			path_no_ext = self.storage.modpath(account['path'], 'account')
+			path_no_ext = self.storage.modpath(account['path'], 'timeline')
 			self.navigate('https://m.facebook.com/%s' % account['path'])
 			self.rm_m_top_of_posts()
 			self.chrome.expand_page(path_no_ext=path_no_ext, limit=self.options['limitTimeline'])
 			self.chrome.page_pdf(path_no_ext)
 			if self.options['postsTimeline']:
-				html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
-				if html != None:
+				self.get_timeline_posts(account)
 
-					for i in rfindall('<article class="[^"]+" data-store="[^"]+"', html):
-						key = self.ct.search('mf_story_key\.[0-9]+', i)
-						if key == None:
-							continue
-						url = 'https://m.facebook.com/story.php?story_fbid=%s&id=%s' % (key[13:], account['id'])
-						self.logger.debug('Facebook: URL: %s' % url)
-						self.navigate(url)
-			
+
+
+
 #			path_no_ext = self.storage.modpath(account['path'], 'timeline')
 #			self.navigate(account['link'])
 #			self.rm_personal_pagelets()	# do not show investigator account
