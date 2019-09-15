@@ -387,8 +387,11 @@ class Chrome:
 				break
 			cnt += 1
 			self.set_position(old_y)
-			if per_page_action != None and per_page_action():	# execute per page actions
-				break
+			if per_page_action != None:	# execute per page action
+				try:
+					exec(per_page_action)
+				except:
+					self.logger.debug('Chrometools: expand_page: per page action returned exception!')
 			self.wait_expand_end()
 			if cnt == limit:
 				self.set_position(old_y)

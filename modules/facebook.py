@@ -96,7 +96,7 @@ class Facebook:
 			if self.logger.level < DEBUG:
 				self.logger.trace('Facebook: now sleeping for 5 seconds before closing Chrome/Chromium')
 				sleep(5)
-			self.chrome.close()		
+			self.chrome.close()
 		self.logger.debug('Facebook: done!')
 
 	def sleep(self, t):
@@ -201,7 +201,7 @@ class Facebook:
 			account = self.extract_seo_h1_tag()	# try to get account info from facebook pages or groups
 		if account == None:
 			return {
-				'type': 'undetected', 
+				'type': 'undetected',
 				'id': 'undetected',
 				'name': 'undetected',
 				'path': path.replace('/', '_'),
@@ -334,10 +334,6 @@ class Facebook:
 		self.chrome.rm_outer_html_by_id('m-timeline-cover-section')
 		self.chrome.rm_outer_html_by_id('timelineProfileTiles')
 
-	def rm_m_composer(self, pid):
-		'Remove composer'
-		self.chrome.rm_outer_html_by_id('composer-%s' % pid)
-
 	def click_timeline_translations(self):
 		'Find the See Translation buttons and click'
 		for i in range(5):	# try 5 times to
@@ -349,7 +345,7 @@ class Facebook:
 			if html == None:
 				return
 			self.chrome.click_elements('ClassName', 'UFITranslateLink')
-		
+
 		for i in rfindall('<span id="translationSpinnerPlaceholder_[^"]+"', html):
 			self.chrome.click_element_by_id(i[10:-1])
 
@@ -423,9 +419,9 @@ class Facebook:
 				self.chrome.click_element_by_id('loginbutton')	# click login
 			except:
 				pass
-			for j in range(10):	# try for 10 seconds ig login was succesful
+			for j in range(10):	# try for 10 seconds if login was succesful
 				self.sleep(1)
-				if self.chrome.get_inner_html_by_id('pagelet_sidebar') != None:
+				if self.chrome.get_inner_html_by_id('userNav') != None:
 					return
 		self.chrome.visible_page_png(self.storage.modpath('login'))
 		raise Exception('Could not login to Facebook.')
@@ -437,7 +433,11 @@ class Facebook:
 			self.login()
 		self.logger.debug('Facebook: navigate to: %s' % url)
 		self.chrome.navigate(url)	# go to page
-		self.sleep(1)
+		for i in range(60):	# try for 1 minute if facebook main container is loaded
+			self.sleep(1)
+			if self.chrome.get_inner_html_by_id('mainContainer') != None or self.chrome.get_inner_html_by_id('rootcontainer') != None:
+				return False
+		return True
 
 	def get_landing(self, path):
 		'Get screenshot from start page about given user (id or path)'
@@ -464,6 +464,10 @@ class Facebook:
 		self.account2html(account)
 		return account	# give back the targeted account
 
+	def rm_composer_code(self, pid):
+		'Create code to remove composer'
+		return 'self.rm_outer_html_by_id("composer-%s")' % pid
+
 	def get_timeline_posts(self, account):
 		'Get post after post from timeline'
 		html = self.chrome.get_inner_html_by_id('structured_composer_async_container')
@@ -479,13 +483,20 @@ class Facebook:
 				cnt += 1
 				self.logger.debug('Facebook: Writing %s to files %s.*' % (url, path_no_ext))
 				self.navigate(url)
-				self.chrome.expand_page()
-				self.rm_m_composer(pid)
-				self.chrome.entire_page_png(path_no_ext)
+#				self.chrome.expand_page()
+#				self.rm_m_composer(pid)
+#				self.chrome.entire_page_png(path_no_ext)
+
+				self.chrome.expand_page(
+					path_no_ext=path_no_ext,
+					limit=self.options['limitTimeline'],
+					per_page_action=self.rm_composer_code(pid)
+				)
+
 				self.chrome.page_pdf(path_no_ext)
-				if self.options['extendNetwirk']:
+				if self.options['extendNetwork']:
 					html = self.chrome.get_inner_html_by_id('ufi_%s' % pid)
-						
+
 
 	def get_timeline(self, account):
 		'Get timeline'
@@ -520,7 +531,7 @@ class Facebook:
 #				path_no_ext = self.storage.modpath(account['path'], 'timeline_post_%s' % timestr)
 #				self.chrome.entire_page_png(path_no_ext)
 #				self.chrome.page_pdf(path_no_ext)
-			
+
 
 #		if account['type'] == 'profile' and self.options['extendPosts']:	# get reactions and comments
 #			cnt = 1
@@ -542,7 +553,7 @@ class Facebook:
 #					print(href)
 #					if href == None:
 #						continue
-					
+
 
 
 		return visitors
@@ -570,9 +581,9 @@ class Facebook:
 #						visitor_ids.add(visitor['id'])
 #		self.storage.write_2d([ [ i[j] for j in self.ACCOUNT ] for i in visitors ], account['path'], 'visitors.csv')
 #		self.storage.write_json(visitors, account['path'], 'visitors.json')
-#		return { i['path'] for i in visitors }	# return visitors ids as set			
-#			
-#			
+#		return { i['path'] for i in visitors }	# return visitors ids as set
+#
+#
 #
 #
 #			for i in rfindall(' id="jumper_[^"]+', self.chrome.get_outer_html_by_id('timeline_story_column'))
@@ -580,8 +591,8 @@ class Facebook:
 #					post = i.split(':')[2]
 #				except:
 #					continue
-#				
-#			
+#
+#
 #			if self.options['expandTimeline'] or self.options['translateTimeline']:	# 1. scroll, 2. expand/translate
 #				self.chrome.expand_page(
 #					click_elements_by = clicks,
@@ -589,7 +600,7 @@ class Facebook:
 #					terminator=self.stop_post_date,
 #					limit=limit
 #				)
-#				
+#
 #				self.stop_utc = until
 #			self.chrome.expand_page(
 #				path_no_ext = path_no_ext,
@@ -597,9 +608,9 @@ class Facebook:
 #				per_page_action = action,
 #				terminator=self.terminator,
 #				limit=limit
-#			)	
-#				
-#				
+#			)
+#
+#
 #			self.expand_page(	# go through timeline
 #				path_no_ext=path_no_ext,
 #				limit=self.options['limitTimeline'],
@@ -622,7 +633,7 @@ class Facebook:
 #					terminator=self.stop_post_date,
 #					limit=limit
 #				)
-#				
+#
 #					self.stop_utc = until
 #		self.chrome.expand_page(
 #			path_no_ext = path_no_ext,
@@ -630,9 +641,9 @@ class Facebook:
 #			per_page_action = action,
 #			terminator=self.terminator,
 #			limit=limit
-#		)	
-#				
-#				
+#		)
+#
+#
 #					self.expand_page(	# go through timeline
 #			path_no_ext=path_no_ext,
 #			limit=self.options['limitTimeline'],
@@ -640,7 +651,7 @@ class Facebook:
 #			expand=self.options['expandTimeline'],
 #			translate=self.options['translateTimeline']
 #		)
-#		self.chrome.page_pdf(path_no_ext)		
+#		self.chrome.page_pdf(path_no_ext)
 #			self.expand_timeline(path_no_ext)	# go through timeline
 
 		if account['type'] == 'groups':
@@ -887,7 +898,7 @@ class Facebook:
 		return friends | visitors
 
 	def get_network(self, targets):
-		'Get friends and friends of friends and so on to given depth or abort if limit is reached'	
+		'Get friends and friends of friends and so on to given depth or abort if limit is reached'
 		if self.options['extendNetwork']:	# on extendNetwork no extra timeline visit is needed
 			self.options['Timeline'] = False
 		accounts = {}	# set of the targeted accounts as return value for further action
