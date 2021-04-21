@@ -1,3 +1,5 @@
+--- This project is depreciated as fb made major changes ---
+
 Somedo Version 0.6.1 Alpha 2019-02-03
 
 
